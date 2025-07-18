@@ -27,32 +27,6 @@
 
 ---
 
-## 🧩 Features
-
-### 🔐 Role-Based Authentication
-
-- Secure session-based login system
-- Three access roles:
-  - ✅ Admin
-  - ✅ Student
-  - ✅ Faculty
-
-### 📚 Admin Functionalities
-
-- Add, remove, and manage books
-- View all registered users
-- Live inventory tracking
-- Monitor system activity from dashboard
-
-### 🎓 Student / Faculty Functionalities
-
-- Smart search for books
-- Real-time borrow/return system
-- Fine calculation and payment
-- Profile overview with due books and fines
-
----
-
 ## 🛠️ How to Setup and Run
 
 ### 1. Install and Set Up XAMPP
@@ -100,6 +74,32 @@ http://localhost/Integrated-Library-System/
 
  🎉 There you go — your library system is live locally!
 
+
+---
+
+## 🧩 Features
+
+### 🔐 Role-Based Authentication
+
+- Secure session-based login system
+- Three access roles:
+  - ✅ Admin
+  - ✅ Student
+  - ✅ Faculty
+
+### 📚 Admin Functionalities
+
+- Add, remove, and manage books
+- View all registered users
+- Live inventory tracking
+- Monitor system activity from dashboard
+
+### 🎓 Student / Faculty Functionalities
+
+- Smart search for books
+- Real-time borrow/return system
+- Fine calculation and payment
+- Profile overview with due books and fines
 
 ---
 
