@@ -11,12 +11,6 @@
 
 ---
 
-## 📸 Preview
-
-<img src="https://github.com/user-attachments/assets/01c74982-c945-4f56-b8c4-cc1eb84fa667" width="100%" />
-
----
-
 ## 🧰 Tech Stack
 
 - **Frontend:** HTML5, CSS3, JavaScript, jQuery  
