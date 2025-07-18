@@ -29,50 +29,50 @@
 
 ## 🛠️ How to Setup and Run
 
-     ### 1. Install and Set Up XAMPP
-     - Download and install [XAMPP](https://www.apachefriends.org/) on your local machine.
-     
-     - Start the **Apache** and **MySQL** modules from the XAMPP Control Panel and make sure they are running without errors.
-     
-     ### 2. Clone the Repository
-     - Open the `htdocs` folder inside your XAMPP installation directory.
-     - Right-click and select **Git Bash Here** (or open terminal/command prompt in this directory).
-     - Run the following command to clone the repository:
-     
-          ```bash
-          git clone https://github.com/Debrup-Chatterjee/Integrated-Library-System.git
-     ### 3. Configure the Project (Optional)
-     - This step is only required if:
-     
-          - Your MySQL server runs on a port other than 3306, or
-     
-          - You want to change existing project configurations.
-     
-     - Open the following file in a code editor:
-          `/xampp/htdocs/Integrated-Library-System/src/config/config.php`
-     - Modify the following constants only if necessary:
-     
-          - `DB_HOST`
-     
-          - `DB_PORT`
-     
-          - `DB_USER`
-     
-          - `DB_PASSWORD`
-     
-          - `DB_NAME`
-     
-          - `Default time zone` (set to India by default)
-     
-          - `Admin registration Code` ( 'hello_world' by default)
-     
-          ⚠️ **Warning: Do not change anything else unless required. Misconfiguration may break the project.** 
-     
-     ### 4. Launch the Application
-     - Open your browser and navigate to:
-     http://localhost/Integrated-Library-System/
-     
-      🎉 There you go — your library system is live locally!
+### 1. Install and Set Up XAMPP
+- Download and install [XAMPP](https://www.apachefriends.org/) on your local machine.
+
+- Start the **Apache** and **MySQL** modules from the XAMPP Control Panel and make sure they are running without errors.
+
+### 2. Clone the Repository
+- Open the `htdocs` folder inside your XAMPP installation directory.
+- Right-click and select **Git Bash Here** (or open terminal/command prompt in this directory).
+- Run the following command to clone the repository:
+
+     ```bash
+     git clone https://github.com/Debrup-Chatterjee/Integrated-Library-System.git
+### 3. Configure the Project (Optional)
+- This step is only required if:
+
+     - Your MySQL server runs on a port other than 3306, or
+
+     - You want to change existing project configurations.
+
+- Open the following file in a code editor:
+     `/xampp/htdocs/Integrated-Library-System/src/config/config.php`
+- Modify the following constants only if necessary:
+
+     - `DB_HOST`
+
+     - `DB_PORT`
+
+     - `DB_USER`
+
+     - `DB_PASSWORD`
+
+     - `DB_NAME`
+
+     - `Default time zone` (set to India by default)
+
+     - `Admin registration Code` ( 'hello_world' by default)
+
+     ⚠️ **Warning: Do not change anything else unless required. Misconfiguration may break the project.** 
+
+### 4. Launch the Application
+- Open your browser and navigate to:
+http://localhost/Integrated-Library-System/
+
+ 🎉 There you go — your library system is live locally!
 
 
 ---
