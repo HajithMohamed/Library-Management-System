@@ -62,9 +62,9 @@
 
      - `DB_NAME`
 
-     - ***Default time zone*** (set to India by default)
+     - `Default time zone` (set to India by default)
 
-     - ***Admin registration Code*** ( 'hello_world' by default)
+     - `Admin registration Code` ( 'hello_world' by default)
 
      ⚠️ **Warning: Do not change anything else unless required. Misconfiguration may break the project.** 
 
