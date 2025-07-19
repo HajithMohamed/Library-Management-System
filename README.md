@@ -7,7 +7,17 @@
 ## 🌐 Live Preview
 
 🔗 **Live App:** [https://debrup-ils.infinityfreeapp.com](https://debrup-ils.infinityfreeapp.com)  
-📁 **GitHub Repository:** [Integrated-Library-System](https://github.com/Debrup-Chatterjee/Integrated-Library-System.git)
+
+---
+
+## 📸 Quick view of the User Interface
+
+  <img width="1920" height="1080" alt="Screenshot (50)" src="https://github.com/user-attachments/assets/b8ffd920-2a72-4201-b9e8-6336f5a005a6" />
+  <img width="1920" height="1080" alt="Screenshot (51)" src="https://github.com/user-attachments/assets/db0856a1-5464-41f6-9387-79b3f2694001" />
+  <img width="1920" height="1080" alt="Screenshot (54)" src="https://github.com/user-attachments/assets/5175f9d3-10a9-49d6-b41d-5e1b39fdae6b" />
+  <img width="1920" height="1080" alt="Screenshot (58)" src="https://github.com/user-attachments/assets/f0e145e8-43b1-4eae-8bff-18c053ff5fa4" />
+  <img width="1920" height="1080" alt="Screenshot (55)" src="https://github.com/user-attachments/assets/6f78d553-7055-47b3-a344-c59303acd081" />
+  <img width="1920" height="1080" alt="Screenshot (61)" src="https://github.com/user-attachments/assets/3f3d9042-b1d5-4b0e-88bd-d810c2b1da9b" />
 
 ---
 
