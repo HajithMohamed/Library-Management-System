@@ -2,13 +2,17 @@
 
 🚀 A full-stack web-based **Integrated Library System (ILS)** built entirely from scratch using HTML, CSS, JavaScript, PHP, and MySQL. This system offers role-based access for Admins, Students, and Faculty to simulate real-world library operations such as inventory control, book issuing, returning, fine calculation, and member management.
 
+
 ---
+
 
 ## 🌐 Live Preview
 
 🔗 **Live App:** [https://debrup-ils.infinityfreeapp.com](https://debrup-ils.infinityfreeapp.com)  
 
+
 ---
+
 
 ## 📸 Quick view of the User Interface
 
@@ -21,6 +25,7 @@
 
 ---
 
+
 ## 🧰 Tech Stack
 
 - **Frontend:** HTML5, CSS3, JavaScript, jQuery  
@@ -29,7 +34,9 @@
 - **Libraries & Tools:** Font Awesome, phpMyAdmin  
 - **Deployment:** [InfinityFree](https://www.infinityfree.net/)
 
+
 ---
+
 
 ## 🛠️ How to Setup and Run
 
@@ -79,7 +86,9 @@ http://localhost/Integrated-Library-System/
  🎉 There you go — your library system is live locally!
 
 
+
 ---
+
 
 ## 🧩 Features
 
@@ -105,7 +114,9 @@ http://localhost/Integrated-Library-System/
 - Fine calculation and payment
 - Profile overview with due books and fines
 
+
 ---
+
 
 ## ✅ What I Learned
 
@@ -117,6 +128,7 @@ http://localhost/Integrated-Library-System/
 - Custom form validation and error handling
 - Deployment using free hosting (InfinityFree)
 
+
 ---
 
 ## 📱 Responsive & Lightweight
@@ -124,14 +136,18 @@ http://localhost/Integrated-Library-System/
 - Fully responsive layout and seamless experience across mobiles, tablets, and desktops
 - No heavy frontend frameworks – just clean, semantic HTML & CSS
 
+
 ---
+
 
 ## 💬 Feedback & Contributions
 
 Have ideas, improvements, or suggestions?  
 Feel free to open an [Issue](https://github.com/Debrup-Chatterjee/Integrated-Library-System/issues) or submit a [Pull Request](https://github.com/Debrup-Chatterjee/Integrated-Library-System/pulls).
 
+
 ---
+
 
 ## 🔗 Connect with Me
 
