@@ -67,7 +67,8 @@ if($result->num_rows==0)//check if there are any books in the library
      exit;
 }
 
-$query=$_GET['query']; // Get the search query from the AJAX request
+$query = $_GET['query']; // Get the search query from the AJAX request
+
 $sql="SELECT * FROM users WHERE userType LIKE ? OR userId LIKE ? OR gender LIKE ? OR dob LIKE ?
   OR phoneNumber LIKE ? OR emailId LIKE ? OR address LIKE ? ORDER BY userType ASC,userId ASC";
 $stmt=$conn->prepare($sql);
@@ -101,10 +102,10 @@ if ($result->num_rows > 0)
         <td data-label='User Type'>" . highlightMatch($row["userType"],$highlight) . "</td>
         <td data-label='User Id'>" . highlightMatch($row["userId"],$highlight) . "</td>
         <td data-label='Gender'>" . highlightMatch($row["gender"],$highlight) . "</td>
-        <td data-label='Date of Birth'>" . (empty($row["dob"]) ? "N/A" : date("d/m/Y", strtotime($row["dob"]))) . "</td>
+        <td data-label='Date of Birth'>" . (empty($row["dob"]) ? "N/A" : highlightMatch($row["dob"],$highlight)) . "</td>
         <td data-label='Phone Number'>" . highlightMatch($row["phoneNumber"],$highlight) . "</td>
         <td data-label='Email Id'>" . highlightMatch($row["emailId"],$highlight) . "</td>
-        <td data-label='Address'>" . (empty($row["address"]) ? "N/A" : htmlspecialchars($row["address"])) . "</td>
+        <td data-label='Address'>" . (empty($row["address"]) ? "N/A" : highlightMatch($row["address"],$highlight)) . "</td>
       </tr>";
         $index++;
     }
