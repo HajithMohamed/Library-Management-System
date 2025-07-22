@@ -47,7 +47,7 @@ if($result->num_rows>0)//check if there are any members in the library
         <td data-label='User Type'>" . htmlspecialchars($row["userType"]) . "</td>
         <td data-label='User Id'>" . htmlspecialchars($row["userId"]) . "</td>
         <td data-label='Gender'>" . htmlspecialchars($row["gender"]) . "</td>
-        <td data-label='Date of Birth'>" . (empty($row["dob"]) ? "N/A" : date("d/m/Y", strtotime($row["dob"]))) . "</td>
+        <td data-label='Date of Birth'>" . (empty($row["dob"]) ? "N/A" : htmlspecialchars($row["dob"])) . "</td>
         <td data-label='Phone Number'>" . htmlspecialchars($row["phoneNumber"]) . "</td>
         <td data-label='Email Id'>" . htmlspecialchars($row["emailId"]) . "</td>
         <td data-label='Address'>" . (empty($row["address"]) ? "N/A" : htmlspecialchars($row["address"])) . "</td>
