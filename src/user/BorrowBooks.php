@@ -104,13 +104,6 @@ $conn->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Borrow Books</title>
   <link rel="stylesheet" href="<?php echo BASE_URL;?>assets/css/formLayout.css" />
-  <script>
-    //removing error message
-    function initiate()
-    {
-      document.getElementById("bookError").innerHTML="";
-    }
-  </script>
 </head>
 <body>
 
@@ -125,6 +118,9 @@ $conn->close();
         <input type="text" id="isbn" name="isbn" maxlength="13" pattern="\d{13}" title="Enter exactly 13 digits"
         required class="input" onfocus="initiate()" 
         value="<?= htmlspecialchars($isbn) ?>">
+        <small class="input-hint">
+        If this ISBN already exists, book details will be auto-filled.
+        </small>
         <span id="bookError" class="error"><?=$message?></span>
       </div>
 
@@ -165,5 +161,68 @@ $conn->close();
       <button type="submit">Borrow Book</button>
     </form>
   </div>
+  <script>
+    //removing error message
+    function initiate()
+    {
+      document.getElementById("bookError").innerHTML="";
+    }
+    //using AJAX to fetch book details on entering isbn
+    document.addEventListener("DOMContentLoaded", function () {
+    const isbnField = document.getElementById("isbn");
+
+    isbnField.addEventListener("input", function () {
+      const isbn = isbnField.value.trim();
+
+      if (isbn.length === 13 && /^\d{13}$/.test(isbn)) 
+      {
+        // Call backend only if 13 digits and all numeric
+        fetch("getBookDetailsByISBN.php", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: "isbn=" + encodeURIComponent(isbn),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) 
+            {
+              document.getElementById("bookName").value = data.bookName;
+              document.getElementById("authorName").value = data.authorName;
+              document.getElementById("publisherName").value = data.publisherName;
+              showToast("Book details fetched from existing records.");// Show a toast message
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching book details:", error);
+          });
+      }
+    });
+
+    isbnField.addEventListener("focus", function () {
+      document.getElementById("bookError").innerHTML = "";
+    });
+  });
+
+// Show a toast message on fetching book details on giving isbn
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.innerText = message;
+  toast.style.position = "fixed";
+  toast.style.top = "30px";                // Show at the top
+  toast.style.left = "50%";               // Center horizontally
+  toast.style.transform = "translateX(-50%)";
+  toast.style.backgroundColor = "#333";
+  toast.style.color = "#fff";
+  toast.style.padding = "10px 20px";
+  toast.style.borderRadius = "5px";
+  toast.style.zIndex = "1000";
+  toast.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+  toast.style.fontSize = "0.95rem";
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);  // Remove after 3 seconds
+}
+  </script>
 </body>
 </html>
