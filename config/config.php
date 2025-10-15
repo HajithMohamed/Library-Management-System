@@ -16,7 +16,7 @@ define("ADMIN_CODE","hello_world");
 date_default_timezone_set('Asia/Kolkata');
 // Change the default timezone above if you want the app to run in a different time zone
 
-define("DB_PORT","3306");
+define("DB_PORT","3307");
 // Replace the 3306 above to change the connection port if your MySQL is running on a different port
 
 define("DB_HOST", "localhost");
