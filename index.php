@@ -5,7 +5,6 @@ include DIR_URL.'config/dbConnection.php'; // connect to database
 session_start();
 include DIR_URL.'src/global/redirect.php'; // prevent access to this page by redirecting to respective dashboard if a session is active
 
-$userTypeError="";
 $userIdError="";
 $passwordError="";
 
@@ -79,17 +78,8 @@ if($_SERVER["REQUEST_METHOD"]==="POST")
 
     <form method="POST">
 
-      <select name="userType" id="userType" required class="<?php if(!empty($userTypeError)) echo 'input-error'; ?>" 
-        onchange="document.getElementById('userTypeError').innerHTML=''" >
-        <option value="">Please Select User Type</option>
-        <option value="Student" <?php if (isset($_POST['userType']) && $_POST['userType'] == 'Student') echo 'selected'; ?>>Student</option>
-        <option value="Faculty" <?php if (isset($_POST['userType']) && $_POST['userType'] == 'Faculty') echo 'selected'; ?>>Faculty</option>
-        <option value="Admin" <?php if (isset($_POST['userType']) && $_POST['userType'] == 'Admin') echo 'selected'; ?>>Admin</option>
-      </select>
-      <span id="userTypeError" class="error"><?= $userTypeError ?></span>
-
       <input type="text" id="userId" name="userId" placeholder="Enter your UserID" required class="<?php if(!empty($userIdError)) echo 'input-error'; ?>"
-        onfocus="document.getElementById('userIdError').innerHTML=''" value="<?php if (isset($_POST['userId'])) echo $_POST['userId']; ?>">
+        onfocus="document.getElementById('userIdError').innerHTML=''" value="<?php if (isset($_POST['userId'])) echo htmlspecialchars($_POST['userId']); ?>">
       <span id="userIdError" class="error"><?= $userIdError ?></span>
 
       <input type="password" id="password" name="password" placeholder="Enter your password" required class="<?php if(!empty($passwordError)) echo 'input-error'; ?>"
