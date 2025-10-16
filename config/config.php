@@ -32,14 +32,16 @@ if (!defined('OTP_EXPIRY_MINUTES')) define('OTP_EXPIRY_MINUTES', 10);
 // PHPMailer SMTP
 define("SMTP_HOST", "smtp.gmail.com");
 define("SMTP_PORT", 587);
-define("SMTP_USERNAME", "hanoufaatif@gmail.com");
-define("SMTP_PASSWORD", "crvh jrwg ktwo zfhv");  // Gmail App Password
-define("SMTP_ENCRYPTION", "tls");
-define("SMTP_FROM_EMAIL", "hanoufaatif@gmail.com");
-define("SMTP_FROM_NAME", "Library Management System - University of Ruhuna");
+
+define("SMTP_USERNAME", "your full Gmail address"); // e.g., your full Gmail address
+define("SMTP_PASSWORD", "Gmail App Password");  // e.g., Gmail App Password
+define("SMTP_ENCRYPTION", "tls"); // ssl or tls
+define("SMTP_FROM_EMAIL", "your full Gmail address");
+define("SMTP_FROM_NAME", "Library managemene system university of Ruhuna");
 
 // SMS Gateway placeholders
 define("SMS_API_URL", "");
 define("SMS_API_KEY", "");
 define("SMS_SENDER_ID", "");
 ?>
+
