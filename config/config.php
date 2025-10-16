@@ -30,4 +30,18 @@ define("DB_PASSWORD", "");
 
 define("DB_NAME", "integrated_library_system");
 // Replace the lms above with some other name if you want the database name to be something else
+
+// Outbound Email via PHPMailer (SMTP)
+define("SMTP_HOST", "smtp.gmail.com");
+define("SMTP_PORT", 587);
+define("SMTP_USERNAME", "hanoufaatif@gmail.com"); // e.g., your full Gmail address
+define("SMTP_PASSWORD", "crvh jrwg ktwo zfhv");  // e.g., Gmail App Password
+define("SMTP_ENCRYPTION", "tls"); // ssl or tls
+define("SMTP_FROM_EMAIL", "hanoufaatif@gmail.com");
+define("SMTP_FROM_NAME", "Library managemene system university of Ruhuna");
+
+// SMS Gateway placeholders (used for OTP link to mobile). Leave blank to disable
+define("SMS_API_URL", ""); // e.g., https://api.textlocal.in/send/
+define("SMS_API_KEY", "");
+define("SMS_SENDER_ID", "");
 ?>

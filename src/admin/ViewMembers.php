@@ -42,6 +42,8 @@ if($result->num_rows>0)//check if there are any members in the library
   $index=1;
   while ($row = $result->fetch_assoc()) 
   {
+    $canDelete = ($row["userType"] !== 'Admin');
+    $deleteButton = $canDelete ? "<form method='POST' action='deleteUser.php' onsubmit=\"return confirm('Are you sure you want to delete this user?');\"><input type='hidden' name='userId' value='".htmlspecialchars($row["userId"])."'><button type='submit'>Delete</button></form>" : "<button disabled>Delete</button>";
     $rows .= "<tr>
         <td data-label='Sl.No.'>" . $index . "</td>
         <td data-label='User Type'>" . htmlspecialchars($row["userType"]) . "</td>
@@ -51,6 +53,7 @@ if($result->num_rows>0)//check if there are any members in the library
         <td data-label='Phone Number'>" . htmlspecialchars($row["phoneNumber"]) . "</td>
         <td data-label='Email Id'>" . htmlspecialchars($row["emailId"]) . "</td>
         <td data-label='Address'>" . (empty($row["address"]) ? "N/A" : htmlspecialchars($row["address"])) . "</td>
+        <td data-label='Actions'>".$deleteButton."</td>
       </tr>";
     $index++;
    }
@@ -114,6 +117,7 @@ $conn->close();
           <th>Phone Number</th>
           <th>Email Id</th>
           <th>Address</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="searchResults">
@@ -121,6 +125,9 @@ $conn->close();
         <?=$rows?>
       </tbody>
     </table>
+  </div>
+  <div style="margin-top: 12px;">
+    <button type="button" onclick="window.open('<?php echo BASE_URL;?>src/global/signup.php','_blank');">Add User</button>
   </div>
 </main>
 </body>

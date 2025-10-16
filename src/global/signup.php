@@ -4,6 +4,7 @@ include DIR_URL.'config/createDB.php'; // create database and tables if not exis
 include DIR_URL.'config/dbConnection.php'; // connect to database
 session_start();
 include DIR_URL.'src/global/redirect.php';// prevent access to this page by redirecting to respective dashboard if a session is active
+include DIR_URL.'src/global/sendEmail.php';
 
 $message="";
 
@@ -24,23 +25,31 @@ if($result->num_rows>0) // An user with the entered userId already exists
 {
     $message="This User Id is already taken. Please try to regsiter with some other User Id";
 }
-else // Signup successful
+else // Signup successful with email verification (OTP + link)
 {
+     // Generate 6-digit OTP and expiry (15 minutes)
+     $otp = str_pad(strval(random_int(0, 999999)), 6, '0', STR_PAD_LEFT);
+     $expiryTs = time() + (15 * 60);
+     $otpExpiry = date('Y-m-d H:i:s', $expiryTs);
+
      $hashed_password=password_hash($password,PASSWORD_DEFAULT);// hashing the password
-     $sql="INSERT INTO users (userId,password,userType,gender,dob,emailId,phoneNumber,address) 
-     VALUES('$userId','$hashed_password','$userType','$gender','$dob','$emailId','$phoneNumber','$address')";
+    $sql="INSERT INTO users (userId,password,userType,gender,dob,emailId,phoneNumber,address,isVerified,otp,otpExpiry) 
+    VALUES('$userId','$hashed_password','$userType','$gender','$dob','$emailId','$phoneNumber','$address',0,'$otp','$otpExpiry')";
      if($conn->query($sql)===TRUE)
      {
+          // Build verification link and send email
+          $verifyLink = BASE_URL.'src/global/verifyOtp.php?userId='.urlencode($userId).'&token='.urlencode($otp);
+          $sendResult = @sendOtpEmail($emailId, $userId, $otp, $verifyLink);
+          if (!$sendResult['success'])
+          {
+            // Surface a user-friendly message and log has details
+            echo "<script>alert('Signup succeeded, but email could not be sent. Please contact support.');</script>";
+          }
+
           echo "<script>
-            alert('Signup Successful');
-            setTimeout(function() {
-                if (window.opener && !window.opener.closed) {
-                    window.close();
-                } else {
-                    window.location.href = '".BASE_URL."';
-                }
-            }, 100);
-        </script>";
+            alert('Signup successful. A verification link/code has been sent to your email.');
+            window.location.href = '".BASE_URL."src/global/verifyOtp.php?userId=".urlencode($userId)."';
+          </script>";
           exit;
      }
      else
@@ -102,22 +111,7 @@ $conn->close();
         passwordError.textContent = "";
       }
 
-      // Admin Code validation in case userType is Admin
-      if (document.getElementById("userType").value==="Admin")
-      {
-          const code=prompt("Enter the Admin registration code");
-          const admin_code="<?php echo ADMIN_CODE;?>";
-          if (code===null || code.trim() === "")
-          {
-            isValid=false;
-            alert("Please enter the admin registration code to register as an Admin !");
-          }
-          else if (code !== admin_code)
-          {
-            isValid=false;
-            alert("Incorect Admin registration code entered !");
-          }
-      }
+      // No admin code validation required
 
       return isValid;
     }
@@ -127,6 +121,8 @@ $conn->close();
     {
       document.getElementById("userIdError").innerHTML="";
     }
+
+    // No admin code toggle needed
 
     //Login Link 
     document.addEventListener("DOMContentLoaded", function () {
@@ -180,6 +176,7 @@ $conn->close();
             <option value="Admin" <?php if (isset($_POST['userType']) && $_POST['userType'] == 'Admin') echo 'selected'; ?>>Admin</option>
           </select>
         </div>
+        
 
         <div class="input-group">
           <label for="gender"><b>Gender</b></label>
