@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   nginx:
     image: nginx:stable
@@ -14,7 +12,9 @@ services:
     restart: always
 
   php:
-    build: ./docker/php
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
@@ -35,7 +35,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-      - ./src/database/library.sql:/docker-entrypoint-initdb.d/library.sql
+      - ./docker/mysql/library.sql:/docker-entrypoint-initdb.d/library.sql
     command: --default-authentication-plugin=mysql_native_password
     ports:
       - "3307:3306"
