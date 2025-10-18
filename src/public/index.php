@@ -7,13 +7,11 @@
 // Start session
 session_start();
 
-// Define application paths
+// Define application paths (needed before including config)
 define('APP_ROOT', dirname(__DIR__));
-define('PUBLIC_ROOT', __DIR__);
-define('BASE_URL', 'http://localhost:8080/');
 
 // Include Composer autoloader
-require_once APP_ROOT . '/../vendor/autoload.php';
+require_once APP_ROOT . '/vendor/autoload.php';
 
 // Include configuration
 require_once APP_ROOT . '/config/config.php';
@@ -84,37 +82,73 @@ class Router {
 // Initialize router and define routes
 $router = new Router();
 
+// Home page routes
+$router->addRoute('GET', '/', 'HomeController', 'index');
+$router->addRoute('GET', '/about', 'HomeController', 'about');
+$router->addRoute('GET', '/contact', 'HomeController', 'contact');
+$router->addRoute('GET', '/library', 'HomeController', 'library');
+
 // Authentication routes
-$router->addRoute('GET', '/', 'AuthController', 'login');
-$router->addRoute('POST', '/', 'AuthController', 'login');
+$router->addRoute('GET', '/login', 'AuthController', 'login');
+$router->addRoute('POST', '/login', 'AuthController', 'login');
 $router->addRoute('GET', '/signup', 'AuthController', 'signup');
 $router->addRoute('POST', '/signup', 'AuthController', 'signup');
+$router->addRoute('GET', '/verify-otp', 'AuthController', 'verifyOtp');
+$router->addRoute('POST', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
 // User dashboard routes
 $router->addRoute('GET', '/user/dashboard', 'UserController', 'dashboard');
+$router->addRoute('GET', '/user/profile', 'UserController', 'profile');
+$router->addRoute('POST', '/user/profile', 'UserController', 'updateProfile');
+$router->addRoute('POST', '/user/change-password', 'UserController', 'changePassword');
+
+// User book management routes
 $router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
 $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
 $router->addRoute('GET', '/user/return', 'BookController', 'return');
 $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
+
+// User fines routes
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('POST', '/user/pay-fine', 'UserController', 'payFine');
 
 // Admin dashboard routes
 $router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
+$router->addRoute('GET', '/admin/users', 'AdminController', 'users');
+$router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
+$router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
+$router->addRoute('GET', '/admin/settings', 'AdminController', 'settings');
+$router->addRoute('POST', '/admin/settings', 'AdminController', 'updateSettings');
+$router->addRoute('GET', '/admin/fines', 'AdminController', 'fines');
+$router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
+$router->addRoute('GET', '/admin/maintenance', 'AdminController', 'maintenance');
+$router->addRoute('POST', '/admin/backup', 'AdminController', 'createBackup');
+
+// Admin book management routes
 $router->addRoute('GET', '/admin/books', 'BookController', 'adminBooks');
 $router->addRoute('GET', '/admin/books/add', 'BookController', 'addBook');
 $router->addRoute('POST', '/admin/books/add', 'BookController', 'createBook');
 $router->addRoute('GET', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/edit', 'BookController', 'updateBook');
 $router->addRoute('POST', '/admin/books/delete', 'BookController', 'deleteBook');
-$router->addRoute('GET', '/admin/users', 'AdminController', 'users');
-$router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
+
+// Public book browsing routes (accessible without login)
+$router->addRoute('GET', '/books', 'BookController', 'userBooks');
+$router->addRoute('GET', '/books/search', 'BookController', 'searchBooks');
 
 // API routes
 $router->addRoute('GET', '/api/books/search', 'BookController', 'searchBooks');
 $router->addRoute('GET', '/api/book/details', 'BookController', 'getBookDetails');
+
+// Error handling routes
+$router->addRoute('GET', '/403', 'AuthController', 'show403');
+$router->addRoute('GET', '/404', 'AuthController', 'show404');
+
+// Health check and system routes
+$router->addRoute('GET', '/health', 'AuthController', 'healthCheck');
+$router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
 
 // Dispatch the request
 $router->dispatch();

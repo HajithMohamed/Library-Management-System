@@ -20,7 +20,7 @@ class AuthController
     }
 
     /**
-     * Show login form
+     * Handle login (both GET and POST)
      */
     public function login()
     {
@@ -29,46 +29,38 @@ class AuthController
             $this->authHelper->redirectByUserType();
         }
 
-        $this->render('auth/login');
-    }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $userId = $_POST['userId'] ?? '';
+            $password = $_POST['password'] ?? '';
 
-    /**
-     * Process login
-     */
-    public function login()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/');
-            return;
-        }
+            if (empty($userId) || empty($password)) {
+                $_SESSION['error'] = 'Please enter both User ID and password.';
+                $this->redirect('/');
+                return;
+            }
 
-        $userId = $_POST['userId'] ?? '';
-        $password = $_POST['password'] ?? '';
-
-        if (empty($userId) || empty($password)) {
-            $_SESSION['error'] = 'Please enter both User ID and password.';
-            $this->redirect('/');
-            return;
-        }
-
-        $user = $this->userModel->authenticate($userId, $password);
-        
-        if ($user) {
-            // Set session variables
-            $_SESSION['userId'] = $user['userId'];
-            $_SESSION['userType'] = $user['userType'];
-            $_SESSION['emailId'] = $user['emailId'];
+            $user = $this->userModel->authenticate($userId, $password);
             
-            $_SESSION['success'] = 'Welcome back, ' . $user['userId'] . '!';
-            $this->authHelper->redirectByUserType();
+            if ($user) {
+                // Set session variables
+                $_SESSION['userId'] = $user['userId'];
+                $_SESSION['userType'] = $user['userType'];
+                $_SESSION['emailId'] = $user['emailId'];
+                
+                $_SESSION['success'] = 'Welcome back, ' . $user['userId'] . '!';
+                $this->authHelper->redirectByUserType();
+            } else {
+                $_SESSION['error'] = 'Invalid User ID or password.';
+                $this->redirect('/');
+            }
         } else {
-            $_SESSION['error'] = 'Invalid User ID or password.';
-            $this->redirect('/');
+            // Show login form
+            $this->render('auth/login');
         }
     }
 
     /**
-     * Show signup form
+     * Handle signup (both GET and POST)
      */
     public function signup()
     {
@@ -77,78 +69,70 @@ class AuthController
             $this->authHelper->redirectByUserType();
         }
 
-        $this->render('auth/signup');
-    }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $data = [
+                'userId' => $_POST['userId'] ?? '',
+                'password' => $_POST['password'] ?? '',
+                'userType' => $_POST['userType'] ?? '',
+                'gender' => $_POST['gender'] ?? '',
+                'dob' => $_POST['dob'] ?? '',
+                'emailId' => $_POST['emailId'] ?? '',
+                'phoneNumber' => $_POST['phoneNumber'] ?? '',
+                'address' => $_POST['address'] ?? '',
+                'isVerified' => 0,
+                'otp' => null,
+                'otpExpiry' => null
+            ];
 
-    /**
-     * Process signup
-     */
-    public function signup()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/signup');
-            return;
-        }
+            // Validate user data
+            $errors = $this->userModel->validateUserData($data);
+            if (!empty($errors)) {
+                $_SESSION['validation_errors'] = $errors;
+                $this->redirect('/signup');
+                return;
+            }
 
-        $data = [
-            'userId' => $_POST['userId'] ?? '',
-            'password' => $_POST['password'] ?? '',
-            'userType' => $_POST['userType'] ?? '',
-            'gender' => $_POST['gender'] ?? '',
-            'dob' => $_POST['dob'] ?? '',
-            'emailId' => $_POST['emailId'] ?? '',
-            'phoneNumber' => $_POST['phoneNumber'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'isVerified' => 0,
-            'otp' => null,
-            'otpExpiry' => null
-        ];
+            // Check if user ID already exists
+            if ($this->userModel->userIdExists($data['userId'])) {
+                $_SESSION['error'] = 'User ID already exists. Please choose a different one.';
+                $this->redirect('/signup');
+                return;
+            }
 
-        // Validate user data
-        $errors = $this->userModel->validateUserData($data);
-        if (!empty($errors)) {
-            $_SESSION['validation_errors'] = $errors;
-            $this->redirect('/signup');
-            return;
-        }
+            // Check if email already exists
+            if ($this->userModel->emailExists($data['emailId'])) {
+                $_SESSION['error'] = 'Email address already exists. Please use a different email.';
+                $this->redirect('/signup');
+                return;
+            }
 
-        // Check if user ID already exists
-        if ($this->userModel->userIdExists($data['userId'])) {
-            $_SESSION['error'] = 'User ID already exists. Please choose a different one.';
-            $this->redirect('/signup');
-            return;
-        }
+            // Hash password
+            $data['password'] = $this->authHelper->hashPassword($data['password']);
 
-        // Check if email already exists
-        if ($this->userModel->emailExists($data['emailId'])) {
-            $_SESSION['error'] = 'Email address already exists. Please use a different email.';
-            $this->redirect('/signup');
-            return;
-        }
+            // Generate OTP
+            $otp = rand(100000, 999999);
+            $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+            $data['otp'] = $otp;
+            $data['otpExpiry'] = $otpExpiry;
 
-        // Hash password
-        $data['password'] = $this->authHelper->hashPassword($data['password']);
-
-        // Generate OTP
-        $otp = rand(100000, 999999);
-        $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-        $data['otp'] = $otp;
-        $data['otpExpiry'] = $otpExpiry;
-
-        // Create user
-        if ($this->userModel->createUser($data)) {
-            // Send OTP email
-            if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-                $_SESSION['success'] = 'Account created successfully! Please check your email for verification code.';
-                $_SESSION['signup_userId'] = $data['userId'];
-                $this->redirect('/verify-otp');
+            // Create user
+            if ($this->userModel->createUser($data)) {
+                // Send OTP email
+                if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
+                    $_SESSION['success'] = 'Account created successfully! Please check your email for verification code.';
+                    $_SESSION['signup_userId'] = $data['userId'];
+                    $this->redirect('/verify-otp');
+                } else {
+                    $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
+                    $this->redirect('/signup');
+                }
             } else {
-                $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
+                $_SESSION['error'] = 'Failed to create account. Please try again.';
                 $this->redirect('/signup');
             }
         } else {
-            $_SESSION['error'] = 'Failed to create account. Please try again.';
-            $this->redirect('/signup');
+            // Show signup form
+            $this->render('auth/signup');
         }
     }
 
@@ -161,7 +145,7 @@ class AuthController
     }
 
     /**
-     * Show OTP verification form
+     * Handle OTP verification (both GET and POST)
      */
     public function verifyOtp()
     {
@@ -170,35 +154,27 @@ class AuthController
             return;
         }
 
-        $this->render('auth/verify-otp');
-    }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $userId = $_SESSION['signup_userId'] ?? '';
+            $otp = $_POST['otp'] ?? '';
 
-    /**
-     * Process OTP verification
-     */
-    public function verifyOtp()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/verify-otp');
-            return;
-        }
+            if (empty($userId) || empty($otp)) {
+                $_SESSION['error'] = 'Please enter the verification code.';
+                $this->redirect('/verify-otp');
+                return;
+            }
 
-        $userId = $_SESSION['signup_userId'] ?? '';
-        $otp = $_POST['otp'] ?? '';
-
-        if (empty($userId) || empty($otp)) {
-            $_SESSION['error'] = 'Please enter the verification code.';
-            $this->redirect('/verify-otp');
-            return;
-        }
-
-        if ($this->userModel->verifyUser($userId, $otp)) {
-            unset($_SESSION['signup_userId']);
-            $_SESSION['success'] = 'Account verified successfully! You can now login.';
-            $this->redirect('/');
+            if ($this->userModel->verifyUser($userId, $otp)) {
+                unset($_SESSION['signup_userId']);
+                $_SESSION['success'] = 'Account verified successfully! You can now login.';
+                $this->redirect('/');
+            } else {
+                $_SESSION['error'] = 'Invalid or expired verification code.';
+                $this->redirect('/verify-otp');
+            }
         } else {
-            $_SESSION['error'] = 'Invalid or expired verification code.';
-            $this->redirect('/verify-otp');
+            // Show OTP verification form
+            $this->render('auth/verify-otp');
         }
     }
 

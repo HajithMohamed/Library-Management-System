@@ -7,10 +7,10 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\Controllers\\": "src/controllers/",
-            "App\\Models\\": "src/models/",
-            "App\\Services\\": "src/services/",
-            "App\\Helpers\\": "src/helpers/"
+            "App\\Controllers\\": "controllers/",
+            "App\\Models\\": "models/",
+            "App\\Services\\": "services/",
+            "App\\Helpers\\": "helpers/"
         }
     },
     "config": {
