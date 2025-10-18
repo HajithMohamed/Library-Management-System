@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['isbn']))
     include DIR_URL.'config/dbConnection.php';
 
     $isbn = $_POST['isbn'];
-    $stmt = $conn->prepare("SELECT bookName, authorName, publisherName FROM books WHERE isbn = ?");
+    $stmt = $conn->prepare("SELECT bookName, authorName, publisherName, description, category, publicationYear FROM books WHERE isbn = ?");
     $stmt->bind_param("s", $isbn);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -49,7 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['isbn']))
             'success' => true,
             'bookName' => $row['bookName'],
             'authorName' => $row['authorName'],
-            'publisherName' => $row['publisherName']
+            'publisherName' => $row['publisherName'],
+            'description' => $row['description'] ?? '',
+            'category' => $row['category'] ?? '',
+            'publicationYear' => $row['publicationYear'] ?? ''
         ];
     }
     echo json_encode($response);

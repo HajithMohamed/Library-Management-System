@@ -22,7 +22,7 @@ body {
 
 .background-container 
 {
-     position: fixed;
+    
      top: 0;
      left: 0;
      width: 100%;
@@ -76,7 +76,7 @@ h2 {
 
 /* Form Grouping */
 .form-group {
-     margin-bottom: 1.25rem;
+     width: 100%;
 }
 
 /* Labels */

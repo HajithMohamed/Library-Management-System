@@ -139,6 +139,14 @@ body {
   background: linear-gradient(135deg, #a1de66, #8bc34a);
 }
 
+.book-management {
+  background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+}
+
+.statistics {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
 /* Sidebar */
 .sidebar {
   position: fixed;
@@ -311,6 +319,7 @@ body {
 /* Form styles */
 .form-group {
   margin-bottom: 20px;
+  width: 100%;
 }
 
 .form-group label {

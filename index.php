@@ -1,6 +1,5 @@
 <?php 
 include 'config/config.php';
-include DIR_URL.'config/createDB.php'; // create database and tables if not exists
 include DIR_URL.'config/dbConnection.php'; // connect to database
 session_start();
 include DIR_URL.'src/global/redirect.php'; // prevent access to this page by redirecting to respective dashboard if a session is active

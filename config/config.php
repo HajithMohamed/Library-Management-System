@@ -1,47 +1,41 @@
 <?php
-if ($_SERVER['HTTP_HOST']=='localhost') // if the website is hosted on local server, i.e., localhost
-{
-     define("BASE_URL","http://localhost/Integrated-Library-System/");
-     define("DIR_URL",$_SERVER['DOCUMENT_ROOT']."/Integrated-Library-System/");
-}
-else // if the website is hosted on remote server
-{
-     define("BASE_URL","");
-     define("DIR_URL",$_SERVER['DOCUMENT_ROOT']);
+if ($_SERVER['HTTP_HOST'] == 'localhost') {
+    // Running locally (XAMPP)
+    define("BASE_URL", "http://localhost/Integrated-Library-System/");
+    define("DIR_URL", $_SERVER['DOCUMENT_ROOT'] . "/Integrated-Library-System/");
+
+    define("DB_HOST", "localhost");
+    define("DB_PORT", "3307"); // XAMPP MySQL port
+    define("DB_USER", "root");
+    define("DB_PASSWORD", "");
+    define("DB_NAME", "integrated_library_system");
+} else {
+    // Running inside Docker container
+    define("BASE_URL", "http://localhost:8080/");
+    define("DIR_URL", "/var/www/html/");
+
+    define("DB_HOST", "db");          // Docker MySQL service
+    define("DB_PORT", "3306");         // MySQL default port
+    define("DB_USER", "user");         // Must match docker-compose
+    define("DB_PASSWORD", "user123");  // Must match docker-compose
+    define("DB_NAME", "library_db");   // Must match docker-compose
 }
 
-define("ADMIN_CODE","hello_world");
-// Replace the Admin Registration Code above in place of hello_world to register as an admin in the Library
-
+// Common constants
+define("ADMIN_CODE", "hello_world");
 date_default_timezone_set('Asia/Kolkata');
-// Change the default timezone above if you want the app to run in a different time zone
 
-define("DB_PORT","3307");
-// Replace the 3306 above to change the connection port if your MySQL is running on a different port
-
-define("DB_HOST", "localhost");
-// Replace the localhost above to change the connection host if your MySQL is not running on local server
-
-define("DB_USER", "root");
-// Replace the root above to change the MySQL username
-
-define("DB_PASSWORD", "");
-// Type the password above inside the empty quotes if there is a password asscoiated with the user
-
-define("DB_NAME", "integrated_library_system");
-// Replace the lms above with some other name if you want the database name to be something else
-
-// Outbound Email via PHPMailer (SMTP)
+// PHPMailer SMTP
 define("SMTP_HOST", "smtp.gmail.com");
 define("SMTP_PORT", 587);
-define("SMTP_USERNAME", "hanoufaatif@gmail.com"); // e.g., your full Gmail address
-define("SMTP_PASSWORD", "crvh jrwg ktwo zfhv");  // e.g., Gmail App Password
-define("SMTP_ENCRYPTION", "tls"); // ssl or tls
+define("SMTP_USERNAME", "hanoufaatif@gmail.com");
+define("SMTP_PASSWORD", "crvh jrwg ktwo zfhv");  // Gmail App Password
+define("SMTP_ENCRYPTION", "tls");
 define("SMTP_FROM_EMAIL", "hanoufaatif@gmail.com");
-define("SMTP_FROM_NAME", "Library managemene system university of Ruhuna");
+define("SMTP_FROM_NAME", "Library Management System - University of Ruhuna");
 
-// SMS Gateway placeholders (used for OTP link to mobile). Leave blank to disable
-define("SMS_API_URL", ""); // e.g., https://api.textlocal.in/send/
+// SMS Gateway placeholders
+define("SMS_API_URL", "");
 define("SMS_API_KEY", "");
 define("SMS_SENDER_ID", "");
 ?>

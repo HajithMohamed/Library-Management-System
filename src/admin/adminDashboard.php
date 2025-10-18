@@ -4,7 +4,7 @@ session_start(); // Start session
 include DIR_URL.'src/global/middleware.php';
 $userId = $_SESSION['userId'];//Fetching userId and userType from session data
 $userType = $_SESSION['userType'];
-if ($userType != 'Admin') // If an invalid userType tries to access this page
+if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librarian
 {
   http_response_code(403);
   echo '
@@ -83,10 +83,30 @@ $address=$row['address'];
   <div class="content-area">
     <!-- Buttons below the carousel -->
     <div class="buttons">
-      <button type="button" class="button search" id="Manage inventory">MANAGE INVENTORY</button>
-      <button type="button" class="button issue" id="Add books">ADD BOOKS</button>
-      <button type="button" class="button return" id="Remove books">REMOVE BOOKS</button>
-      <button type="button" class="button pay" id="View members">VIEW MEMBERS</button>
+      <button type="button" class="button search" id="Manage inventory">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        MANAGE INVENTORY
+      </button>
+      <button type="button" class="button pay" id="Manage users">
+        <i class="fa-solid fa-user-gear"></i>
+        MANAGE USERS
+      </button>
+      <button type="button" class="button return" id="Manage borrow requests">
+        <i class="fa-solid fa-envelope-open-text"></i>
+        MANAGE BORROW REQUESTS
+      </button>
+      <button type="button" class="button return" id="Return book">
+        <i class="fa-solid fa-rotate-left"></i>
+        MARK RETURN
+      </button>
+      <button type="button" class="button search" id="Overdue books">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        OVERDUE BOOKS
+      </button>
+      <button type="button" class="button statistics" id="Reports">
+        <i class="fa-solid fa-chart-line"></i>
+        REPORTS
+      </button>
     </div>
   </div>
 
@@ -257,7 +277,31 @@ document.getElementById('logout').addEventListener('click', function(e) {
     });
 });
 
-//View Members button
+// Manage Inventory
+document.getElementById('Manage inventory').onclick=function(){
+  window.location.href='ManageInventory.php';
+};
+// Manage Users
+document.getElementById('Manage users').onclick=function(){
+  window.location.href='ViewMembers.php';
+};
+// Manage Borrow Requests (single entry point)
+document.getElementById('Manage borrow requests').onclick=function(){
+  window.location.href='ManageBorrowRequests.php';
+};
+// Mark Return
+document.getElementById('Return book').onclick=function(){
+  window.location.href='ReturnBook.php';
+};
+// Overdue Books
+document.getElementById('Overdue books').onclick=function(){
+  window.location.href='OverdueBooks.php';
+};
+// Reports
+document.getElementById('Reports').onclick=function(){
+  window.location.href='Statistics.php';
+};
+// View Members button
 document.getElementById('View members').onclick=function(){
   window.location.href='ViewMembers.php';
 }
@@ -268,10 +312,6 @@ document.getElementById('Add books').onclick=function(){
 //Remove Books from the library button
 document.getElementById('Remove books').onclick=function(){
   window.location.href='RemoveBooks.php';
-}
-//Manage Inventory button
-document.getElementById('Manage inventory').onclick=function(){
-  window.location.href='ManageInventory.php';
 }
 </script>
 
