@@ -12,7 +12,7 @@
 
 # Composer helpers
 /composer.phar
-/composer.lock
+composer.lock
 /src/vendor
 # Environment and local configs
 .env
