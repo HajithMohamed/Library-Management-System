@@ -4,148 +4,405 @@ include APP_ROOT . '/views/layouts/header.php';
 ?>
 
 <style>
-        .page-container {
-            min-height: calc(100vh - 200px);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
+    :root {
+        --primary: #667eea;
+        --secondary: #764ba2;
+        --accent: #f093fb;
+    }
+    
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    .contact-container {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        padding: 80px 20px 60px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* Animated Background Elements */
+    .bg-shapes {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+    }
+    
+    .circle {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        animation: float 15s infinite ease-in-out;
+    }
+    
+    .circle:nth-child(1) {
+        width: 300px;
+        height: 300px;
+        top: 10%;
+        left: 5%;
+        animation-delay: 0s;
+    }
+    
+    .circle:nth-child(2) {
+        width: 200px;
+        height: 200px;
+        top: 50%;
+        right: 10%;
+        animation-delay: 3s;
+    }
+    
+    .circle:nth-child(3) {
+        width: 150px;
+        height: 150px;
+        bottom: 15%;
+        left: 15%;
+        animation-delay: 6s;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(30px, -30px) scale(1.1); }
+        66% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+    
+    .content-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 28px;
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        border: 1px solid rgba(255,255,255,0.2);
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-bottom: 40px;
+    }
+    
+    .back-btn:hover {
+        background: white;
+        color: var(--primary);
+        transform: translateX(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .page-header {
+        text-align: center;
+        margin-bottom: 50px;
+        animation: fadeInDown 0.8s ease-out;
+    }
+    
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .page-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 800;
+        color: white;
+        margin-bottom: 15px;
+        text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    .page-subtitle {
+        font-size: 1.2rem;
+        color: rgba(255,255,255,0.9);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    
+    .contact-card {
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 24px;
+        padding: 40px 30px;
+        text-align: center;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.8s ease-out;
+        animation-fill-mode: both;
+    }
+    
+    .contact-card:nth-child(1) { animation-delay: 0.1s; }
+    .contact-card:nth-child(2) { animation-delay: 0.2s; }
+    .contact-card:nth-child(3) { animation-delay: 0.3s; }
+    .contact-card:nth-child(4) { animation-delay: 0.4s; }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .contact-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #FFD700, #FF6B6B, #4ECDC4);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s ease;
+    }
+    
+    .contact-card:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .contact-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        background: rgba(255,255,255,0.15);
+        box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    }
+    
+    .contact-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.15);
+        border-radius: 20px;
+        font-size: 2.5rem;
+        transition: all 0.4s ease;
+    }
+    
+    .contact-card:hover .contact-icon {
+        transform: rotateY(360deg) scale(1.1);
+        background: white;
+    }
+    
+    .contact-card:nth-child(1) .contact-icon {
+        color: #FFD700;
+    }
+    
+    .contact-card:nth-child(1):hover .contact-icon {
+        color: var(--primary);
+    }
+    
+    .contact-card:nth-child(2) .contact-icon {
+        color: #4ECDC4;
+    }
+    
+    .contact-card:nth-child(2):hover .contact-icon {
+        color: var(--primary);
+    }
+    
+    .contact-card:nth-child(3) .contact-icon {
+        color: #FF6B6B;
+    }
+    
+    .contact-card:nth-child(3):hover .contact-icon {
+        color: var(--primary);
+    }
+    
+    .contact-card:nth-child(4) .contact-icon {
+        color: #95E1D3;
+    }
+    
+    .contact-card:nth-child(4):hover .contact-icon {
+        color: var(--primary);
+    }
+    
+    .contact-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .contact-details {
+        color: rgba(255,255,255,0.9);
+        line-height: 1.8;
+        font-size: 1.05rem;
+    }
+    
+    .contact-details a {
+        color: rgba(255,255,255,0.95);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+    
+    .contact-details a:hover {
+        color: white;
+        transform: translateX(5px);
+    }
+    
+    .map-section {
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 24px;
+        padding: 40px;
+        animation: fadeInUp 0.8s ease-out 0.5s both;
+    }
+    
+    .map-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .map-placeholder {
+        width: 100%;
+        height: 400px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed rgba(255,255,255,0.3);
+    }
+    
+    .map-placeholder i {
+        font-size: 4rem;
+        color: rgba(255,255,255,0.5);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .contact-container {
+            padding: 40px 15px;
         }
         
-        .page-content {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
-            width: 100%;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .page-title {
-            font-size: 2.5rem;
-            color: #333;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .back-btn {
-            display: inline-block;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 25px;
-            transition: all 0.3s ease;
-        }
-        
-        .back-btn:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-        
-        .contact-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 30px;
+        .contact-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
         }
         
         .contact-card {
-            background: #f8f9fa;
+            padding: 30px 25px;
+        }
+        
+        .map-section {
             padding: 25px;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
         }
         
-        .contact-icon {
-            font-size: 2rem;
-            color: #667eea;
-            margin-bottom: 15px;
+        .map-placeholder {
+            height: 300px;
         }
+    }
+</style>
+
+<div class="contact-container">
+    <div class="bg-shapes">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+    
+    <div class="content-wrapper">
+        <a href="<?php echo BASE_URL; ?>" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            <span>Back to Home</span>
+        </a>
         
-        .contact-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        .contact-details {
-            color: #666;
-            line-height: 1.6;
-        }
-    </style>
-</head>
-<body>
-    <div class="page-container">
-        <div class="page-content">
-            <a href="<?php echo BASE_URL; ?>" class="back-btn">
-                <i class="fas fa-arrow-left"></i> Back to Home
-            </a>
-            
-            <h1 class="page-title">Contact Us</h1>
-            
-            <p style="text-align: center; color: #666; font-size: 1.1rem; margin-bottom: 30px;">
-                Get in touch with our library team for assistance, support, or inquiries.
+        <div class="page-header">
+            <h1 class="page-title">Get In Touch</h1>
+            <p class="page-subtitle">
+                We're here to help! Reach out to our team for assistance, support, or inquiries.
             </p>
+        </div>
+        
+        <div class="contact-grid">
+            <div class="contact-card">
+                <div class="contact-icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div class="contact-title">Visit Us</div>
+                <div class="contact-details">
+                    University Library<br>
+                    Main Campus Building<br>
+                    University of Ruhuna<br>
+                    Matara, Sri Lanka
+                </div>
+            </div>
             
-            <div class="contact-info">
-                <div class="contact-card">
-                    <div class="contact-icon">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <div class="contact-title">Library Location</div>
-                    <div class="contact-details">
-                        University Library<br>
-                        Main Campus Building<br>
-                        University of Ruhuna<br>
-                        Matara, Sri Lanka
-                    </div>
+            <div class="contact-card">
+                <div class="contact-icon">
+                    <i class="fas fa-phone-alt"></i>
                 </div>
-                
-                <div class="contact-card">
-                    <div class="contact-icon">
-                        <i class="fas fa-phone"></i>
-                    </div>
-                    <div class="contact-title">Phone Support</div>
-                    <div class="contact-details">
-                        Main Desk: +94 41 222 2222<br>
-                        IT Support: +94 41 222 2223<br>
-                        Hours: 8:00 AM - 6:00 PM
-                    </div>
+                <div class="contact-title">Call Us</div>
+                <div class="contact-details">
+                    <a href="tel:+94412222222">Main: +94 41 222 2222</a><br>
+                    <a href="tel:+94412222223">Support: +94 41 222 2223</a><br>
+                    <small style="opacity: 0.8;">8:00 AM - 6:00 PM</small>
                 </div>
-                
-                <div class="contact-card">
-                    <div class="contact-icon">
-                        <i class="fas fa-envelope"></i>
-                    </div>
-                    <div class="contact-title">Email Support</div>
-                    <div class="contact-details">
-                        General: library@ruh.ac.lk<br>
-                        Technical: support@ruh.ac.lk<br>
-                        Admin: admin@ruh.ac.lk
-                    </div>
+            </div>
+            
+            <div class="contact-card">
+                <div class="contact-icon">
+                    <i class="fas fa-envelope"></i>
                 </div>
-                
-                <div class="contact-card">
-                    <div class="contact-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="contact-title">Library Hours</div>
-                    <div class="contact-details">
-                        Monday - Friday: 8:00 AM - 8:00 PM<br>
-                        Saturday: 9:00 AM - 5:00 PM<br>
-                        Sunday: 10:00 AM - 4:00 PM
-                    </div>
+                <div class="contact-title">Email Us</div>
+                <div class="contact-details">
+                    <a href="mailto:library@ruh.ac.lk">library@ruh.ac.lk</a><br>
+                    <a href="mailto:support@ruh.ac.lk">support@ruh.ac.lk</a><br>
+                    <a href="mailto:admin@ruh.ac.lk">admin@ruh.ac.lk</a>
+                </div>
+            </div>
+            
+            <div class="contact-card">
+                <div class="contact-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="contact-title">Library Hours</div>
+                <div class="contact-details">
+                    Mon - Fri: 8:00 AM - 8:00 PM<br>
+                    Saturday: 9:00 AM - 5:00 PM<br>
+                    Sunday: 10:00 AM - 4:00 PM
                 </div>
             </div>
         </div>
+        
+        <div class="map-section">
+            <h2 class="map-title">Find Us on the Map</h2>
+            <div class="map-placeholder">
+                <i class="fas fa-map-marked-alt"></i>
+            </div>
+        </div>
     </div>
+</div>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>
