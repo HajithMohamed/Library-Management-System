@@ -28,6 +28,12 @@
     
     <!-- Custom JS -->
     <script>
+        // Background Animation Controls
+        $(document).ready(function() {
+            // Add any future background animation controls here
+            console.log('Animated gradient background loaded successfully');
+        });
+        
         // Auto-hide alerts after 5 seconds
         $(document).ready(function() {
             setTimeout(function() {

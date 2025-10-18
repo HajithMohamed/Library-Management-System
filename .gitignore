@@ -15,6 +15,12 @@ composer.phar
 src/composer.json
 src/composer.lock
 
+# Video files (use gradient background instead)
+src/public/assets/videos/*.mp4
+src/public/assets/videos/*.mov
+src/public/assets/videos/*.avi
+src/public/assets/videos/*.webm
+
 # ===========================================
 # ENVIRONMENT & CONFIGURATION
 # ===========================================

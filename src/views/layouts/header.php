@@ -15,29 +15,143 @@
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/dashboard.css">
     
     <style>
+        /* Animated Background Styles */
+        .video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .video-fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .fallback-gradient {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Dark overlay for better text readability */
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 0;
+        }
+        
+        /* Ensure content is above video */
+        .navbar, main, footer, .alert {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Enhanced card styles for video background */
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .card:hover {
+            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease-in-out;
+            transform: translateY(-2px);
+        }
+        
+        /* Enhanced navbar for video background */
+        .navbar {
+            background: rgba(13, 110, 253, 0.9) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Enhanced footer for video background */
+        footer {
+            background: rgba(248, 249, 250, 0.9) !important;
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Enhanced alerts for video background */
+        .alert {
+            border-radius: 0.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .alert-success {
+            background: rgba(25, 135, 84, 0.9);
+            color: white;
+        }
+        
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+        }
+        
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+        }
+        
+        /* General styles */
         .navbar-brand {
             font-weight: bold;
         }
-        .card {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            border: 1px solid rgba(0, 0, 0, 0.125);
-        }
-        .card:hover {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            transition: box-shadow 0.15s ease-in-out;
-        }
+        
         .badge {
             font-size: 0.75em;
         }
+        
         .btn {
             border-radius: 0.375rem;
         }
-        .alert {
-            border-radius: 0.5rem;
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .video-background video {
+                display: none; /* Hide video on mobile for better performance */
+            }
+            
+            .video-overlay {
+                background: rgba(0, 0, 0, 0.6); /* Darker overlay on mobile */
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Animated Background -->
+    <div class="video-background">
+        <div class="video-fallback">
+            <div class="fallback-gradient"></div>
+        </div>
+    </div>
+    
+    <!-- Dark Overlay -->
+    <div class="video-overlay"></div>
+    
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
