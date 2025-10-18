@@ -150,6 +150,9 @@ $router->addRoute('GET', '/404', 'AuthController', 'show404');
 $router->addRoute('GET', '/health', 'AuthController', 'healthCheck');
 $router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
 
+// Debug routes (remove in production)
+$router->addRoute('GET', '/debug/video', 'HomeController', 'videoDebug');
+
 // Dispatch the request
 $router->dispatch();
 ?>

@@ -54,6 +54,14 @@ class HomeController
     }
 
     /**
+     * Debug video background (remove in production)
+     */
+    public function videoDebug()
+    {
+        $this->render('debug/video');
+    }
+
+    /**
      * Render a view with data
      */
     private function render($view, $data = [])

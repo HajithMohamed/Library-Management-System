@@ -1,29 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact Us - University Library Management System</title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/login.css">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/fontawesome-free-6.7.2-web/css/all.min.css">
-    <style>
+<?php
+$pageTitle = 'Contact Us';
+include APP_ROOT . '/views/layouts/header.php';
+?>
+
+<style>
         .page-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: calc(100vh - 200px);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            position: relative;
+            z-index: 1;
         }
         
         .page-content {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
             padding: 40px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             max-width: 800px;
             width: 100%;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .page-title {
@@ -147,5 +147,5 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+
+<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
