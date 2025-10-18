@@ -16,10 +16,16 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Copy custom PHP config
-COPY php.ini /usr/local/etc/php/
+COPY docker/php/php.ini /usr/local/etc/php/
 
-# Copy project files
-COPY ./src /var/www/html
+# Copy project files first
+COPY src /var/www/html
+
+# Copy composer files to the correct location
+COPY composer.json composer.lock /var/www/html/
+
+# Install Composer dependencies
+RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions for PHP
 RUN chown -R www-data:www-data /var/www/html
