@@ -12,10 +12,9 @@
 
 # Composer helpers
 /composer.phar
-
+/composer.lock
 # Environment and local configs
 .env
-.env.*
 /.DS_Store
 Thumbs.db
 
