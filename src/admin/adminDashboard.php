@@ -4,7 +4,11 @@ session_start(); // Start session
 include DIR_URL.'src/global/middleware.php';
 $userId = $_SESSION['userId'];//Fetching userId and userType from session data
 $userType = $_SESSION['userType'];
+<<<<<<< HEAD
 if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librarian
+=======
+if ($userType != 'Admin') // If an invalid userType tries to access this page
+>>>>>>> b054b96 (update)
 {
   http_response_code(403);
   echo '
@@ -83,30 +87,10 @@ $address=$row['address'];
   <div class="content-area">
     <!-- Buttons below the carousel -->
     <div class="buttons">
-      <button type="button" class="button search" id="Manage inventory">
-        <i class="fa-solid fa-boxes-stacked"></i>
-        MANAGE INVENTORY
-      </button>
-      <button type="button" class="button pay" id="Manage users">
-        <i class="fa-solid fa-user-gear"></i>
-        MANAGE USERS
-      </button>
-      <button type="button" class="button return" id="Manage borrow requests">
-        <i class="fa-solid fa-envelope-open-text"></i>
-        MANAGE BORROW REQUESTS
-      </button>
-      <button type="button" class="button return" id="Return book">
-        <i class="fa-solid fa-rotate-left"></i>
-        MARK RETURN
-      </button>
-      <button type="button" class="button search" id="Overdue books">
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        OVERDUE BOOKS
-      </button>
-      <button type="button" class="button statistics" id="Reports">
-        <i class="fa-solid fa-chart-line"></i>
-        REPORTS
-      </button>
+      <button type="button" class="button search" id="Manage inventory">MANAGE INVENTORY</button>
+      <button type="button" class="button issue" id="Add books">ADD BOOKS</button>
+      <button type="button" class="button return" id="Remove books">REMOVE BOOKS</button>
+      <button type="button" class="button pay" id="View members">VIEW MEMBERS</button>
     </div>
   </div>
 
@@ -277,6 +261,7 @@ document.getElementById('logout').addEventListener('click', function(e) {
     });
 });
 
+<<<<<<< HEAD
 // Manage Inventory
 document.getElementById('Manage inventory').onclick=function(){
   window.location.href='ManageInventory.php';
@@ -310,6 +295,24 @@ document.getElementById('View members') && (document.getElementById('View member
 // document.getElementById('Add books')...
 // document.getElementById('Remove books')...
 
+=======
+//View Members button
+document.getElementById('View members').onclick=function(){
+  window.location.href='ViewMembers.php';
+}
+//Add Books to the library button
+document.getElementById('Add books').onclick=function(){
+  window.location.href='AddBooks.php';
+}
+//Remove Books from the library button
+document.getElementById('Remove books').onclick=function(){
+  window.location.href='RemoveBooks.php';
+}
+//Manage Inventory button
+document.getElementById('Manage inventory').onclick=function(){
+  window.location.href='ManageInventory.php';
+}
+>>>>>>> b054b96 (update)
 </script>
 
 </body>

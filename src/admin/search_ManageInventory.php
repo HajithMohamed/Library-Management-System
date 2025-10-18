@@ -99,7 +99,8 @@ if ($result->num_rows > 0)
         $quantityNotZero= ((int)$book_details["available"]!=0);
         echo "<tr>
       <td data-label='Sl.No.'>" . $index . "</td>
-      <td data-label='Cover'>" . (empty($book_details["bookImage"]) ? "<div style='width:48px;height:64px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;border:1px solid #ddd;border-radius:4px;'><i class='fa-solid fa-book'></i></div>" : "<img src='".BASE_URL.htmlspecialchars($book_details["bookImage"])."' alt='Cover' style='width:48px;height:64px;object-fit:cover;border-radius:4px;border:1px solid #ddd;' />") . "</td>
+
+
       <td data-label='ISBN No.'>" . highlightMatch($book_details["isbn"],$highlight) . "</td>
       <td data-label='Book Name'>" . highlightMatch($book_details["bookName"],$highlight) . "</td>
       <td data-label='Author Name'>" . highlightMatch($book_details["authorName"],$highlight) . "</td>
@@ -108,8 +109,20 @@ if ($result->num_rows > 0)
       <td data-label='Borrowed'>" . htmlspecialchars($book_details["borrowed"]) . "</td>
       <td data-label='Actions'>
       <div class='action-buttons'>
-        <button type='button' class='green-btn' onclick=\"openEditModal('".htmlspecialchars($book_details["isbn"])."')\"><i class='fa-solid fa-pen-to-square'></i>&nbsp;&nbsp;Edit</button>
-        <button type='button' class='red-btn' onclick=\"deleteBook('".htmlspecialchars($book_details["isbn"])."')\"><i class='fa-solid fa-trash'></i>&nbsp;&nbsp;Delete</button>
+      <form action='AddBooks.php' method='GET'>
+      <input type='hidden' name='isbn' value='".htmlspecialchars($book_details["isbn"])."'>
+      <input type='hidden' name='bookName' value='".htmlspecialchars($book_details["bookName"])."'>
+      <input type='hidden' name='authorName' value='".htmlspecialchars($book_details["authorName"])."'>
+      <input type='hidden' name='publisherName' value='".htmlspecialchars($book_details  ["publisherName"])."'>
+      <button type='submit' name='add' class='green-btn'><i class='fa-solid fa-plus'></i>&nbsp;&nbsp;Add More</button>
+      </form>     
+      <form action='RemoveBooks.php' method='GET'>
+      <input type='hidden' name='isbn' value='".htmlspecialchars($book_details["isbn"])."'>
+      <input type='hidden' name='bookName' value='".htmlspecialchars($book_details["bookName"])."'>
+      <input type='hidden' name='authorName' value='".htmlspecialchars($book_details["authorName"])."'>
+      <input type='hidden' name='publisherName' value='".htmlspecialchars($book_details  ["publisherName"])."'>
+      <button type='submit' name='remove' class='red-btn' " . ($quantityNotZero ? "" : "disabled") . "><i class='fa-solid fa-minus'></i>&nbsp;&nbsp;Remove</button>
+      </form>    
       </div>
       </td>
       </tr>";

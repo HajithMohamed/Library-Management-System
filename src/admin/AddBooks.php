@@ -4,7 +4,8 @@ session_start(); // Start session
 include DIR_URL.'src/global/middleware.php';
 $userId = $_SESSION['userId'];//Fetching userId and userType from session data
 $userType = $_SESSION['userType'];
-if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librarian
+
+if ($userType != 'Admin') // if an invalid userType tries to access this page
 {
   http_response_code(403);
   echo '
@@ -31,12 +32,15 @@ if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librari
   exit();
 }
 
+<<<<<<< HEAD
 $redirectToInventory = true;
 if ($redirectToInventory) {
   header('Location: ManageInventory.php');
   exit();
 }
 
+=======
+>>>>>>> b054b96 (update)
 $message="";
 
 $isbn=$_POST['isbn'] ?? $_GET['isbn'] ?? '';
@@ -44,14 +48,18 @@ $bookName=$_POST['bookName'] ?? $_GET['bookName'] ?? '';
 $authorName=$_POST['authorName'] ?? $_GET['authorName'] ?? '';
 $publisherName=$_POST['publisherName'] ?? $_GET['publisherName'] ?? '';
 $quantity=$_POST['quantity'] ?? '1';
+<<<<<<< HEAD
 $description=$_POST['description'] ?? '';
 $category=$_POST['category'] ?? '';
 $publicationYear=$_POST['publicationYear'] ?? '';
 $bookImage='';
+=======
+>>>>>>> b054b96 (update)
 
 if($_SERVER["REQUEST_METHOD"]==="POST")
 {
 include DIR_URL.'config/dbConnection.php';
+<<<<<<< HEAD
 
 // Handle file upload for book image
 if(isset($_FILES['bookImage']) && $_FILES['bookImage']['error'] == 0) {
@@ -73,6 +81,8 @@ if(isset($_FILES['bookImage']) && $_FILES['bookImage']['error'] == 0) {
     }
 }
 
+=======
+>>>>>>> b054b96 (update)
 $sql="SELECT * FROM books WHERE isbn='$isbn' ";
 $result=$conn->query($sql);
 if($result->num_rows>0)//check if the requested book exists in the library
@@ -93,6 +103,7 @@ if($result->num_rows>0)//check if the requested book exists in the library
 }
 else// requested book does not exist in the library
 {
+<<<<<<< HEAD
      $sql="INSERT INTO books (isbn,bookName,authorName,publisherName,available,borrowed,bookImage,description,category,publicationYear,totalCopies) 
      VALUES('$isbn','$bookName','$authorName','$publisherName','$quantity','0','$bookImage','$description','$category','$publicationYear','$quantity')";
      
@@ -102,6 +113,12 @@ else// requested book does not exist in the library
           $statsSql = "INSERT INTO book_statistics (isbn, date_added, new_arrivals) VALUES('$isbn', CURDATE(), '$quantity')";
           $conn->query($statsSql);
           
+=======
+     $sql="INSERT INTO books (isbn,bookName,authorName,publisherName,available,borrowed) 
+     VALUES('$isbn','$bookName','$authorName','$publisherName','$quantity','0')";
+     if($conn->query($sql)===TRUE)
+     {
+>>>>>>> b054b96 (update)
           echo "<script>alert('Book(s) added successfully'); 
           window.location.href='adminDashboard.php';</script>";
      }
@@ -119,7 +136,10 @@ $conn->close();
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Add Books</title>
+<<<<<<< HEAD
   <link rel="stylesheet" href="<?php echo BASE_URL;?>assets/fontawesome-free-6.7.2-web/css/all.min.css" />
+=======
+>>>>>>> b054b96 (update)
   <link rel="stylesheet" href="<?php echo BASE_URL;?>assets/css/formLayout.css" />
 </head>
 <body>
@@ -128,11 +148,18 @@ $conn->close();
 
   <div class="container">
     <h2>Enter Book Details</h2>
+<<<<<<< HEAD
     <div id="Note"><span id="Note-word">Note:</span> Fields marked with <span class="red-star">*</span> are required. If an ISBN already exists, details will auto-fill.</div>
     <form id="AddBooksForm" method="POST" enctype="multipart/form-data" onsubmit="return true;" >
       
       <div class="form-group">
         <label for="isbn"><i class="fa-solid fa-barcode" style="margin-right:8px;"></i>ISBN (13 digits):<span class="red-star">*</span></label>
+=======
+    <form id="AddBooksForm" method="POST" onsubmit="return true;" >
+      
+      <div class="form-group">
+        <label for="isbn">ISBN (13 digits):<span class="red-star">*</span></label>
+>>>>>>> b054b96 (update)
         <input type="text" id="isbn" name="isbn" maxlength="13" pattern="\d{13}" title="Enter exactly 13 digits"
         required class="input" onfocus="initiate()" 
         value="<?= htmlspecialchars($isbn) ?>">
@@ -145,30 +172,47 @@ $conn->close();
       
 
       <div class="form-group">
+<<<<<<< HEAD
         <label for="bookName"><i class="fa-solid fa-book" style="margin-right:8px;"></i>Book Name:<span class="red-star">*</span></label>
+=======
+        <label for="bookName">Book Name:<span class="red-star">*</span></label>
+>>>>>>> b054b96 (update)
         <input type="text" id="bookName" name="bookName" required class="input"
         value="<?= htmlspecialchars($bookName) ?>">
       </div>
 
       <div class="form-group">
+<<<<<<< HEAD
         <label for="authorName"><i class="fa-solid fa-user-pen" style="margin-right:8px;"></i>Author Name:<span class="red-star">*</span></label>
+=======
+        <label for="authorName">Author Name:<span class="red-star">*</span></label>
+>>>>>>> b054b96 (update)
         <input type="text" id="authorName" name="authorName" required class="input"
         value="<?= htmlspecialchars($authorName) ?>">
       </div>
 
       <div class="form-group">
+<<<<<<< HEAD
         <label for="publisherName"><i class="fa-solid fa-building" style="margin-right:8px;"></i>Publisher Name:<span class="red-star">*</span></label>
+=======
+        <label for="publisherName">Publisher Name:<span class="red-star">*</span></label>
+>>>>>>> b054b96 (update)
         <input type="text" id="publisherName" name="publisherName" required class="input" 
         value="<?= htmlspecialchars($publisherName) ?>">
       </div>
       
       <div class="form-group">
+<<<<<<< HEAD
         <label for="quantity"><i class="fa-solid fa-layer-group" style="margin-right:8px;"></i>Quantity:<span class="red-star">*</span></label>
+=======
+        <label for="quantity">Quantity:<span class="red-star">*</span></label>
+>>>>>>> b054b96 (update)
         <input type="number" id="quantity" name="quantity" min="1" max="100" step="1"
         required class="input" 
         value="<?= htmlspecialchars($quantity) ?>">
       </div>
 
+<<<<<<< HEAD
       <div class="form-group">
         <label for="description"><i class="fa-solid fa-align-left" style="margin-right:8px;"></i>Description:</label>
         <textarea id="description" name="description" class="input" rows="3" 
@@ -208,6 +252,9 @@ $conn->close();
 
       <button type="submit">Add book to the library</button>
       <a href="ManageInventory.php" style="display:inline-block;text-align:center;margin-top:10px;text-decoration:none;font-weight:bold;color:#007BFF;">&larr; Back to Manage Inventory</a>
+=======
+      <button type="submit">Add book to the library</button>
+>>>>>>> b054b96 (update)
     </form>
   </div>
   <script>
@@ -220,9 +267,12 @@ $conn->close();
     //using AJAX to fetch book details on entering isbn
     document.addEventListener("DOMContentLoaded", function () {
     const isbnField = document.getElementById("isbn");
+<<<<<<< HEAD
     const imageInput = document.getElementById("bookImage");
     const previewImg = document.getElementById("coverPreview");
     const noPreviewText = document.getElementById("noPreviewText");
+=======
+>>>>>>> b054b96 (update)
 
     isbnField.addEventListener("input", function () {
       const isbn = isbnField.value.trim();
@@ -244,9 +294,12 @@ $conn->close();
               document.getElementById("bookName").value = data.bookName;
               document.getElementById("authorName").value = data.authorName;
               document.getElementById("publisherName").value = data.publisherName;
+<<<<<<< HEAD
               document.getElementById("description").value = data.description || '';
               document.getElementById("category").value = data.category || '';
               document.getElementById("publicationYear").value = data.publicationYear || '';
+=======
+>>>>>>> b054b96 (update)
               showToast("Book details fetched from existing records.");// Show a toast message
             }
           })
@@ -256,6 +309,7 @@ $conn->close();
       }
     });
 
+<<<<<<< HEAD
     imageInput.addEventListener('change', function(){
       const file = this.files && this.files[0] ? this.files[0] : null;
       if(!file){ previewImg.style.display='none'; noPreviewText.style.display='inline'; return; }
@@ -265,6 +319,8 @@ $conn->close();
       noPreviewText.style.display = 'none';
     });
 
+=======
+>>>>>>> b054b96 (update)
     isbnField.addEventListener("focus", function () {
       document.getElementById("bookError").innerHTML = "";
     });
