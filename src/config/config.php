@@ -1,31 +1,31 @@
 <?php
 // Define application paths (APP_ROOT is already defined in index.php)
 if (!defined('APP_ROOT')) {
-    define('APP_ROOT', dirname(__DIR__));
+  define('APP_ROOT', dirname(__DIR__));
 }
 define('PUBLIC_ROOT', APP_ROOT . '/public');
 
 // Base URL configuration
 if (!defined('BASE_URL')) {
-    if (isset($_SERVER['HTTP_HOST'])) {
-        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'];
-        $port = $_SERVER['SERVER_PORT'];
-        
-        // For Docker setup
-        if ($host === 'localhost' && $port === '8080') {
-            define("BASE_URL", "http://localhost:8080/");
-        } else {
-            define("BASE_URL", $protocol . "://" . $host . "/");
-        }
+  if (isset($_SERVER['HTTP_HOST'])) {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $port = $_SERVER['SERVER_PORT'];
+
+    // For Docker setup
+    if ($host === 'localhost' && $port === '8080') {
+      define("BASE_URL", "http://localhost:8080/");
     } else {
-        define("BASE_URL", "http://localhost:8080/");
+      define("BASE_URL", $protocol . "://" . $host . "/");
     }
+  } else {
+    define("BASE_URL", "http://localhost:8080/");
+  }
 }
 
 define("DIR_URL", APP_ROOT . "/");
 
-define("ADMIN_CODE","hello_world");
+define("ADMIN_CODE", "hello_world");
 // Replace the Admin Registration Code above in place of hello_world to register as an admin in the Library
 
 date_default_timezone_set('Asia/Kolkata');
@@ -51,5 +51,3 @@ define("SMTP_FROM_NAME", "Library managemene system university of Ruhuna");
 define("SMS_API_URL", ""); // e.g., https://api.textlocal.in/send/
 define("SMS_API_KEY", "");
 define("SMS_SENDER_ID", "");
-?>
-
