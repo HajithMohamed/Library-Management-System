@@ -287,60 +287,57 @@ include APP_ROOT . '/views/layouts/header.php';
                             <i class="fas fa-user-plus"></i>
                         </div>
                         <h2 class="auth-title">Create Your Account</h2>
-                        <p class="auth-subtitle">Join the University Library community</p>
+                        <p class="auth-subtitle">Join the University Library community - Choose your username and Student ID will be auto-generated</p>
                     </div>
                     
                     <div class="auth-body">
                         <form method="POST" action="<?= BASE_URL ?>signup">
                             <!-- Username -->
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="username" class="form-label">
-                                        Username <span class="required-star">*</span>
-                                    </label>
-                                    <div class="input-group-modern">
-                                        <input type="text" 
-                                               class="form-control-modern" 
-                                               id="username" 
-                                               name="username"
-                                               placeholder="Enter your Username" 
-                                               required
-                                               value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
-                                        <i class="fas fa-id-card input-icon"></i>
-                                    </div>
+                            <div class="form-group">
+                                <label for="username" class="form-label">
+                                    Username <span class="required-star">*</span>
+                                </label>
+                                <div class="input-group-modern">
+                                    <input type="text" 
+                                           class="form-control-modern" 
+                                           id="username" 
+                                           name="username"
+                                           placeholder="Choose your username" 
+                                           required
+                                           value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+                                    <i class="fas fa-user input-icon"></i>
                                 </div>
                             </div>
                             
-                            <!-- Password & Gender -->
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="password" class="form-label">
-                                        Password <span class="required-star">*</span>
-                                    </label>
-                                    <div class="input-group-modern">
-                                        <input type="password" 
-                                               class="form-control-modern" 
-                                               id="password" 
-                                               name="password"
-                                               placeholder="Create a strong password" 
-                                               required>
-                                        <i class="fas fa-lock input-icon"></i>
-                                    </div>
+                            <!-- Password -->
+                            <div class="form-group">
+                                <label for="password" class="form-label">
+                                    Password <span class="required-star">*</span>
+                                </label>
+                                <div class="input-group-modern">
+                                    <input type="password" 
+                                           class="form-control-modern" 
+                                           id="password" 
+                                           name="password"
+                                           placeholder="Create a strong password" 
+                                           required>
+                                    <i class="fas fa-lock input-icon"></i>
                                 </div>
-                                
-                                <div class="form-group">
-                                    <label for="gender" class="form-label">
-                                        Gender <span class="required-star">*</span>
-                                    </label>
-                                    <div class="input-group-modern">
-                                        <select class="form-select-modern" id="gender" name="gender" required>
-                                            <option value="">Select Gender</option>
-                                            <option value="Male" <?= ($_POST['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                                            <option value="Female" <?= ($_POST['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                                            <option value="Other" <?= ($_POST['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
-                                        </select>
-                                        <i class="fas fa-venus-mars input-icon"></i>
-                                    </div>
+                            </div>
+                            
+                            <!-- Gender -->
+                            <div class="form-group">
+                                <label for="gender" class="form-label">
+                                    Gender <span class="required-star">*</span>
+                                </label>
+                                <div class="input-group-modern">
+                                    <select class="form-select-modern" id="gender" name="gender" required>
+                                        <option value="">Select Gender</option>
+                                        <option value="Male" <?= ($_POST['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                                        <option value="Female" <?= ($_POST['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                                        <option value="Other" <?= ($_POST['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                                    </select>
+                                    <i class="fas fa-venus-mars input-icon"></i>
                                 </div>
                             </div>
                             

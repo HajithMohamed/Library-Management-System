@@ -15,7 +15,7 @@ $userStats = [
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1>Welcome back, <?= htmlspecialchars($_SESSION['userId']) ?>!</h1>
+                <h1>Welcome back, <?= htmlspecialchars($_SESSION['username'] ?? $_SESSION['userId']) ?>!</h1>
                 <span class="badge bg-primary fs-6"><?= $_SESSION['userType'] ?></span>
             </div>
         </div>
