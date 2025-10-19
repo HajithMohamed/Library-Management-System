@@ -66,6 +66,6 @@ jobs:
           DB_NAME: integrated_library_system
         run: |
           php -r "require 'vendor/autoload.php'; echo 'Autoload OK' . PHP_EOL;"
-          php -r "require 'src/config/dbConnection.php'; echo isset(\$conn) && \$conn ? 'DB OK' . PHP_EOL : 'DB FAIL' . PHP_EOL;"
+          php -r "require 'src/config/dbConnection.php'; echo (isset(\$conn) && \$conn) ? 'DB OK' . PHP_EOL : 'DB FAIL' . PHP_EOL;"
 
 

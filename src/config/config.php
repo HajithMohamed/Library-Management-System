@@ -1,7 +1,14 @@
 <?php
 // Define application paths (APP_ROOT is already defined in index.php)
+// When running scripts outside the front controller (e.g., CI), resolve to project root
 if (!defined('APP_ROOT')) {
-  define('APP_ROOT', dirname(__DIR__));
+  $defaultAppRoot = dirname(__DIR__); // typically .../src
+  $projectRootCandidate = dirname($defaultAppRoot); // move up to project root
+  if (file_exists($projectRootCandidate . '/vendor/autoload.php')) {
+    define('APP_ROOT', $projectRootCandidate);
+  } else {
+    define('APP_ROOT', $defaultAppRoot);
+  }
 }
 define('PUBLIC_ROOT', APP_ROOT . '/public');
 
@@ -28,13 +35,16 @@ define("DIR_URL", APP_ROOT . "/");
 // Load environment variables using Dotenv
 // Include autoloader if not already loaded
 if (!class_exists('Dotenv\Dotenv')) {
-    require_once APP_ROOT . '/vendor/autoload.php';
+    $autoloadPath = APP_ROOT . '/vendor/autoload.php';
+    if (file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
 }
 
 use Dotenv\Dotenv;
 
 // Load .env file from project root
-$dotenv = Dotenv::createImmutable(APP_ROOT . '/../');
+$dotenv = Dotenv::createImmutable(dirname(APP_ROOT));
 $dotenv->safeLoad();
 
 // Helper function to get environment variable with fallback
