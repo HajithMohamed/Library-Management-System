@@ -4,153 +4,621 @@ include APP_ROOT . '/views/layouts/header.php';
 ?>
 
 <style>
-    .books-container { padding: 24px 0; }
-    .search-bar { background: #fff; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.08); padding: 16px; margin-bottom: 16px; display:flex; gap:10px; align-items:center; }
-    .search-input { flex:1; padding: 12px 14px; border:1px solid #e5e7eb; border-radius: 10px; background:#f9fafb; }
-    .btn-search { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; border:0; padding: 10px 14px; border-radius: 10px; font-weight:700; cursor:pointer; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:16px; }
-    .card { background:#fff; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.08); overflow:hidden; display:flex; flex-direction:column; }
-    .card-cover { height: 140px; background: linear-gradient(135deg, rgba(102,126,234,.15), rgba(118,75,162,.15)); display:flex; align-items:center; justify-content:center; font-size:42px; color:#5b6ef5; }
-    .card-body { padding: 14px; display:flex; flex-direction:column; gap:6px; }
-    .title { font-weight:800; color:#111827; }
-    .meta { color:#6b7280; font-size:.9rem; }
-    .actions { margin-top:auto; display:flex; gap:8px; }
-    .btn { background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; border:0; padding:8px 10px; border-radius: 8px; cursor:pointer; font-weight:700; width:100%; }
-    .section-title { margin: 16px 0 8px; font-weight:800; color:#1f2937; }
+    .books-container {
+        padding: 2rem 0;
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Page Header */
+    .books-header {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        animation: slideInDown 0.6s ease-out;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .books-header h1 {
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .books-header p {
+        color: #6b7280;
+        font-size: 1.05rem;
+        margin: 0;
+    }
+    
+    /* Search Bar */
+    .search-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        animation: slideInUp 0.6s ease-out 0.2s both;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .search-form {
+        display: flex;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    
+    .search-input-wrapper {
+        flex: 1;
+        position: relative;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 1.1rem;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 1rem 1rem 1rem 3.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 14px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #f9fafb;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+    
+    .search-input:focus ~ .search-icon {
+        color: #667eea;
+    }
+    
+    .btn-search {
+        padding: 1rem 2.5rem;
+        border: none;
+        border-radius: 14px;
+        font-size: 1.05rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+    }
+    
+    .btn-search:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-search:active {
+        transform: translateY(0);
+    }
+    
+    /* Section Header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 2.5rem 0 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .section-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .section-title i {
+        color: #667eea;
+    }
+    
+    .results-count {
+        padding: 0.5rem 1.25rem;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    
+    /* Books Grid */
+    .books-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        animation: fadeIn 0.8s ease-out 0.4s both;
+    }
+    
+    /* Book Card */
+    .book-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        flex-direction: column;
+        border: 2px solid transparent;
+    }
+    
+    .book-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        border-color: rgba(102, 126, 234, 0.3);
+    }
+    
+    .book-cover {
+        height: 180px;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .book-cover::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+        transform: rotate(45deg);
+        transition: all 0.5s ease;
+    }
+    
+    .book-card:hover .book-cover::before {
+        left: 100%;
+    }
+    
+    .book-cover-icon {
+        font-size: 4rem;
+        color: #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .book-card:hover .book-cover-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+    
+    .book-availability {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .book-availability.available {
+        background: rgba(16, 185, 129, 0.9);
+        color: white;
+    }
+    
+    .book-availability.unavailable {
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+    }
+    
+    .book-body {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+    }
+    
+    .book-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #1f2937;
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .book-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .book-meta-item {
+        display: flex;
+        align-items: start;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+    
+    .book-meta-item i {
+        color: #667eea;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    
+    .book-meta-label {
+        font-weight: 600;
+        color: #374151;
+        min-width: 70px;
+    }
+    
+    .book-isbn {
+        padding: 0.5rem 0.75rem;
+        background: rgba(102, 126, 234, 0.05);
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        color: #667eea;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    
+    .book-actions {
+        margin-top: auto;
+        padding-top: 1rem;
+        border-top: 2px solid #f3f4f6;
+    }
+    
+    .btn-borrow {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        font-size: 1rem;
+    }
+    
+    .btn-borrow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-borrow:active {
+        transform: translateY(0);
+    }
+    
+    .btn-borrow:disabled,
+    .btn-unavailable {
+        background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+        cursor: not-allowed;
+        opacity: 0.6;
+        box-shadow: none;
+    }
+    
+    .btn-unavailable:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        animation: slideInUp 0.6s ease-out 0.4s both;
+    }
+    
+    .empty-state-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 50%;
+        font-size: 3.5rem;
+        color: #667eea;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+    }
+    
+    .empty-state p {
+        color: #6b7280;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .empty-state .search-term {
+        color: #667eea;
+        font-weight: 700;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .books-header {
+            padding: 1.5rem;
+        }
+        
+        .search-card {
+            padding: 1.5rem;
+        }
+        
+        .search-form {
+            flex-direction: column;
+        }
+        
+        .btn-search {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .books-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .section-header {
+            flex-direction: column;
+            align-items: start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .book-cover {
+            height: 150px;
+        }
+        
+        .book-cover-icon {
+            font-size: 3rem;
+        }
+        
+        .book-body {
+            padding: 1.25rem;
+        }
+    }
 </style>
 
-<div class="container books-container">
-    <form method="GET" action="<?= BASE_URL ?>user/books" class="search-bar">
-        <input class="search-input" type="text" name="search" placeholder="Search by title, author, or publisher" value="<?= htmlspecialchars($search ?? '') ?>">
-        <button class="btn-search" type="submit"><i class="fas fa-search"></i> Search</button>
-    </form>
-
-    <?php if (!empty($books)) { ?>
-        <h4 class="section-title">Search Results</h4>
-        <div class="grid">
-            <?php foreach ($books as $book) { ?>
-                <div class="card">
-                    <div class="card-cover"><i class="fas fa-book"></i></div>
-                    <div class="card-body">
-                        <div class="title"><?= htmlspecialchars($book['bookName']) ?></div>
-                        <div class="meta">Author: <?= htmlspecialchars($book['authorName']) ?></div>
-                        <div class="meta">Publisher: <?= htmlspecialchars($book['publisherName']) ?></div>
-                        <div class="meta">ISBN: <?= htmlspecialchars($book['isbn']) ?></div>
-                        <div class="meta">Available: <?= (int)$book['available'] ?></div>
-                        <div class="actions">
-                            <a class="btn" href="<?= BASE_URL ?>user/borrow?isbn=<?= urlencode($book['isbn']) ?>"><i class="fas fa-hand-holding"></i> Borrow</a>
-                        </div>
-                    </div>
-                </div>
-            <?php } ?>
+<div class="books-container">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="books-header">
+            <h1>📚 Browse Our Collection</h1>
+            <p>Discover thousands of books across various categories</p>
         </div>
-    <?php } ?>
 
-    <?php if (empty($books)) { ?>
-        <h4 class="section-title">Featured Books</h4>
-        <div class="grid">
-            <?php
-            $featured = [
-                ['isbn' => '9780134685991', 'bookName' => 'Effective Java', 'authorName' => 'Joshua Bloch', 'publisherName' => 'Addison-Wesley', 'available' => 3],
-                ['isbn' => '9781492056355', 'bookName' => 'Designing Data-Intensive Applications', 'authorName' => 'Martin Kleppmann', 'publisherName' => "O'Reilly", 'available' => 2],
-                ['isbn' => '9780135957059', 'bookName' => 'Clean Code', 'authorName' => 'Robert C. Martin', 'publisherName' => 'Prentice Hall', 'available' => 5],
-                ['isbn' => '9781098132410', 'bookName' => 'Learning PHP, MySQL & JavaScript', 'authorName' => 'Robin Nixon', 'publisherName' => "O'Reilly", 'available' => 4],
-            ];
-            foreach ($featured as $book) { ?>
-                <div class="card">
-                    <div class="card-cover"><i class="fas fa-book"></i></div>
-                    <div class="card-body">
-                        <div class="title"><?= htmlspecialchars($book['bookName']) ?></div>
-                        <div class="meta">Author: <?= htmlspecialchars($book['authorName']) ?></div>
-                        <div class="meta">Publisher: <?= htmlspecialchars($book['publisherName']) ?></div>
-                        <div class="meta">ISBN: <?= htmlspecialchars($book['isbn']) ?></div>
-                        <div class="meta">Available: <?= (int)$book['available'] ?></div>
-                        <div class="actions">
-                            <a class="btn" href="#" onclick="return false;"><i class="fas fa-hand-holding"></i> Borrow</a>
-                        </div>
-                    </div>
+        <!-- Search Bar -->
+        <div class="search-card">
+            <form method="GET" action="<?= BASE_URL ?>user/books" class="search-form">
+                <div class="search-input-wrapper">
+                    <input type="text" 
+                           class="search-input" 
+                           name="search" 
+                           placeholder="Search by book name, author, or publisher..." 
+                           value="<?= htmlspecialchars($search ?? '') ?>">
+                    <i class="fas fa-search search-icon"></i>
                 </div>
-            <?php } ?>
+                <button type="submit" class="btn-search">
+                    <i class="fas fa-search"></i>
+                    <span>Search Books</span>
+                </button>
+            </form>
         </div>
-    <?php } ?>
-</div>
 
-<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
-
-<?php
-$pageTitle = 'Browse Books';
-include APP_ROOT . '/views/layouts/header.php';
-?>
-
-<div class="container">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">Browse Books</h1>
-            
-            <!-- Search Form -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="GET" action="<?= BASE_URL ?>user/books" class="row g-3">
-                        <div class="col-md-8">
-                            <input type="text" class="form-control" name="search" 
-                                   placeholder="Search by book name, author, or publisher..." 
-                                   value="<?= htmlspecialchars($search ?? '') ?>">
-                        </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-search"></i> Search
-                            </button>
-                        </div>
-                    </form>
-                </div>
+        <!-- Books Section -->
+        <?php if (!empty($books)): ?>
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-book-open"></i>
+                    <?= !empty($search) ? 'Search Results' : 'Available Books' ?>
+                </h2>
+                <span class="results-count">
+                    <?= count($books) ?> <?= count($books) === 1 ? 'Book' : 'Books' ?> Found
+                </span>
             </div>
 
-            <!-- Books Grid -->
-            <?php if (!empty($books)): ?>
-                <div class="row">
-                    <?php foreach ($books as $book): ?>
-                        <div class="col-md-6 col-lg-4 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title"><?= htmlspecialchars($book['bookName']) ?></h5>
-                                    <p class="card-text">
-                                        <strong>Author:</strong> <?= htmlspecialchars($book['authorName']) ?><br>
-                                        <strong>Publisher:</strong> <?= htmlspecialchars($book['publisherName']) ?><br>
-                                        <strong>ISBN:</strong> <?= htmlspecialchars($book['isbn']) ?>
-                                    </p>
+            <div class="books-grid">
+                <?php foreach ($books as $book): ?>
+                    <div class="book-card">
+                        <div class="book-cover">
+                            <i class="fas fa-book book-cover-icon"></i>
+                            <span class="book-availability <?= $book['available'] > 0 ? 'available' : 'unavailable' ?>">
+                                <i class="fas fa-<?= $book['available'] > 0 ? 'check-circle' : 'times-circle' ?>"></i>
+                                <?= $book['available'] > 0 ? $book['available'] . ' Available' : 'Not Available' ?>
+                            </span>
+                        </div>
+                        
+                        <div class="book-body">
+                            <h3 class="book-title"><?= htmlspecialchars($book['bookName']) ?></h3>
+                            
+                            <div class="book-meta">
+                                <div class="book-meta-item">
+                                    <i class="fas fa-user"></i>
+                                    <div>
+                                        <span class="book-meta-label">Author:</span>
+                                        <?= htmlspecialchars($book['authorName']) ?>
+                                    </div>
                                 </div>
-                                <div class="card-footer">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="badge <?= $book['available'] > 0 ? 'bg-success' : 'bg-danger' ?>">
-                                            <?= $book['available'] > 0 ? 'Available (' . $book['available'] . ')' : 'Not Available' ?>
-                                        </span>
-                                        <?php if ($book['available'] > 0): ?>
-                                            <a href="<?= BASE_URL ?>user/borrow?isbn=<?= $book['isbn'] ?>" 
-                                               class="btn btn-primary btn-sm">
-                                                <i class="fas fa-book"></i> Borrow
-                                            </a>
-                                        <?php else: ?>
-                                            <button class="btn btn-secondary btn-sm" disabled>
-                                                <i class="fas fa-times"></i> Unavailable
-                                            </button>
-                                        <?php endif; ?>
+                                
+                                <div class="book-meta-item">
+                                    <i class="fas fa-building"></i>
+                                    <div>
+                                        <span class="book-meta-label">Publisher:</span>
+                                        <?= htmlspecialchars($book['publisherName']) ?>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <div class="book-isbn">
+                                ISBN: <?= htmlspecialchars($book['isbn']) ?>
+                            </div>
+                            
+                            <div class="book-actions">
+                                <?php if ($book['available'] > 0): ?>
+                                    <a href="<?= BASE_URL ?>user/borrow?isbn=<?= urlencode($book['isbn']) ?>" 
+                                       class="btn-borrow">
+                                        <i class="fas fa-hand-holding"></i>
+                                        <span>Borrow Book</span>
+                                    </a>
+                                <?php else: ?>
+                                    <button class="btn-borrow btn-unavailable" disabled>
+                                        <i class="fas fa-times-circle"></i>
+                                        <span>Currently Unavailable</span>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+        <?php elseif (!empty($search)): ?>
+            <!-- No Results Found -->
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-search"></i>
                 </div>
-            <?php else: ?>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    <?php if (!empty($search)): ?>
-                        No books found matching "<?= htmlspecialchars($search) ?>".
-                    <?php else: ?>
-                        No books available at the moment.
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
-        </div>
+                <h3>No Books Found</h3>
+                <p>
+                    We couldn't find any books matching 
+                    <span class="search-term">"<?= htmlspecialchars($search) ?>"</span>. 
+                    Try searching with different keywords.
+                </p>
+            </div>
+
+        <?php else: ?>
+            <!-- Featured Books -->
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-star"></i>
+                    Featured Books
+                </h2>
+                <span class="results-count">4 Books</span>
+            </div>
+
+            <div class="books-grid">
+                <?php
+                $featured = [
+                    ['isbn' => '9780134685991', 'bookName' => 'Effective Java', 'authorName' => 'Joshua Bloch', 'publisherName' => 'Addison-Wesley', 'available' => 3],
+                    ['isbn' => '9781492056355', 'bookName' => 'Designing Data-Intensive Applications', 'authorName' => 'Martin Kleppmann', 'publisherName' => "O'Reilly", 'available' => 2],
+                    ['isbn' => '9780135957059', 'bookName' => 'Clean Code', 'authorName' => 'Robert C. Martin', 'publisherName' => 'Prentice Hall', 'available' => 5],
+                    ['isbn' => '9781098132410', 'bookName' => 'Learning PHP, MySQL & JavaScript', 'authorName' => 'Robin Nixon', 'publisherName' => "O'Reilly", 'available' => 4],
+                ];
+                foreach ($featured as $book): ?>
+                    <div class="book-card">
+                        <div class="book-cover">
+                            <i class="fas fa-book book-cover-icon"></i>
+                            <span class="book-availability available">
+                                <i class="fas fa-check-circle"></i>
+                                <?= $book['available'] ?> Available
+                            </span>
+                        </div>
+                        
+                        <div class="book-body">
+                            <h3 class="book-title"><?= htmlspecialchars($book['bookName']) ?></h3>
+                            
+                            <div class="book-meta">
+                                <div class="book-meta-item">
+                                    <i class="fas fa-user"></i>
+                                    <div>
+                                        <span class="book-meta-label">Author:</span>
+                                        <?= htmlspecialchars($book['authorName']) ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="book-meta-item">
+                                    <i class="fas fa-building"></i>
+                                    <div>
+                                        <span class="book-meta-label">Publisher:</span>
+                                        <?= htmlspecialchars($book['publisherName']) ?>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="book-isbn">
+                                ISBN: <?= htmlspecialchars($book['isbn']) ?>
+                            </div>
+                            
+                            <div class="book-actions">
+                                <a href="#" onclick="return false;" class="btn-borrow">
+                                    <i class="fas fa-hand-holding"></i>
+                                    <span>Borrow Book</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
