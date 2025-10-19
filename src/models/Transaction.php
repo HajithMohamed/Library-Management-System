@@ -175,24 +175,8 @@ class Transaction
     }
 
     /**
-     * Get user's transaction history
+     * Duplicate method removed: use getUserTransactionHistory defined earlier to avoid duplicate declaration.
      */
-    public function getUserTransactionHistory($userId, $limit = 50)
-    {
-        $sql = "SELECT t.*, b.bookName, b.authorName 
-                FROM transactions t 
-                INNER JOIN books b ON t.isbn = b.isbn 
-                WHERE t.userId = ? 
-                ORDER BY t.borrowDate DESC 
-                LIMIT ?";
-        
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('si', $userId, $limit);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_all(MYSQLI_ASSOC);
-    }
 
     /**
      * Get all transactions with book and user details
