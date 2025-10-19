@@ -72,9 +72,9 @@ class User
         // Generate unique user ID
         $data['userId'] = $this->generateUserId();
         
-        $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, profileImage, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('sssssssssiss', 
+        $stmt->bind_param('ssssssssssiss', 
             $data['userId'], 
             $data['username'],
             $data['password'], 
@@ -84,6 +84,7 @@ class User
             $data['emailId'], 
             $data['phoneNumber'], 
             $data['address'], 
+            $data['profileImage'] ?? null,
             $data['isVerified'], 
             $data['otp'], 
             $data['otpExpiry']
@@ -112,14 +113,15 @@ class User
      */
     public function updateUser($userId, $data)
     {
-        $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ? WHERE userId = ?";
+        $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ?, profileImage = COALESCE(?, profileImage) WHERE userId = ?";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('ssssss', 
+        $stmt->bind_param('sssssss', 
             $data['gender'], 
             $data['dob'], 
             $data['emailId'], 
             $data['phoneNumber'], 
             $data['address'], 
+            $data['profileImage'] ?? null,
             $userId
         );
         

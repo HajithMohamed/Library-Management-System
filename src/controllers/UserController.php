@@ -175,7 +175,37 @@ class UserController
             return;
         }
 
-        if ($this->userModel->updateUser($userId, $data)) {
+        $updated = $this->userModel->updateUser($userId, $data);
+
+        // Handle profile image upload (optional)
+        if (!empty($_FILES['profileImage']) && is_uploaded_file($_FILES['profileImage']['tmp_name'])) {
+            $file = $_FILES['profileImage'];
+            $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
+            if (isset($allowed[$file['type']]) && $file['size'] <= 2 * 1024 * 1024) {
+                $ext = $allowed[$file['type']];
+                $targetDir = APP_ROOT . '/public/assets/images/users/';
+                if (!is_dir($targetDir)) { @mkdir($targetDir, 0775, true); }
+                // Remove older formats for this user
+                foreach (['jpg','jpeg','png'] as $oldExt) {
+                    $oldPath = $targetDir . $userId . '.' . $oldExt;
+                    if (file_exists($oldPath)) { @unlink($oldPath); }
+                }
+                $target = $targetDir . $userId . '.' . $ext;
+                if (@move_uploaded_file($file['tmp_name'], $target)) {
+                    // Persist relative path in DB
+                    $relativePath = 'assets/images/users/' . $userId . '.' . $ext;
+                    $data['profileImage'] = $relativePath;
+                    $this->userModel->updateUser($userId, $data);
+                    $updated = true;
+                } else {
+                    $_SESSION['error'] = 'Profile saved, but image upload failed.';
+                }
+            } else {
+                $_SESSION['error'] = 'Invalid image. Use JPG/PNG under 2 MB.';
+            }
+        }
+
+        if ($updated) {
             $_SESSION['success'] = 'Profile updated successfully!';
         } else {
             $_SESSION['error'] = 'Failed to update profile. Please try again.';

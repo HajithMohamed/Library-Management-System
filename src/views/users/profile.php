@@ -24,7 +24,34 @@ include APP_ROOT . '/views/layouts/header.php';
                     <h3 class="card-title">Profile</h3>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="<?= BASE_URL ?>user/profile">
+                    <?php
+                        $userIdSafe = htmlspecialchars($user['userId'] ?? '');
+                        $uploadsDir = APP_ROOT . '/public/assets/images/users/';
+                        $possible = [
+                            $uploadsDir . ($user['userId'] ?? '') . '.jpg',
+                            $uploadsDir . ($user['userId'] ?? '') . '.jpeg',
+                            $uploadsDir . ($user['userId'] ?? '') . '.png'
+                        ];
+                        $profilePath = '';
+                        // Prefer DB path if set and file exists
+                        if (!empty($user['profileImage'])) {
+                            $candidate = APP_ROOT . '/public/' . ltrim($user['profileImage'], '/');
+                            if (file_exists($candidate)) { $profilePath = $candidate; }
+                        }
+                        if (empty($profilePath)) {
+                            foreach ($possible as $p) { if ($user && !empty($user['userId']) && file_exists($p)) { $profilePath = $p; break; } }
+                        }
+                        $profileUrl = !empty($profilePath)
+                            ? BASE_URL . 'assets/images/users/' . basename($profilePath)
+                            : BASE_URL . 'assets/images/profileImg.jfif';
+                    ?>
+
+                    <div style="display:flex; gap:16px; align-items:center; margin-bottom:16px;">
+                        <img src="<?= htmlspecialchars($profileUrl) ?>" alt="Profile Image" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid rgba(102,126,234,.35);">
+                        <div style="color:#6b7280">Upload a JPG or PNG under 2 MB.</div>
+                    </div>
+
+                    <form method="POST" action="<?= BASE_URL ?>user/profile" enctype="multipart/form-data">
                         <div class="form-group">
                             <label>Student ID</label>
                             <input type="text" value="<?= htmlspecialchars($user['userId'] ?? '') ?>" disabled>
@@ -32,6 +59,10 @@ include APP_ROOT . '/views/layouts/header.php';
                         <div class="form-group">
                             <label>Username</label>
                             <input type="text" value="<?= htmlspecialchars($user['username'] ?? '') ?>" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label for="profileImage">Profile Image</label>
+                            <input id="profileImage" name="profileImage" type="file" accept="image/jpeg,image/png">
                         </div>
                         <div class="form-group">
                             <label for="emailId">Email</label>
