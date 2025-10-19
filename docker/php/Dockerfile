@@ -22,7 +22,7 @@ COPY docker/php/php.ini /usr/local/etc/php/
 COPY composer.json composer.lock /var/www/html/
 
 # Install Composer dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer update --no-dev --optimize-autoloader
 
 # Copy project files
 COPY src /var/www/html
