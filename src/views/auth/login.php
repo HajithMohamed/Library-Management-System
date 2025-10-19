@@ -232,15 +232,15 @@ include APP_ROOT . '/views/layouts/header.php';
                     <div class="login-body">
                         <form method="POST" action="<?= BASE_URL ?>">
                             <div class="form-group">
-                                <label for="userId" class="form-label">Username</label>
+                                <label for="username" class="form-label">Username</label>
                                 <div class="input-wrapper">
                                     <input type="text" 
                                            class="form-input" 
-                                           id="userId" 
-                                           name="userId"
-                                           placeholder="Enter your Username" 
+                                           id="username" 
+                                           name="username"
+                                           placeholder="Enter your username" 
                                            required
-                                           value="<?= htmlspecialchars($_POST['userName'] ?? '') ?>">
+                                           value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
                                     <i class="fas fa-user input-icon"></i>
                                 </div>
                             </div>

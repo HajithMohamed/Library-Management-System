@@ -47,6 +47,43 @@ class Transaction
     }
 
     /**
+     * Get borrowed books for a user
+     */
+    public function getBorrowedBooks($userId)
+    {
+        $sql = "SELECT t.*, b.bookName, b.authorName, b.publisherName 
+                FROM transactions t 
+                JOIN books b ON t.isbn = b.isbn 
+                WHERE t.userId = ? AND t.returnDate IS NULL 
+                ORDER BY t.borrowDate DESC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    /**
+     * Get user transaction history
+     */
+    public function getUserTransactionHistory($userId, $limit = 10)
+    {
+        $sql = "SELECT t.*, b.bookName, b.authorName, b.publisherName 
+                FROM transactions t 
+                JOIN books b ON t.isbn = b.isbn 
+                WHERE t.userId = ? 
+                ORDER BY t.borrowDate DESC 
+                LIMIT ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('si', $userId, $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    /**
      * Get active borrowing for a user and book
      */
     public function hasActiveBorrowing($userId, $isbn)

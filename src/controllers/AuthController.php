@@ -30,27 +30,28 @@ class AuthController
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      $userId = $_POST['userId'] ?? '';
+      $username = $_POST['username'] ?? '';
       $password = $_POST['password'] ?? '';
 
-      if (empty($userId) || empty($password)) {
-        $_SESSION['error'] = 'Please enter both User ID and password.';
+      if (empty($username) || empty($password)) {
+        $_SESSION['error'] = 'Please enter both username and password.';
         $this->redirect('/');
         return;
       }
 
-      $user = $this->userModel->authenticate($userId, $password);
+      $user = $this->userModel->authenticateByUsername($username, $password);
 
       if ($user) {
         // Set session variables
         $_SESSION['userId'] = $user['userId'];
+        $_SESSION['username'] = $user['username'];
         $_SESSION['userType'] = $user['userType'];
         $_SESSION['emailId'] = $user['emailId'];
 
-        $_SESSION['success'] = 'Welcome back, ' . $user['userId'] . '!';
+        $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
         $this->authHelper->redirectByUserType();
       } else {
-        $_SESSION['error'] = 'Invalid User ID or password.';
+        $_SESSION['error'] = 'Invalid username or password.';
         $this->redirect('/');
       }
     } else {
@@ -71,9 +72,9 @@ class AuthController
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $data = [
-        'userId' => $_POST['userId'] ?? '',
+        'username' => $_POST['username'] ?? '',
         'password' => $_POST['password'] ?? '',
-        'userType' => $_POST['userType'] ?? '',
+        'userType' => 'Student', // Automatically set to Student
         'gender' => $_POST['gender'] ?? '',
         'dob' => $_POST['dob'] ?? '',
         'emailId' => $_POST['emailId'] ?? '',
@@ -92,9 +93,9 @@ class AuthController
         return;
       }
 
-      // Check if user ID already exists
-      if ($this->userModel->userIdExists($data['userId'])) {
-        $_SESSION['error'] = 'User ID already exists. Please choose a different one.';
+      // Check if username already exists
+      if ($this->userModel->usernameExists($data['username'])) {
+        $_SESSION['error'] = 'Username already exists. Please choose a different username.';
         $this->redirect('/signup');
         return;
       }
@@ -115,12 +116,15 @@ class AuthController
       $data['otp'] = $otp;
       $data['otpExpiry'] = $otpExpiry;
 
-      // Create user
+      // Create user (user ID will be auto-generated)
       if ($this->userModel->createUser($data)) {
+        // Get the generated user ID
+        $generatedUserId = $this->userModel->getLastGeneratedUserId();
+        
         // Send OTP email
         if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
           $_SESSION['success'] = 'Account created successfully! Please check your email for verification code.';
-          $_SESSION['signup_userId'] = $data['userId'];
+          $_SESSION['signup_userId'] = $generatedUserId;
           $this->redirect('/verify-otp');
         } else {
           $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
