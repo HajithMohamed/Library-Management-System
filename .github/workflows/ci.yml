@@ -50,14 +50,8 @@ jobs:
           # Optional: apply additional migrations if needed
           mysql -h 127.0.0.1 -uroot -proot integrated_library_system < database_migration.sql || true
 
-      - name: Install Composer deps (src)
-        working-directory: src
-        run: |
-          if [ -f composer.json ]; then
-            composer install --no-interaction --no-progress --prefer-dist
-          else
-            echo "No composer.json found in src/, skipping Composer install"
-          fi
+      - name: Install Composer deps (root)
+        run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: PHP lint
         run: |
@@ -71,7 +65,7 @@ jobs:
           DB_PASSWORD: root
           DB_NAME: integrated_library_system
         run: |
-          php -r "require 'src/vendor/autoload.php'; echo 'Autoload OK'.PHP_EOL;"
+          php -r "require 'vendor/autoload.php'; echo 'Autoload OK'.PHP_EOL;"
           php -r "require 'src/config/dbConnection.php'; echo isset($conn) && $conn? 'DB OK'.PHP_EOL : 'DB FAIL'.PHP_EOL;"
 
 
