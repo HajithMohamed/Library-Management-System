@@ -230,7 +230,7 @@ include APP_ROOT . '/views/layouts/header.php';
                     </div>
                     
                     <div class="login-body">
-                        <form method="POST" action="<?= BASE_URL ?>">
+                        <form method="POST" action="<?= BASE_URL ?>login">
                             <div class="form-group">
                                 <label for="username" class="form-label">Username</label>
                                 <div class="input-wrapper">
