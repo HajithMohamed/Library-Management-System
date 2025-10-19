@@ -52,7 +52,12 @@ jobs:
 
       - name: Install Composer deps (src)
         working-directory: src
-        run: composer install --no-interaction --no-progress --prefer-dist
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --no-progress --prefer-dist
+          else
+            echo "No composer.json found in src/, skipping Composer install"
+          fi
 
       - name: PHP lint
         run: |
