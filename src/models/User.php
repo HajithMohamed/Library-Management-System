@@ -5,6 +5,7 @@ namespace App\Models;
 class User
 {
     private $conn;
+    private $lastGeneratedUserId;
 
     public function __construct()
     {
@@ -41,14 +42,41 @@ class User
     }
 
     /**
-     * Create a new user
+     * Generate a unique user ID
+     */
+    public function generateUserId()
+    {
+        $prefix = 'STU';
+        $year = date('Y');
+        
+        // Get the next available ID number for this year
+        $sql = "SELECT COUNT(*) as count FROM users WHERE userId LIKE ?";
+        $pattern = $prefix . $year . '%';
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('s', $pattern);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        
+        $nextNumber = $row['count'] + 1;
+        
+        // Format as STU2024001, STU2024002, etc.
+        return $prefix . $year . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Create a new user with auto-generated user ID
      */
     public function createUser($data)
     {
-        $sql = "INSERT INTO users (userId, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // Generate unique user ID
+        $data['userId'] = $this->generateUserId();
+        
+        $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('ssssssssiss', 
+        $stmt->bind_param('sssssssssiss', 
             $data['userId'], 
+            $data['username'],
             $data['password'], 
             $data['userType'], 
             $data['gender'], 
@@ -61,7 +89,22 @@ class User
             $data['otpExpiry']
         );
         
-        return $stmt->execute();
+        $result = $stmt->execute();
+        
+        // Store the generated user ID for later retrieval
+        if ($result) {
+            $this->lastGeneratedUserId = $data['userId'];
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Get the last generated user ID
+     */
+    public function getLastGeneratedUserId()
+    {
+        return $this->lastGeneratedUserId ?? null;
     }
 
     /**
@@ -195,7 +238,45 @@ class User
     }
 
     /**
-     * Authenticate user
+     * Get user by username
+     */
+    public function getUserByUsername($username)
+    {
+        $sql = "SELECT * FROM users WHERE username = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('s', $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_assoc();
+    }
+
+    /**
+     * Authenticate user by username
+     */
+    public function authenticateByUsername($username, $password)
+    {
+        $user = $this->getUserByUsername($username);
+        
+        if (!$user) {
+            return false;
+        }
+        
+        // Check if user is verified
+        if (!$user['isVerified']) {
+            return false;
+        }
+        
+        // Verify password
+        if (password_verify($password, $user['password'])) {
+            return $user;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Authenticate user by user ID (kept for backward compatibility)
      */
     public function authenticate($userId, $password)
     {
@@ -219,17 +300,19 @@ class User
     }
 
     /**
-     * Validate user data
+     * Validate user data for signup
      */
     public function validateUserData($data, $isUpdate = false)
     {
         $errors = [];
         
         if (!$isUpdate) {
-            if (empty($data['userId'])) {
-                $errors[] = 'User ID is required';
-            } elseif (strlen($data['userId']) < 3) {
-                $errors[] = 'User ID must be at least 3 characters';
+            if (empty($data['username'])) {
+                $errors[] = 'Username is required';
+            } elseif (strlen($data['username']) < 3) {
+                $errors[] = 'Username must be at least 3 characters';
+            } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $data['username'])) {
+                $errors[] = 'Username can only contain letters, numbers, and underscores';
             }
             
             if (empty($data['password'])) {
@@ -239,11 +322,8 @@ class User
             }
         }
         
-        if (empty($data['userType'])) {
-            $errors[] = 'User type is required';
-        } elseif (!in_array($data['userType'], ['Student', 'Faculty', 'Admin'])) {
-            $errors[] = 'Invalid user type';
-        }
+        // User type will be automatically set to 'Student' for signup
+        // No need to validate userType for signup
         
         if (empty($data['emailId'])) {
             $errors[] = 'Email is required';
@@ -253,8 +333,8 @@ class User
         
         if (empty($data['phoneNumber'])) {
             $errors[] = 'Phone number is required';
-        } elseif (!preg_match('/^\d{10}$/', $data['phoneNumber'])) {
-            $errors[] = 'Phone number must be 10 digits';
+        } elseif (!preg_match('/^[\+]?[\d\s\-\(\)]{10,15}$/', $data['phoneNumber'])) {
+            $errors[] = 'Phone number must be 10-15 digits and may include +, spaces, hyphens, or parentheses';
         }
         
         if (empty($data['gender'])) {
@@ -265,6 +345,10 @@ class User
         
         if (empty($data['dob'])) {
             $errors[] = 'Date of birth is required';
+        }
+        
+        if (empty($data['address'])) {
+            $errors[] = 'Address is required';
         }
         
         return $errors;
@@ -278,6 +362,28 @@ class User
         $sql = "SELECT COUNT(*) as count FROM users WHERE userId = ?";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        
+        return $row['count'] > 0;
+    }
+
+    /**
+     * Check if username exists
+     */
+    public function usernameExists($username, $excludeUserId = null)
+    {
+        $sql = "SELECT COUNT(*) as count FROM users WHERE username = ?";
+        $params = [$username];
+        
+        if ($excludeUserId) {
+            $sql .= " AND userId != ?";
+            $params[] = $excludeUserId;
+        }
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
         $row = $result->fetch_assoc();

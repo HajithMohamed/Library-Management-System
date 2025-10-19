@@ -1,21 +1,30 @@
 
-DROP DATABASE IF EXISTS library_db;
-CREATE DATABASE  library_db;
+DROP DATABASE IF EXISTS integrated_library_system;
+CREATE DATABASE integrated_library_system;
 
-USE library_db;
+USE integrated_library_system;
 
 CREATE TABLE IF NOT EXISTS users(
-    userId VARCHAR(255) PRIMARY KEY, 
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId VARCHAR(10) UNIQUE NOT NULL, 
+    username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255), 
-    userType VARCHAR(25), 
+    userType VARCHAR(25) DEFAULT 'Student', 
     gender VARCHAR(6), 
-    dob VARCHAR(10), 
-    emailId VARCHAR(255), 
-    phoneNumber VARCHAR(10), 
-    address VARCHAR(255), 
+    dob DATE, 
+    emailId VARCHAR(255) UNIQUE, 
+    phoneNumber VARCHAR(15), 
+    address TEXT, 
     isVerified TINYINT(1) DEFAULT 0, 
     otp VARCHAR(10), 
-    otpExpiry VARCHAR(20)
+    otpExpiry DATETIME,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_userId (userId),
+    INDEX idx_username (username),
+    INDEX idx_emailId (emailId),
+    INDEX idx_userType (userType),
+    INDEX idx_createdAt (createdAt)
 );
 
 CREATE TABLE IF NOT EXISTS books(
