@@ -39,10 +39,19 @@ class AuthController
         return;
       }
 
-      $user = $this->userModel->authenticateByUsername($username, $password);
+      // Get user and verify password to handle unverified flow gracefully
+      $user = $this->userModel->getUserByUsername($username);
 
-      if ($user) {
-        // Set session variables
+      if ($user && $this->authHelper->verifyPassword($password, $user['password'])) {
+        if (empty($user['isVerified'])) {
+          // Redirect unverified users to OTP verification
+          $_SESSION['signup_userId'] = $user['userId'];
+          $_SESSION['error'] = 'Please verify your email to continue.';
+          $this->redirect('/verify-otp');
+          return;
+        }
+
+        // Verified user -> set session and redirect by role
         $_SESSION['userId'] = $user['userId'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['userType'] = $user['userType'];
@@ -123,9 +132,10 @@ class AuthController
         
         // Send OTP email
         if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-          $_SESSION['success'] = 'Account created successfully! Please check your email for verification code.';
+          $_SESSION['success'] = 'Account created! Check your email for the verification code.';
           $_SESSION['signup_userId'] = $generatedUserId;
-          $this->redirect('/verify-otp');
+          // Redirect to login page
+          $this->redirect('/');
         } else {
           $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
           $this->redirect('/signup');
