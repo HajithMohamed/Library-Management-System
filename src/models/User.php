@@ -6,6 +6,16 @@ class User
 {
     private $conn;
     private $lastGeneratedUserId;
+    
+    private function hasColumn($column)
+    {
+        $sql = "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('s', $column);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        return (bool)$result->fetch_row();
+    }
 
     public function __construct()
     {
@@ -72,22 +82,42 @@ class User
         // Generate unique user ID
         $data['userId'] = $this->generateUserId();
         
-        $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('sssssssssiss', 
-            $data['userId'], 
-            $data['username'],
-            $data['password'], 
-            $data['userType'], 
-            $data['gender'], 
-            $data['dob'], 
-            $data['emailId'], 
-            $data['phoneNumber'], 
-            $data['address'], 
-            $data['isVerified'], 
-            $data['otp'], 
-            $data['otpExpiry']
-        );
+        if ($this->hasColumn('profileImage')) {
+            $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, profileImage, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param('ssssssssssiss', 
+                $data['userId'], 
+                $data['username'],
+                $data['password'], 
+                $data['userType'], 
+                $data['gender'], 
+                $data['dob'], 
+                $data['emailId'], 
+                $data['phoneNumber'], 
+                $data['address'], 
+                $data['profileImage'] ?? null,
+                $data['isVerified'], 
+                $data['otp'], 
+                $data['otpExpiry']
+            );
+        } else {
+            $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param('sssssssssiss', 
+                $data['userId'], 
+                $data['username'],
+                $data['password'], 
+                $data['userType'], 
+                $data['gender'], 
+                $data['dob'], 
+                $data['emailId'], 
+                $data['phoneNumber'], 
+                $data['address'], 
+                $data['isVerified'], 
+                $data['otp'], 
+                $data['otpExpiry']
+            );
+        }
         
         $result = $stmt->execute();
         
@@ -112,16 +142,30 @@ class User
      */
     public function updateUser($userId, $data)
     {
-        $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ? WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('ssssss', 
-            $data['gender'], 
-            $data['dob'], 
-            $data['emailId'], 
-            $data['phoneNumber'], 
-            $data['address'], 
-            $userId
-        );
+        if ($this->hasColumn('profileImage')) {
+            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ?, profileImage = COALESCE(?, profileImage) WHERE userId = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param('sssssss', 
+                $data['gender'], 
+                $data['dob'], 
+                $data['emailId'], 
+                $data['phoneNumber'], 
+                $data['address'], 
+                $data['profileImage'] ?? null,
+                $userId
+            );
+        } else {
+            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ? WHERE userId = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param('ssssss', 
+                $data['gender'], 
+                $data['dob'], 
+                $data['emailId'], 
+                $data['phoneNumber'], 
+                $data['address'], 
+                $userId
+            );
+        }
         
         return $stmt->execute();
     }

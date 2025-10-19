@@ -163,6 +163,12 @@ class AuthController
    */
   public function verifyOtp()
   {
+    // Block access for logged-in users
+    if ($this->authHelper->isLoggedIn()) {
+      $this->authHelper->redirectByUserType();
+      return;
+    }
+
     if (!isset($_SESSION['signup_userId'])) {
       $this->redirect('/');
       return;
