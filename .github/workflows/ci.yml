@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [ dev, main, master,enhancement ]
+  pull_request:
+    branches: [ dev, main, master,enhancement ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: integrated_library_system
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+          coverage: none
+
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -proot --silent; then
+              echo "MySQL is up"; break; fi; sleep 2; done
+
+      - name: Import schema
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot integrated_library_system < docker/mysql/library.sql
+          # Optional: apply additional migrations if needed
+          mysql -h 127.0.0.1 -uroot -proot integrated_library_system < database_migration.sql || true
+
+      - name: Install Composer deps (root)
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHP lint
+        run: |
+          find src -type f -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Smoke test - autoloader and DB connect
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: integrated_library_system
+        run: |
+          php -r "require 'vendor/autoload.php'; echo 'Autoload OK' . PHP_EOL;"
+          php -r "
+            try {
+              require 'src/config/dbConnection.php';
+              echo (isset(\$conn) && \$conn) ? 'DB OK' . PHP_EOL : 'DB FAIL' . PHP_EOL;
+            } catch (Exception \$e) {
+              echo 'DB FAIL: ' . \$e->getMessage() . PHP_EOL;
+            }
+          "
+
+

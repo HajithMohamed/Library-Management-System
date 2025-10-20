@@ -1,34 +1,255 @@
-# Dependencies and build artifacts
-/vendor/
-/node_modules/
+# ===========================================
+# PHP Library Management System - .gitignore
+# ===========================================
 
-# Logs
+# ===========================================
+# DEPENDENCIES & PACKAGES
+# ===========================================
+# Composer dependencies (should be installed via composer install)
+/vendor/
+/src/vendor/
+/node_modules/
+composer.phar
+
+# Prevent duplicate composer files in subdirectories
+src/composer.json
+src/composer.lock
+
+# Video files (use gradient background instead)
+src/public/assets/videos/*.mp4
+src/public/assets/videos/*.mov
+src/public/assets/videos/*.avi
+src/public/assets/videos/*.webm
+
+# ===========================================
+# ENVIRONMENT & CONFIGURATION
+# ===========================================
+# Environment variables (contains sensitive data)
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Local configuration files
+/config/config.local.php
+/config/db.local.php
+*.local.php
+
+# ===========================================
+# LOGS & TEMPORARY FILES
+# ===========================================
+# Application logs
 /logs/
 *.log
+error.log
+access.log
+debug.log
 
-# Sensitive config
-/config/config.php
-/config/*.local.php
+# Temporary files
+/tmp/
+/temp/
+*.tmp
+*.temp
+*.cache
 
-# Composer helpers
-/composer.phar
+# Session files
+/sessions/
+*.session
 
-# Environment and local configs
-.env
-.env.*
-/.DS_Store
-Thumbs.db
+# ===========================================
+# DATABASE & BACKUPS
+# ===========================================
+# Database dumps and backups
+*.sql
+*.dump
+*.backup
+/database/backups/
+/database/dumps/
 
-# IDE/editor settings
-.idea/
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# ===========================================
+# UPLOADS & USER CONTENT
+# ===========================================
+# User uploaded files
+/uploads/
+/public/uploads/
+/storage/uploads/
+
+# Generated thumbnails
+/thumbnails/
+/cache/
+
+# ===========================================
+# IDE & EDITOR FILES
+# ===========================================
+# Visual Studio Code
 .vscode/
 *.code-workspace
 
-# OS files
+# PhpStorm / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
-._*
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===========================================
+# OPERATING SYSTEM FILES
+# ===========================================
+# Windows
+Thumbs.db
 ehthumbs.db
-Icon?
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===========================================
+# DOCKER & CONTAINERIZATION
+# ===========================================
+# Docker volumes and data
+/docker-data/
+/mysql-data/
+/nginx-data/
+
+# Docker override files
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ===========================================
+# BUILD & DEPLOYMENT
+# ===========================================
+# Build artifacts
+/build/
+/dist/
+/public/build/
+
+# Deployment files
+/deploy/
+/deployment/
+*.tar.gz
+*.zip
+
+# ===========================================
+# TESTING & COVERAGE
+# ===========================================
+# PHPUnit
+/phpunit.xml
+/phpunit.xml.dist
+/coverage/
+/clover.xml
+
+# Test databases
+/test.db
+/test.sqlite
+
+# ===========================================
+# SECURITY & SENSITIVE FILES
+# ===========================================
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# API keys and secrets
+secrets.json
+api-keys.json
+credentials.json
+
+# ===========================================
+# CUSTOM PROJECT SPECIFIC
+# ===========================================
+# Custom scripts (if they contain sensitive data)
+# Uncomment if needed:
+# /scripts/local/
+# /scripts/production/
+
+# Custom logs specific to this project
+/library.log
+/user-activity.log
+/book-transactions.log
+
+# ===========================================
+# DOCUMENTATION & NOTES
+# ===========================================
+# Personal notes and documentation
+NOTES.md
+TODO.md
+PERSONAL.md
+*.personal
+
+# ===========================================
+# BACKUP FILES
+# ===========================================
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip

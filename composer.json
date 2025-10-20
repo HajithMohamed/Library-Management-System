@@ -1,5 +1,20 @@
 {
+    "name": "university-library/lms",
+    "description": "University Library Management System",
+    "type": "project",
     "require": {
-        "phpmailer/phpmailer": "^7.0"
+        "phpmailer/phpmailer": "^7.0",
+        "vlucas/phpdotenv": "^5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\Controllers\\": "controllers/",
+            "App\\Models\\": "models/",
+            "App\\Services\\": "services/",
+            "App\\Helpers\\": "helpers/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
     }
 }
