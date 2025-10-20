@@ -1,27 +1,29 @@
-services:
-  nginx:
-    image: nginx:stable
-    container_name: ils_nginx
-    ports:
-      - "${WEB_PORT}:80"
-    volumes:
-      - ./src:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - php
-    restart: always
-
   php:
-    image: integrated-library-system-php:latest
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
     env_file: .env
     environment:
-    ports:
-      - "${PHPMYADMIN_PORT}:80"
+      TZ: ${TZ:-Asia/Kolkata}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-library_password}
+      DB_NAME: ${DB_NAME:-integrated_library_system}
+      ADMIN_CODE: ${ADMIN_CODE:-hello_world}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-youremail@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-yourapppassword}
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-youremail@gmail.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Library System}
+      SMS_API_URL: ${SMS_API_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+    restart: always
     depends_on:
       - db
-
-volumes:
-  db_data:
