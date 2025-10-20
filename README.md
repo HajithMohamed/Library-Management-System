@@ -1,159 +1,283 @@
-# 📚 Integrated Library System (ILS)
-
-🚀 A full-stack web-based **Integrated Library System (ILS)** built entirely from scratch using HTML, CSS, JavaScript, PHP, and MySQL. This system offers role-based access for Admins, Students, and Faculty to simulate real-world library operations such as inventory control, book issuing, returning, fine calculation, and member management.
-
-
----
-
-
-## 🌐 Live Preview
-
-🔗 **Live App:** [https://debrup-ils.infinityfreeapp.com](https://debrup-ils.infinityfreeapp.com)  
-
-
----
-
-
-## 📸 Quick view of the User Interface
-
-  <img width="1920" height="1080" alt="Screenshot (50)" src="https://github.com/user-attachments/assets/b8ffd920-2a72-4201-b9e8-6336f5a005a6" />
-  <img width="1920" height="1080" alt="Screenshot (51)" src="https://github.com/user-attachments/assets/db0856a1-5464-41f6-9387-79b3f2694001" />
-  <img width="1920" height="1080" alt="Screenshot (54)" src="https://github.com/user-attachments/assets/5175f9d3-10a9-49d6-b41d-5e1b39fdae6b" />
-  <img width="1920" height="1080" alt="Screenshot (58)" src="https://github.com/user-attachments/assets/f0e145e8-43b1-4eae-8bff-18c053ff5fa4" />
-  <img width="1920" height="1080" alt="Screenshot (55)" src="https://github.com/user-attachments/assets/6f78d553-7055-47b3-a344-c59303acd081" />
-  <img width="1920" height="1080" alt="Screenshot (61)" src="https://github.com/user-attachments/assets/3f3d9042-b1d5-4b0e-88bd-d810c2b1da9b" />
-
----
-
-
-## 🧰 Tech Stack
-
-- **Frontend:** HTML5, CSS3, JavaScript, jQuery  
-- **Backend:** Core PHP (no frameworks), AJAX  
-- **Database:** MySQL  
-- **Libraries & Tools:** Font Awesome, phpMyAdmin  
-- **Deployment:** [InfinityFree](https://www.infinityfree.net/)
-
-
----
-
-
-## 🛠️ How to Setup and Run
-
-### 1. Install and Set Up XAMPP
-- Download and install [XAMPP](https://www.apachefriends.org/) on your local machine.
-
-- Start the **Apache** and **MySQL** modules from the XAMPP Control Panel and make sure they are running without errors.
-
-### 2. Clone the Repository
-- Open the `htdocs` folder inside your XAMPP installation directory.
-- Right-click and select **Git Bash Here** (or open terminal/command prompt in this directory).
-- Run the following command to clone the repository:
-
-     ```bash
-     git clone https://github.com/Debrup-Chatterjee/Integrated-Library-System.git
-### 3. Configure the Project (Optional)
-- This step is only required if:
-
-     - Your MySQL server runs on a port other than 3306, or
-
-     - You want to change existing project configurations.
-
-- Open the following file in a code editor:
-     `/xampp/htdocs/Integrated-Library-System/src/config/config.php`
-- Modify the following constants only if necessary:
-
-     - `DB_HOST`
-
-     - `DB_PORT`
-
-     - `DB_USER`
-
-     - `DB_PASSWORD`
-
-     - `DB_NAME`
-
-     - `Default time zone` (set to India by default)
-
-     - `Admin registration Code` ( 'hello_world' by default)
-
-     ⚠️ **Warning: Do not change anything else unless required. Misconfiguration may break the project.** 
-
-### 4. Launch the Application
-- Open your browser and navigate to:
-http://localhost/Integrated-Library-System/
-
- 🎉 There you go — your library system is live locally!
-
-
-
----
-
-
-## 🧩 Features
-
-### 🔐 Role-Based Authentication
-
-- Secure session-based login system
-- Three access roles:
-  - ✅ Admin
-  - ✅ Student
-  - ✅ Faculty
-
-### 📚 Admin Functionalities
-
-- Add, remove, and manage books
-- View all registered users
-- Live inventory tracking
-- Monitor system activity from dashboard
-
-### 🎓 Student / Faculty Functionalities
-
-- Smart search for books
-- Real-time borrow/return system
-- Fine calculation and payment
-- Profile overview with due books and fines
-
-
----
-
-
-## ✅ What I Learned
-
-- PHP session and access control
-- Role-based user authentication and secure redirect handling
-- Dynamic UI updates with AJAX (no reload)
-- SQL database design and optimization
-- Modular PHP structure for scalable maintenance
-- Custom form validation and error handling
-- Deployment using free hosting (InfinityFree)
-
-
----
-
-## 📱 Responsive & Lightweight
-
-- Fully responsive layout and seamless experience across mobiles, tablets, and desktops
-- No heavy frontend frameworks – just clean, semantic HTML & CSS
-
-
----
-
-
-## 💬 Feedback & Contributions
-
-Have ideas, improvements, or suggestions?  
-Feel free to open an [Issue](https://github.com/Debrup-Chatterjee/Integrated-Library-System/issues) or submit a [Pull Request](https://github.com/Debrup-Chatterjee/Integrated-Library-System/pulls).
-
-
----
-
-
-## 🔗 Connect with Me
-
-- 💼 [LinkedIn](https://www.linkedin.com/in/debrup-chatterjee/)
-- 📧 [Email](mailto:debrupchatterjee31@gmail.com)
-
----
-
-**<p align="center"> Built with ❤️ by Debrup Chatterjee </p>**
+# University Library Management System
+
+A comprehensive Library Management System built with PHP using MVC architecture and Docker containerization.
+
+## Features
+
+- **User Management**: Student, Faculty, and Admin user types
+- **Book Management**: Add, edit, delete, and search books
+- **Borrowing System**: Borrow and return books with fine calculation
+- **Admin Dashboard**: Comprehensive admin panel with reports and statistics
+- **Email Notifications**: OTP verification and notifications via PHPMailer
+- **Responsive Design**: Modern Bootstrap-based UI
+- **Docker Support**: Complete containerization with Nginx, PHP-FPM, MySQL, and PHPMyAdmin
+
+## Project Structure
+
+```
+src/
+├── controllers/          # Request handling controllers
+│   ├── AuthController.php
+│   ├── BookController.php
+│   ├── UserController.php
+│   └── AdminController.php
+├── models/              # Database access models
+│   ├── Book.php
+│   ├── User.php
+│   └── Transaction.php
+├── services/            # Business logic services
+│   ├── AuthService.php
+│   ├── BookService.php
+│   ├── UserService.php
+│   └── AdminService.php
+├── helpers/             # Utility functions
+│   └── AuthHelper.php
+├── config/              # Configuration files
+│   ├── config.php
+│   └── dbConnection.php
+├── views/               # View templates
+│   ├── layouts/
+│   ├── auth/
+│   ├── books/
+│   ├── users/
+│   ├── admin/
+│   └── errors/
+└── public/              # Public entry point and assets
+    ├── index.php        # Front Controller
+    └── assets/          # CSS, JS, images
+```
+
+## Quick Start with Docker
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd lms
+   ```
+
+2. **Start the application**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+3. **Install Composer dependencies (if needed)**
+   If you encounter autoloader errors, manually install dependencies:
+   ```bash
+   # Check container name
+   docker-compose ps
+   
+   # Copy composer files to container (replace 'ils_php' with your container name)
+   docker cp composer.json ils_php:/var/www/html/
+   docker cp composer.lock ils_php:/var/www/html/
+   
+   # Install dependencies
+   docker exec ils_php composer install
+   ```
+
+4. **Access the application**
+   - Main Application: http://localhost:8080
+   - PHPMyAdmin: http://localhost:8081
+
+5. **Default Admin Credentials**
+   - User ID: `admin`
+   - Password: `admin123`
+   - Admin Code: `hello_world`
+
+## Docker Services
+
+- **Nginx**: Web server (Port 8080)
+- **PHP-FPM**: PHP application server
+- **MySQL**: Database server (Port 3307)
+- **PHPMyAdmin**: Database management (Port 8081)
+
+## Environment Configuration
+
+The application uses environment variables defined in `.env`:
+
+```env
+WEB_PORT=8080
+TZ=Asia/Kolkata
+MYSQL_ROOT_PASSWORD=rootpassword
+MYSQL_DATABASE=integrated_library_system
+MYSQL_USER=library_user
+MYSQL_PASSWORD=library_password
+PHPMYADMIN_PORT=8081
+```
+
+## Database Schema
+
+The system includes the following main tables:
+- `users`: User accounts and profiles
+- `books`: Book inventory
+- `transactions`: Borrowing and return records
+
+## API Endpoints
+
+### Authentication
+- `GET /` - Login page
+- `POST /` - Process login
+- `GET /signup` - Registration page
+- `POST /signup` - Process registration
+- `GET /logout` - Logout
+
+### User Routes
+- `GET /user/dashboard` - User dashboard
+- `GET /user/books` - Browse books
+- `GET /user/borrow` - Borrow book form
+- `POST /user/borrow` - Process borrowing
+- `GET /user/return` - Return books
+- `GET /user/fines` - View fines
+
+### Admin Routes
+- `GET /admin/dashboard` - Admin dashboard
+- `GET /admin/books` - Manage books
+- `GET /admin/users` - Manage users
+- `GET /admin/reports` - System reports
+
+## Development
+
+### Local Development Setup
+
+1. **Install PHP 8.0+ and Composer**
+2. **Install MySQL 8.0+**
+3. **Update database configuration in `src/config/config.php`**
+4. **Run Composer install**
+   ```bash
+   composer install
+   ```
+5. **Import database schema**
+   ```bash
+   mysql -u root -p < docker/mysql/library.sql
+   ```
+
+### Code Structure
+
+The application follows MVC pattern with:
+- **Controllers**: Handle HTTP requests and responses
+- **Models**: Database operations and data validation
+- **Services**: Business logic and complex operations
+- **Views**: HTML templates with PHP
+- **Helpers**: Utility functions and common operations
+
+## Features in Detail
+
+### User Management
+- User registration with email verification
+- Role-based access control (Student, Faculty, Admin)
+- Profile management and password changes
+
+### Book Management
+- Complete CRUD operations for books
+- ISBN validation and duplicate checking
+- Inventory tracking (available/borrowed counts)
+
+### Borrowing System
+- Book borrowing with due date calculation
+- Automatic fine calculation for overdue books
+- Return processing with fine updates
+
+### Admin Features
+- Comprehensive dashboard with statistics
+- User management and account deletion
+- Book inventory management
+- System reports and analytics
+- Fine management and updates
+
+## Security Features
+
+- Password hashing with PHP's `password_hash()`
+- CSRF token protection
+- SQL injection prevention with prepared statements
+- XSS protection with `htmlspecialchars()`
+- Session management and authentication
+
+## Email Configuration
+
+The system uses PHPMailer for email notifications. Configure SMTP settings in `src/config/config.php`:
+
+```php
+define("SMTP_HOST", "smtp.gmail.com");
+define("SMTP_PORT", 587);
+define("SMTP_USERNAME", "your-email@gmail.com");
+define("SMTP_PASSWORD", "your-app-password");
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Composer Autoloader Error**
+   ```
+   Fatal error: Failed opening required '/var/www/html/../vendor/autoload.php'
+   ```
+   **Solution:**
+   ```bash
+   # Copy composer files to container
+   docker cp composer.json ils_php:/var/www/html/
+   docker cp composer.lock ils_php:/var/www/html/
+   
+   # Install dependencies
+   docker exec ils_php composer install
+   
+   # Verify installation
+   docker exec ils_php ls -la /var/www/html/vendor/autoload.php
+   ```
+
+2. **Database Connection Error**
+   - Check MySQL container is running: `docker-compose ps`
+   - Verify database credentials in `.env`
+   - Ensure database exists
+   - Check container logs: `docker logs ils_db`
+
+3. **Email Not Working**
+   - Verify SMTP settings in `src/config/config.php`
+   - Check Gmail app password (if using Gmail)
+   - Ensure network connectivity
+   - Test email configuration
+
+4. **Permission Errors**
+   - Check file permissions in Docker volumes
+   - Ensure proper ownership of files
+   - Restart containers: `docker-compose restart`
+
+5. **Container Build Issues**
+   - Clean build: `docker-compose down && docker-compose up -d --build`
+   - Remove old images: `docker system prune -a`
+   - Check Docker Desktop is running
+
+### Logs
+
+- Application logs: `docker logs ils_php`
+- Database logs: `docker logs ils_db`
+- Nginx logs: `docker logs ils_nginx`
+- All containers: `docker-compose logs`
+
+### Docker Build Process
+
+The Dockerfile automatically installs Composer dependencies during the build process:
+
+```dockerfile
+# Copy composer files to the correct location
+COPY composer.json composer.lock /var/www/html/
+
+# Install Composer dependencies
+RUN composer install --no-dev --optimize-autoloader
+```
+
+If the build process fails to install dependencies, you can manually install them using the troubleshooting steps above.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For support and questions, please contact the development team or create an issue in the repository.
