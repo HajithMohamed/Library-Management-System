@@ -3,7 +3,7 @@ services:
     image: nginx:stable
     container_name: ils_nginx
     ports:
-      - "${WEB_PORT}:80"
+      - "${WEB_PORT:-8080}:80"
     volumes:
       - ./src:/var/www/html
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -12,32 +12,32 @@ services:
     restart: always
 
   php:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
+    image: integrated-library-system-php:latest
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
     env_file: .env
     environment:
-      TZ: ${TZ}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      ADMIN_CODE: ${ADMIN_CODE}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USERNAME: ${SMTP_USERNAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
-      SMS_API_URL: ${SMS_API_URL}
-      SMS_API_KEY: ${SMS_API_KEY}
-      SMS_SENDER_ID: ${SMS_SENDER_ID}
+      TZ: ${TZ:-Asia/Kolkata}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-library_password}
+      DB_NAME: ${DB_NAME:-integrated_library_system}
+      ADMIN_CODE: ${ADMIN_CODE:-hello_world}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-hanoufaatif@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-crvhjrwgktwozfhv}
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-hanoufaatif@gmail.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Library System}
+      SMS_API_URL: ${SMS_API_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
     restart: always
+    depends_on:
+      - db
 
   db:
     image: mysql:8.0
@@ -45,29 +45,30 @@ services:
     restart: always
     env_file: .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password_123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-integrated_library_system}
+      MYSQL_USER: ${MYSQL_USER:-library_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-library_password}
     volumes:
       - db_data:/var/lib/mysql
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
       - ./docker/mysql/library.sql:/docker-entrypoint-initdb.d/library.sql
     command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "3307:3306"
+      - "${DB_PORT_EXTERNAL:-3307}:3306"
+
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
     container_name: ils_phpmyadmin
     restart: always
     env_file: .env
     environment:
       PMA_HOST: db
-      PMA_USER: ${MYSQL_USER}
-      PMA_PASSWORD: ${MYSQL_PASSWORD}
+      PMA_USER: ${MYSQL_USER:-library_user}
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-library_password}
     ports:
-      - "${PHPMYADMIN_PORT}:80"
+      - "${PHPMYADMIN_PORT:-8081}:80"
     depends_on:
       - db
 
