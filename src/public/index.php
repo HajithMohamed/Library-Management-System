@@ -11,7 +11,7 @@ session_start();
 define('APP_ROOT', dirname(__DIR__));
 
 // Include Composer autoloader
-require_once APP_ROOT . '/vendor/autoload.php';
+//require_once APP_ROOT . '/vendor/autoload.php';
 
 // Include configuration
 require_once APP_ROOT . '/config/config.php';
