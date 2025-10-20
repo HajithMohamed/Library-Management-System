@@ -1,8 +1,12 @@
 <?php
 include '../../config/config.php';
-session_start(); // Start session
+session_start();
 include DIR_URL.'src/global/middleware.php';
 include DIR_URL.'config/dbConnection.php';
+// CSRF token
+if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = bin2hex(random_bytes(16)); }
+$csrf = $_SESSION['csrf_token'];
+
 $userId = $_SESSION['userId'];//Fetching userId and userType from session data
 $userType = $_SESSION['userType'];
 if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librarian
@@ -35,6 +39,10 @@ if ($userType != 'Admin' && $userType != 'Librarian') // allow Admin and Librari
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']));
 if ($isAjax) {
   header('Content-Type: application/json');
+  // CSRF check
+  if (!isset($_POST['csrf']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf'])) {
+    echo json_encode(['success'=>false,'message'=>'Invalid CSRF token']); exit;
+  }
   $action = $_POST['action'];
 
   if ($action === 'get') {
@@ -74,42 +82,41 @@ if ($isAjax) {
     }
 
     if ($action === 'create') {
-      $sql = "INSERT INTO books (isbn,bookName,authorName,publisherName,available,borrowed,bookImage,description,category,publicationYear,totalCopies) VALUES('".$conn->real_escape_string($isbn)."','".$conn->real_escape_string($bookName)."','".$conn->real_escape_string($authorName)."','".$conn->real_escape_string($publisherName)."','$quantity','0','".$conn->real_escape_string($bookImage)."','".$conn->real_escape_string($description)."','".$conn->real_escape_string($category)."','".$conn->real_escape_string($publicationYear)."','$quantity')";
-      if ($conn->query($sql) === TRUE) {
-        $conn->query("INSERT INTO book_statistics (isbn, date_added, new_arrivals) VALUES('".$conn->real_escape_string($isbn)."', CURDATE(), '$quantity')");
+      $stmt = $conn->prepare("INSERT INTO books (isbn,bookName,authorName,publisherName,available,borrowed,bookImage,description,category,publicationYear,totalCopies) VALUES (?,?,?,?,?,0,?,?,?,?,?)");
+      $stmt->bind_param("ssssisssii", $isbn,$bookName,$authorName,$publisherName,$quantity,$bookImage,$description,$category,$publicationYear,$quantity);
+      $ok = $stmt->execute(); $stmt->close();
+      if ($ok) {
+        $stmt2 = $conn->prepare("INSERT INTO book_statistics (isbn, date_added, new_arrivals) VALUES (?, CURDATE(), ?)");
+        $stmt2->bind_param("si",$isbn,$quantity); $stmt2->execute(); $stmt2->close();
         echo json_encode(['success'=>true]);
       } else {
         echo json_encode(['success'=>false,'message'=>$conn->error]);
       }
-      $conn->close();
-      exit;
+      $conn->close(); exit;
     } else {
-      $setImage = $bookImage ? ", bookImage='".$conn->real_escape_string($bookImage)."'" : '';
-      $sql = "UPDATE books SET bookName='".$conn->real_escape_string($bookName)."', authorName='".$conn->real_escape_string($authorName)."', publisherName='".$conn->real_escape_string($publisherName)."', description='".$conn->real_escape_string($description)."', category='".$conn->real_escape_string($category)."', publicationYear='".$conn->real_escape_string($publicationYear)."' $setImage WHERE isbn='".$conn->real_escape_string($isbn)."'";
-      if ($conn->query($sql) === TRUE) {
-        echo json_encode(['success'=>true]);
+      $sql = "UPDATE books SET bookName=?, authorName=?, publisherName=?, description=?, category=?, publicationYear=?".($bookImage ? ", bookImage=?" : "")." WHERE isbn=?";
+      if ($bookImage) {
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssiis",$bookName,$authorName,$publisherName,$description,$category,$publicationYear,$bookImage,$isbn);
       } else {
-        echo json_encode(['success'=>false,'message'=>$conn->error]);
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssis",$bookName,$authorName,$publisherName,$description,$category,$publicationYear,$isbn);
       }
-      $conn->close();
-      exit;
+      $ok = $stmt->execute(); $stmt->close();
+      echo json_encode(['success'=>$ok,'message'=>$ok?'':$conn->error]); $conn->close(); exit;
     }
   }
 
   if ($action === 'delete') {
     $isbn = $_POST['isbn'] ?? '';
-    $imgRes = $conn->query("SELECT bookImage FROM books WHERE isbn='".$conn->real_escape_string($isbn)."'");
-    if ($imgRes && $imgRes->num_rows > 0) {
-      $img = $imgRes->fetch_assoc();
+    $stmt = $conn->prepare("SELECT bookImage FROM books WHERE isbn=?");
+    $stmt->bind_param("s",$isbn); $stmt->execute(); $imgRes=$stmt->get_result(); $stmt->close();
+    if ($imgRes && $img= $imgRes->fetch_assoc()) {
       if (!empty($img['bookImage']) && file_exists(DIR_URL.$img['bookImage'])) { @unlink(DIR_URL.$img['bookImage']); }
     }
-    if ($conn->query("DELETE FROM books WHERE isbn='".$conn->real_escape_string($isbn)."'") === TRUE) {
-      echo json_encode(['success'=>true]);
-    } else {
-      echo json_encode(['success'=>false,'message'=>$conn->error]);
-    }
-    $conn->close();
-    exit;
+    $stmt2 = $conn->prepare("DELETE FROM books WHERE isbn=?");
+    $stmt2->bind_param("s",$isbn); $ok=$stmt2->execute(); $stmt2->close();
+    echo json_encode(['success'=>$ok,'message'=>$ok?'':$conn->error]); $conn->close(); exit;
   }
 }
 
@@ -224,6 +231,7 @@ $conn->close();
       <div id="Note"><span id="Note-word">Note:</span> Fields marked with <span class="red-star">*</span> are required.</div>
       <form id="bookForm" enctype="multipart/form-data">
         <input type="hidden" name="action" id="formAction" value="create" />
+        <input type="hidden" name="csrf" value="<?php echo htmlspecialchars($csrf); ?>" />
         <div class="form-group">
           <label for="isbn"><i class="fa-solid fa-barcode" style="margin-right:8px;"></i>ISBN (13 digits)<span class="red-star">*</span></label>
           <input type="text" class="input" name="isbn" id="isbn" maxlength="13" pattern="\d{13}" required />
@@ -325,6 +333,8 @@ $conn->close();
     document.getElementById('bookForm').addEventListener('submit', function(e){
       e.preventDefault();
       const fd = new FormData(this);
+      // append csrf for older browsers if not included
+      if(!fd.get('csrf')) fd.append('csrf','<?php echo htmlspecialchars($csrf); ?>');
       fetch('', { method:'POST', body: fd }).then(r=>r.json()).then(data=>{
         if(data.success){
           alert('Saved successfully');

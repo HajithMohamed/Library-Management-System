@@ -1,17 +1,16 @@
 <?php 
-include 'config/config.php';
-include DIR_URL.'config/dbConnection.php'; // connect to database
-session_start();
-include DIR_URL.'src/global/redirect.php'; // prevent access to this page by redirecting to respective dashboard if a session is active
+  include 'config/config.php';
+  include DIR_URL.'config/dbConnection.php'; // connect to database
+  session_start();
+  include DIR_URL.'src/global/redirect.php'; // prevent access to this page by redirecting to respective dashboard if a session is active
 
-$userIdError="";
-$passwordError="";
+  $userIdError="";
+  $passwordError="";
 
-if($_SERVER["REQUEST_METHOD"]==="POST")
-{
-  include DIR_URL.'src/global/login.php'; // authentication of user credentials
-  mysqli_close($conn);
-}
+  if($_SERVER["REQUEST_METHOD"]==="POST"){
+    include DIR_URL.'src/global/login.php'; // authentication of user credentials
+    mysqli_close($conn);
+  }
 ?>
 <!DOCTYPE html>
 <html lang="en">

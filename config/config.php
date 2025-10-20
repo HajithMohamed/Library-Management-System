@@ -25,6 +25,10 @@ if ($_SERVER['HTTP_HOST'] == 'localhost') {
 define("ADMIN_CODE", "hello_world");
 date_default_timezone_set('Asia/Kolkata');
 
+// v2.0 security and flows
+if (!defined('SESSION_TIMEOUT')) define('SESSION_TIMEOUT', 3600); // 1 hour
+if (!defined('OTP_EXPIRY_MINUTES')) define('OTP_EXPIRY_MINUTES', 10);
+
 // PHPMailer SMTP
 define("SMTP_HOST", "smtp.gmail.com");
 define("SMTP_PORT", 587);

@@ -301,18 +301,15 @@ document.getElementById('Overdue books').onclick=function(){
 document.getElementById('Reports').onclick=function(){
   window.location.href='Statistics.php';
 };
-// View Members button
-document.getElementById('View members').onclick=function(){
+// View Members button (remove stale Add/Remove Books handlers below)
+document.getElementById('View members') && (document.getElementById('View members').onclick=function(){
   window.location.href='ViewMembers.php';
-}
-//Add Books to the library button
-document.getElementById('Add books').onclick=function(){
-  window.location.href='AddBooks.php';
-}
-//Remove Books from the library button
-document.getElementById('Remove books').onclick=function(){
-  window.location.href='RemoveBooks.php';
-}
+});
+
+// Remove stale handlers
+// document.getElementById('Add books')...
+// document.getElementById('Remove books')...
+
 </script>
 
 </body>
