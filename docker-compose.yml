@@ -1,3 +1,6 @@
+
+version: "3.8"
+
 services:
   nginx:
     image: nginx:stable
@@ -12,7 +15,9 @@ services:
     restart: always
 
   php:
-    image: integrated-library-system-php:latest
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
@@ -27,10 +32,10 @@ services:
       ADMIN_CODE: ${ADMIN_CODE:-hello_world}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-hanoufaatif@gmail.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-crvhjrwgktwozfhv}
+      SMTP_USERNAME: ${SMTP_USERNAME:-youremail@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-yourapppassword}
       SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-hanoufaatif@gmail.com}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-youremail@gmail.com}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Library System}
       SMS_API_URL: ${SMS_API_URL:-}
       SMS_API_KEY: ${SMS_API_KEY:-}
@@ -57,7 +62,6 @@ services:
     ports:
       - "${DB_PORT_EXTERNAL:-3307}:3306"
 
-
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: ils_phpmyadmin
@@ -74,3 +78,4 @@ services:
 
 volumes:
   db_data:
+
