@@ -1,0 +1,177 @@
+/* ===================================
+   UNIVERSAL FORM ICON FIX
+   Ensures icons don't overlap with inputs
+   =================================== */
+
+/* For all input wrappers with icons */
+.input-wrapper,
+.input-group-modern,
+.password-wrapper,
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Icon positioning - absolute but non-interactive */
+.input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none; /* CRITICAL: Prevents icon from blocking input */
+    z-index: 1;
+    font-size: 1rem;
+    color: #9ca3af;
+    transition: color 0.3s ease;
+}
+
+/* Input fields with left padding for icons */
+.form-input,
+.form-control-modern,
+.form-select-modern,
+.form-textarea-modern,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+textarea,
+select {
+    padding-left: 2.75rem !important; /* Makes room for icon (1rem icon + 1rem margin + 0.75rem buffer) */
+}
+
+/* Special handling for password toggle button */
+.password-wrapper .form-input,
+.password-input-wrapper input {
+    padding-right: 2.75rem; /* Room for both icon and toggle button */
+}
+
+.password-toggle,
+.toggle-password {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.5rem;
+    transition: color 0.3s ease;
+    z-index: 10; /* Higher than icon z-index */
+}
+
+.password-toggle:hover,
+.toggle-password:hover {
+    color: #667eea;
+}
+
+/* Focus state - change icon color when input is focused */
+.form-input:focus + .input-icon,
+.form-control-modern:focus + .input-icon,
+.form-select-modern:focus + .input-icon,
+.form-textarea-modern:focus + .input-icon,
+input[type="text"]:focus + .input-icon,
+input[type="password"]:focus + .input-icon,
+input[type="email"]:focus + .input-icon,
+input[type="tel"]:focus + .input-icon,
+input[type="date"]:focus + .input-icon,
+textarea:focus + .input-icon,
+select:focus + .input-icon {
+    color: #667eea;
+}
+
+/* Select dropdown specific fix */
+.form-select-modern,
+select {
+    padding-right: 2.5rem !important;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+}
+
+/* Textarea specific - icon at top-left */
+.form-textarea-modern,
+textarea {
+    padding-top: 0.75rem !important;
+}
+
+/* Remove placeholder opacity for better visibility */
+.form-input::placeholder,
+.form-control-modern::placeholder,
+.form-select-modern::placeholder,
+.form-textarea-modern::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: #9ca3af;
+}
+
+/* Error state - keep icon visible */
+.form-input.input-error,
+.form-control-modern.input-error,
+.input-error {
+    border-color: #dc3545;
+}
+
+.form-input.input-error + .input-icon,
+.form-control-modern.input-error + .input-icon {
+    color: #dc3545;
+}
+
+/* Disabled state */
+.form-input:disabled,
+.form-control-modern:disabled,
+.form-select-modern:disabled,
+.form-textarea-modern:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+    .input-icon {
+        left: 0.875rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-input,
+    .form-control-modern,
+    .form-select-modern,
+    .form-textarea-modern,
+    input,
+    textarea,
+    select {
+        padding-left: 2.5rem !important;
+    }
+    
+    .password-wrapper .form-input,
+    .password-input-wrapper input {
+        padding-right: 2.5rem !important;
+    }
+}
+
+/* Accessibility improvements */
+.form-input:focus-visible,
+.form-control-modern:focus-visible,
+.form-select-modern:focus-visible,
+.form-textarea-modern:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .input-icon {
+        display: none;
+    }
+}
