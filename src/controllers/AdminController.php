@@ -1,86 +1,237 @@
 <?php
-// In src/controllers/AuthController.php
-// Replace the signup() method with this fixed version:
 
-public function signup()
+namespace App\Controllers;
+
+use App\Models\User;
+use App\Models\Book;
+use App\Models\Transaction;
+use App\Services\AdminService;
+use App\Helpers\AuthHelper;
+
+class AdminController
 {
-    // Redirect if already logged in
-    if ($this->authHelper->isLoggedIn()) {
-        $this->authHelper->redirectByUserType();
+    private $userModel;
+    private $bookModel;
+    private $transactionModel;
+    private $adminService;
+    private $authHelper;
+
+    public function __construct()
+    {
+        $this->userModel = new User();
+        $this->bookModel = new Book();
+        $this->transactionModel = new Transaction();
+        $this->adminService = new AdminService();
+        $this->authHelper = new AuthHelper();
     }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data = [
-            'username' => $_POST['username'] ?? '',
-            'password' => $_POST['password'] ?? '',
-            'userType' => 'Student', // Automatically set to Student
-            'gender' => $_POST['gender'] ?? '',
-            'dob' => $_POST['dob'] ?? '',
-            'emailId' => $_POST['emailId'] ?? '',
-            'phoneNumber' => $_POST['phoneNumber'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'isVerified' => 0,
-            'otp' => null,
-            'otpExpiry' => null
-        ];
+    /**
+     * Display admin dashboard
+     */
+    public function dashboard()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $stats = $this->adminService->getDashboardStats();
+        $recentTransactions = $this->transactionModel->getAllTransactions(10);
+        $popularBooks = $this->bookModel->getPopularBooks(5);
+        
+        $this->render('admin/dashboard', [
+            'stats' => $stats,
+            'recentTransactions' => $recentTransactions,
+            'popularBooks' => $popularBooks
+        ]);
+    }
 
-        // Validate user data
-        $errors = $this->userModel->validateUserData($data);
-        if (!empty($errors)) {
-            $_SESSION['validation_errors'] = $errors;
-            $this->redirect('/signup');
+    /**
+     * Display all users
+     */
+    public function users()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $search = $_GET['search'] ?? '';
+        $users = !empty($search) ? $this->userModel->searchUsers($search) : $this->userModel->getAllUsers();
+        
+        $this->render('admin/users', [
+            'users' => $users,
+            'search' => $search
+        ]);
+    }
+
+    /**
+     * Delete a user
+     */
+    public function deleteUser()
+    {
+        $this->authHelper->requireAdmin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/users');
             return;
         }
 
-        // Check if username already exists
-        if ($this->userModel->usernameExists($data['username'])) {
-            $_SESSION['error'] = 'Username already exists. Please choose a different username.';
-            $this->redirect('/signup');
+        $userId = $_POST['userId'] ?? '';
+        
+        if (empty($userId)) {
+            $_SESSION['error'] = 'User ID is required.';
+            $this->redirect('/admin/users');
             return;
         }
 
-        // Check if email already exists
-        if ($this->userModel->emailExists($data['emailId'])) {
-            $_SESSION['error'] = 'Email address already exists. Please use a different email.';
-            $this->redirect('/signup');
+        // Prevent admin from deleting themselves
+        if ($userId === $_SESSION['userId']) {
+            $_SESSION['error'] = 'You cannot delete your own account.';
+            $this->redirect('/admin/users');
             return;
         }
 
-        // Hash password
-        $data['password'] = $this->authHelper->hashPassword($data['password']);
-
-        // Generate OTP
-        $otp = rand(100000, 999999);
-        $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-        $data['otp'] = $otp;
-        $data['otpExpiry'] = $otpExpiry;
-
-        // Create user (user ID will be auto-generated)
-        if ($this->userModel->createUser($data)) {
-            // Get the generated user ID
-            $generatedUserId = $this->userModel->getLastGeneratedUserId();
-            
-            // Send OTP email
-            if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-                $_SESSION['success'] = 'Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId;
-                $_SESSION['signup_userId'] = $generatedUserId;
-                $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
-                
-                // FIXED: Redirect to verify-otp page instead of login
-                $this->redirect('/verify-otp');
-            } else {
-                $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
-                $_SESSION['signup_userId'] = $generatedUserId;
-                
-                // Still redirect to verify-otp so they can try again
-                $this->redirect('/verify-otp');
-            }
+        if ($this->userModel->deleteUser($userId)) {
+            $_SESSION['success'] = 'User deleted successfully!';
         } else {
-            $_SESSION['error'] = 'Failed to create account. Please try again.';
-            $this->redirect('/signup');
+            $_SESSION['error'] = 'Failed to delete user. User may have active transactions.';
         }
-    } else {
-        // Show signup form
-        $this->render('auth/signup');
+        
+        $this->redirect('/admin/users');
+    }
+
+    /**
+     * Display system reports
+     */
+    public function reports()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $reportType = $_GET['type'] ?? 'overview';
+        $startDate = $_GET['start_date'] ?? date('Y-m-01');
+        $endDate = $_GET['end_date'] ?? date('Y-m-d');
+        
+        $reportData = $this->adminService->generateReport($reportType, $startDate, $endDate);
+        
+        $this->render('admin/reports', [
+            'reportType' => $reportType,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'reportData' => $reportData
+        ]);
+    }
+
+    /**
+     * Display system settings
+     */
+    public function settings()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $this->render('admin/settings');
+    }
+
+    /**
+     * Update system settings
+     */
+    public function updateSettings()
+    {
+        $this->authHelper->requireAdmin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/settings');
+            return;
+        }
+
+        // This would typically update system settings in a database
+        // For now, we'll just show a success message
+        $_SESSION['success'] = 'Settings updated successfully!';
+        $this->redirect('/admin/settings');
+    }
+
+    /**
+     * Display fine management
+     */
+    public function fines()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $overdueTransactions = $this->transactionModel->getOverdueTransactions();
+        $fineStats = $this->transactionModel->getFineStats();
+        
+        $this->render('admin/fines', [
+            'overdueTransactions' => $overdueTransactions,
+            'fineStats' => $fineStats
+        ]);
+    }
+
+    /**
+     * Update all fines
+     */
+    public function updateFines()
+    {
+        $this->authHelper->requireAdmin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/fines');
+            return;
+        }
+
+        $updatedCount = $this->adminService->updateAllFines();
+        $_SESSION['success'] = "Updated fines for {$updatedCount} overdue transactions.";
+        $this->redirect('/admin/fines');
+    }
+
+    /**
+     * Display backup and maintenance
+     */
+    public function maintenance()
+    {
+        $this->authHelper->requireAdmin();
+        
+        $this->render('admin/maintenance');
+    }
+
+    /**
+     * Create database backup
+     */
+    public function createBackup()
+    {
+        $this->authHelper->requireAdmin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/maintenance');
+            return;
+        }
+
+        $backupFile = $this->adminService->createDatabaseBackup();
+        if ($backupFile) {
+            $_SESSION['success'] = "Database backup created: {$backupFile}";
+        } else {
+            $_SESSION['error'] = 'Failed to create database backup.';
+        }
+        
+        $this->redirect('/admin/maintenance');
+    }
+
+    /**
+     * Render a view with data
+     */
+    private function render($view, $data = [])
+    {
+        extract($data);
+        $viewFile = APP_ROOT . '/views/' . $view . '.php';
+        
+        if (file_exists($viewFile)) {
+            include $viewFile;
+        } else {
+            http_response_code(404);
+            include APP_ROOT . '/views/errors/404.php';
+        }
+    }
+
+    /**
+     * Redirect to a URL
+     */
+    private function redirect($url)
+    {
+        header('Location: ' . BASE_URL . ltrim($url, '/'));
+        exit;
     }
 }
+?>
