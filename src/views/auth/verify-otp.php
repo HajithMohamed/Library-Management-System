@@ -1,6 +1,14 @@
 <?php
 $pageTitle = 'Verify OTP';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Get the user's email if stored in session
+$userEmail = $_SESSION['signup_email'] ?? 'your email';
+$maskedEmail = $userEmail;
+if (filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+    $parts = explode('@', $userEmail);
+    $maskedEmail = substr($parts[0], 0, 2) . str_repeat('*', strlen($parts[0]) - 2) . '@' . $parts[1];
+}
 ?>
 
 <style>
@@ -30,7 +38,6 @@ include APP_ROOT . '/views/layouts/header.php';
             opacity: 0;
             transform: translateY(20px);
         }
-
         to {
             opacity: 1;
             transform: translateY(0);
@@ -56,6 +63,12 @@ include APP_ROOT . '/views/layouts/header.php';
         font-size: 1.75rem;
         color: white;
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.25);
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
     }
 
     .otp-title {
@@ -68,6 +81,17 @@ include APP_ROOT . '/views/layouts/header.php';
     .otp-subtitle {
         color: #6b7280;
         font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .email-sent-to {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        display: inline-block;
+        margin-top: 0.5rem;
     }
 
     .otp-body {
@@ -108,6 +132,10 @@ include APP_ROOT . '/views/layouts/header.php';
         font-size: 1rem;
         transition: all 0.2s ease;
         background: #f9fafb;
+        text-align: center;
+        letter-spacing: 0.3em;
+        font-weight: 700;
+        font-size: 1.5rem;
     }
 
     .form-control-modern:focus {
@@ -156,6 +184,16 @@ include APP_ROOT . '/views/layouts/header.php';
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
     }
 
+    .help-text {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .help-text strong {
+        color: #374151;
+    }
+
     @media (max-width: 640px) {
         .otp-container {
             padding: 20px 16px;
@@ -198,7 +236,14 @@ include APP_ROOT . '/views/layouts/header.php';
                             <i class="fas fa-shield-alt"></i>
                         </div>
                         <h2 class="otp-title">Verify Your Email</h2>
-                        <p class="otp-subtitle">Enter the 6-digit code we sent to your email</p>
+                        <p class="otp-subtitle">
+                            We've sent a 6-digit verification code to
+                            <br>
+                            <span class="email-sent-to">
+                                <i class="fas fa-envelope"></i>
+                                <?= htmlspecialchars($maskedEmail) ?>
+                            </span>
+                        </p>
                     </div>
 
                     <div class="otp-body">
@@ -210,7 +255,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                         class="form-control-modern"
                                         id="otp"
                                         name="otp"
-                                        placeholder="Enter 6-digit code"
+                                        placeholder="000000"
                                         inputmode="numeric"
                                         autocomplete="one-time-code"
                                         pattern="[0-9]{6}"
@@ -218,6 +263,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                         maxlength="6"
                                         oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
                                         required
+                                        autofocus
                                         value="<?= htmlspecialchars($_POST['otp'] ?? '') ?>">
                                     <i class="fas fa-key input-icon"></i>
                                 </div>
@@ -225,18 +271,37 @@ include APP_ROOT . '/views/layouts/header.php';
 
                             <button type="submit" class="btn-otp">
                                 <i class="fas fa-check-circle"></i>
-                                Verify Account
+                                Verify & Activate Account
                             </button>
                         </form>
                     </div>
 
                     <div class="otp-footer">
-                        <p class="mb-0">Didn't receive the code? Check your spam folder or request a new one from support.</p>
+                        <p class="help-text">
+                            <strong>Didn't receive the code?</strong><br>
+                            Check your spam folder or wait a few moments for the email to arrive.
+                            The code expires in 15 minutes.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Auto-submit form when 6 digits are entered
+document.getElementById('otp').addEventListener('input', function(e) {
+    if (this.value.length === 6) {
+        // Optional: Auto-submit after a short delay
+        // setTimeout(() => this.form.submit(), 500);
+    }
+});
+
+// Focus the OTP input on page load
+window.addEventListener('load', function() {
+    document.getElementById('otp').focus();
+});
+</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

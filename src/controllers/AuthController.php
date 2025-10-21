@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Helpers\AuthHelper;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
 
 class AuthController
 {
@@ -69,86 +72,91 @@ class AuthController
     }
   }
 
-  /**
-   * Handle signup (both GET and POST)
-   */
-  public function signup()
-  {
+// In src/controllers/AuthController.php
+// Replace the signup() method with this fixed version:
+
+public function signup()
+{
     // Redirect if already logged in
     if ($this->authHelper->isLoggedIn()) {
-      $this->authHelper->redirectByUserType();
+        $this->authHelper->redirectByUserType();
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      $data = [
-        'username' => $_POST['username'] ?? '',
-        'password' => $_POST['password'] ?? '',
-        'userType' => 'Student', // Automatically set to Student
-        'gender' => $_POST['gender'] ?? '',
-        'dob' => $_POST['dob'] ?? '',
-        'emailId' => $_POST['emailId'] ?? '',
-        'phoneNumber' => $_POST['phoneNumber'] ?? '',
-        'address' => $_POST['address'] ?? '',
-        'isVerified' => 0,
-        'otp' => null,
-        'otpExpiry' => null
-      ];
+        $data = [
+            'username' => $_POST['username'] ?? '',
+            'password' => $_POST['password'] ?? '',
+            'userType' => 'Student', // Automatically set to Student
+            'gender' => $_POST['gender'] ?? '',
+            'dob' => $_POST['dob'] ?? '',
+            'emailId' => $_POST['emailId'] ?? '',
+            'phoneNumber' => $_POST['phoneNumber'] ?? '',
+            'address' => $_POST['address'] ?? '',
+            'isVerified' => 0,
+            'otp' => null,
+            'otpExpiry' => null
+        ];
 
-      // Validate user data
-      $errors = $this->userModel->validateUserData($data);
-      if (!empty($errors)) {
-        $_SESSION['validation_errors'] = $errors;
-        $this->redirect('/signup');
-        return;
-      }
-
-      // Check if username already exists
-      if ($this->userModel->usernameExists($data['username'])) {
-        $_SESSION['error'] = 'Username already exists. Please choose a different username.';
-        $this->redirect('/signup');
-        return;
-      }
-
-      // Check if email already exists
-      if ($this->userModel->emailExists($data['emailId'])) {
-        $_SESSION['error'] = 'Email address already exists. Please use a different email.';
-        $this->redirect('/signup');
-        return;
-      }
-
-      // Hash password
-      $data['password'] = $this->authHelper->hashPassword($data['password']);
-
-      // Generate OTP
-      $otp = rand(100000, 999999);
-      $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-      $data['otp'] = $otp;
-      $data['otpExpiry'] = $otpExpiry;
-
-      // Create user (user ID will be auto-generated)
-      if ($this->userModel->createUser($data)) {
-        // Get the generated user ID
-        $generatedUserId = $this->userModel->getLastGeneratedUserId();
-        
-        // Send OTP email
-        if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-          $_SESSION['success'] = 'Account created! Check your email for the verification code.';
-          $_SESSION['signup_userId'] = $generatedUserId;
-          // Redirect to login page
-          $this->redirect('/');
-        } else {
-          $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
-          $this->redirect('/signup');
+        // Validate user data
+        $errors = $this->userModel->validateUserData($data);
+        if (!empty($errors)) {
+            $_SESSION['validation_errors'] = $errors;
+            $this->redirect('/signup');
+            return;
         }
-      } else {
-        $_SESSION['error'] = 'Failed to create account. Please try again.';
-        $this->redirect('/signup');
-      }
+
+        // Check if username already exists
+        if ($this->userModel->usernameExists($data['username'])) {
+            $_SESSION['error'] = 'Username already exists. Please choose a different username.';
+            $this->redirect('/signup');
+            return;
+        }
+
+        // Check if email already exists
+        if ($this->userModel->emailExists($data['emailId'])) {
+            $_SESSION['error'] = 'Email address already exists. Please use a different email.';
+            $this->redirect('/signup');
+            return;
+        }
+
+        // Hash password
+        $data['password'] = $this->authHelper->hashPassword($data['password']);
+
+        // Generate OTP
+        $otp = rand(100000, 999999);
+        $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+        $data['otp'] = $otp;
+        $data['otpExpiry'] = $otpExpiry;
+
+        // Create user (user ID will be auto-generated)
+        if ($this->userModel->createUser($data)) {
+            // Get the generated user ID
+            $generatedUserId = $this->userModel->getLastGeneratedUserId();
+            
+            // Send OTP email
+            if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
+                $_SESSION['success'] = 'Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId;
+                $_SESSION['signup_userId'] = $generatedUserId;
+                $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
+                
+                // FIXED: Redirect to verify-otp page instead of login
+                $this->redirect('/verify-otp');
+            } else {
+                $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
+                $_SESSION['signup_userId'] = $generatedUserId;
+                
+                // Still redirect to verify-otp so they can try again
+                $this->redirect('/verify-otp');
+            }
+        } else {
+            $_SESSION['error'] = 'Failed to create account. Please try again.';
+            $this->redirect('/signup');
+        }
     } else {
-      // Show signup form
-      $this->render('auth/signup');
+        // Show signup form
+        $this->render('auth/signup');
     }
-  }
+}
 
   /**
    * Logout user
@@ -195,6 +203,185 @@ class AuthController
     } else {
       // Show OTP verification form
       $this->render('auth/verify-otp');
+    }
+  }
+
+  /**
+   * Handle forgot password (both GET and POST)
+   */
+  public function forgotPassword()
+  {
+    // Block access for logged-in users
+    if ($this->authHelper->isLoggedIn()) {
+      $this->authHelper->redirectByUserType();
+      return;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $action = $_POST['action'] ?? '';
+
+      if ($action === 'send_otp') {
+        $this->handleSendOtp();
+      } elseif ($action === 'verify_otp') {
+        $this->handleVerifyOtp();
+      } elseif ($action === 'reset_password') {
+        $this->handleResetPassword();
+      }
+    }
+
+    // Show forgot password form
+    $this->render('auth/forgotPassword');
+  }
+
+  /**
+   * Handle sending OTP for password reset
+   */
+  private function handleSendOtp()
+  {
+    $email = trim($_POST['email'] ?? '');
+    if (empty($email)) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Please enter your email</div>';
+      return;
+    }
+
+    $user = $this->userModel->getUserByEmail($email);
+    if (!$user) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Email not found in our system.</div>';
+      return;
+    }
+
+    $otp = rand(100000, 999999);
+    $otpExpiry = date('Y-m-d H:i:s', strtotime('+' . OTP_EXPIRY_MINUTES . ' minutes'));
+    
+    if ($this->userModel->updateUserOtp($user['userId'], $otp, $otpExpiry)) {
+      // Send OTP via email
+      $subject = "Password Reset OTP - Library System";
+      $userName = $user['username'] ?? 'User';
+      $body = "Hello " . htmlspecialchars($userName) . ",\n\n";
+      $body .= "Your OTP for password reset is: " . $otp . "\n";
+      $body .= "This OTP is valid for " . OTP_EXPIRY_MINUTES . " minutes.\n\n";
+      $body .= "If you didn't request this, please ignore this email.\n\n";
+      $body .= "Best regards,\nLibrary Management System";
+
+      // Use PHPMailer for better email delivery
+      if ($this->sendEmailWithPHPMailer($email, $subject, $body)) {
+        $_SESSION['reset_email'] = $email;
+        $_SESSION['reset_userId'] = $user['userId'];
+        $_SESSION['message'] = '<div class="alert alert-success">OTP sent to your email. Check your inbox.</div>';
+      } else {
+        // Fallback for development: show OTP on screen
+        $_SESSION['reset_email'] = $email;
+        $_SESSION['reset_userId'] = $user['userId'];
+        $_SESSION['message'] = '<div class="alert alert-warning">Email sending failed, but you can use this OTP for testing: <strong>' . $otp . '</strong></div>';
+      }
+    } else {
+      $_SESSION['message'] = '<div class="alert alert-danger">Failed to generate OTP. Please try again.</div>';
+    }
+  }
+
+  /**
+   * Handle OTP verification for password reset
+   */
+  private function handleVerifyOtp()
+  {
+    $otp = trim($_POST['otp'] ?? '');
+    $email = $_SESSION['reset_email'] ?? '';
+
+    if (empty($otp)) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Please enter the OTP</div>';
+      return;
+    }
+
+    $user = $this->userModel->getUserByEmail($email);
+    if ($user && $user['otp'] === $otp && strtotime($user['otpExpiry']) > time()) {
+      $_SESSION['otp_verified'] = true;
+      $_SESSION['message'] = '<div class="alert alert-success">OTP verified! You can now reset your password.</div>';
+    } else {
+      $_SESSION['message'] = '<div class="alert alert-danger">Invalid or expired OTP</div>';
+    }
+  }
+
+  /**
+   * Handle password reset
+   */
+  private function handleResetPassword()
+  {
+    if (!($_SESSION['otp_verified'] ?? false)) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Please verify OTP first</div>';
+      return;
+    }
+
+    $password = $_POST['password'] ?? '';
+    $confirmPassword = $_POST['confirmPassword'] ?? '';
+
+    if (empty($password) || empty($confirmPassword)) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Please fill all fields</div>';
+      return;
+    }
+
+    if ($password !== $confirmPassword) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Passwords do not match</div>';
+      return;
+    }
+
+    if (strlen($password) < 6) {
+      $_SESSION['message'] = '<div class="alert alert-danger">Password must be at least 6 characters</div>';
+      return;
+    }
+
+    $hashedPassword = $this->authHelper->hashPassword($password);
+    $userId = $_SESSION['reset_userId'] ?? '';
+
+    if ($this->userModel->updateUserPassword($userId, $hashedPassword)) {
+      // Log the password change
+      $action_log = "Password reset";
+      $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+      $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+      
+      // Note: You might want to add an audit log method to User model
+      // $this->userModel->logUserAction($userId, $action_log, $ip, $userAgent);
+
+      unset($_SESSION['reset_email']);
+      unset($_SESSION['reset_userId']);
+      unset($_SESSION['otp_verified']);
+      $_SESSION['message'] = '<div class="alert alert-success">Password reset successfully! <a href="' . BASE_URL . '">Go to Login</a></div>';
+    } else {
+      $_SESSION['message'] = '<div class="alert alert-danger">Error resetting password. Please try again.</div>';
+    }
+  }
+
+  /**
+   * Send email using PHPMailer
+   */
+  private function sendEmailWithPHPMailer($to, $subject, $body)
+  {
+    try {
+      $mail = new PHPMailer(true);
+
+      // Server settings
+      $mail->isSMTP();
+      $mail->Host = SMTP_HOST;
+      $mail->SMTPAuth = true;
+      $mail->Username = SMTP_USERNAME;
+      $mail->Password = SMTP_PASSWORD;
+      $mail->SMTPSecure = SMTP_ENCRYPTION;
+      $mail->Port = SMTP_PORT;
+
+      // Recipients
+      $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+      $mail->addAddress($to);
+
+      // Content
+      $mail->isHTML(false);
+      $mail->Subject = $subject;
+      $mail->Body = $body;
+
+      $mail->send();
+      return true;
+    } catch (Exception $e) {
+      // Log error for debugging
+      error_log("Email sending failed: " . $e->getMessage());
+      return false;
     }
   }
 
