@@ -1,4 +1,3 @@
-
 version: "3.8"
 
 services:
@@ -32,10 +31,10 @@ services:
       ADMIN_CODE: ${ADMIN_CODE:-hello_world}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-youremail@gmail.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-yourapppassword}
+      SMTP_USERNAME: ${SMTP_USERNAME:-youremail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-yourapppass}
       SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-tls}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-youremail@gmail.com}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-youremail.com}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Library System}
       SMS_API_URL: ${SMS_API_URL:-}
       SMS_API_KEY: ${SMS_API_KEY:-}

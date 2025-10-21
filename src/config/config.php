@@ -90,8 +90,8 @@ $mysqli->set_charset('utf8mb4');
 // =========================
 define('SMTP_HOST', getEnvVar('SMTP_HOST', 'smtp.gmail.com'));
 define('SMTP_PORT', getEnvVar('SMTP_PORT', '587'));
-define('SMTP_USERNAME', getEnvVar('SMTP_USERNAME', 'hanoufaatif@gmail.com'));
-define('SMTP_PASSWORD', getEnvVar('SMTP_PASSWORD', 'crvhjrwgktwozfhv'));
+define('SMTP_USERNAME', getEnvVar('SMTP_USERNAME', 'youremail.com'));
+define('SMTP_PASSWORD', getEnvVar('SMTP_PASSWORD', 'yoursapppass'));
 define('SMTP_ENCRYPTION', getEnvVar('SMTP_ENCRYPTION', 'tls'));
 define('SMTP_FROM_EMAIL', getEnvVar('SMTP_FROM_EMAIL', SMTP_USERNAME));
 define('SMTP_FROM_NAME', getEnvVar('SMTP_FROM_NAME', 'Library Management System University of Ruhuna'));

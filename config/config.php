@@ -58,10 +58,10 @@ if (!defined('OTP_EXPIRY_MINUTES')) define('OTP_EXPIRY_MINUTES', (int)envd('OTP_
 // PHPMailer SMTP (keep env override if present)
 define("SMTP_HOST", envd("SMTP_HOST", "smtp.gmail.com"));
 define("SMTP_PORT", (int)envd("SMTP_PORT", 587));
-define("SMTP_USERNAME", envd("SMTP_USERNAME", "hanoufaatif@gmail.com"));
-define("SMTP_PASSWORD", envd("SMTP_PASSWORD", "crvh jrwg ktwo zfhv"));  // Gmail App Password
+define("SMTP_USERNAME", envd("SMTP_USERNAME", "youremail.com"));
+define("SMTP_PASSWORD", envd("SMTP_PASSWORD", "yourapppass"));  // Gmail App Password
 define("SMTP_ENCRYPTION", envd("SMTP_ENCRYPTION", "tls"));
-define("SMTP_FROM_EMAIL", envd("SMTP_FROM_EMAIL", "hanoufaatif@gmail.com"));
+define("SMTP_FROM_EMAIL", envd("SMTP_FROM_EMAIL", "youremail.com"));
 define("SMTP_FROM_NAME", envd("SMTP_FROM_NAME", "Library Management System - University of Ruhuna"));
 
 // SMS Gateway placeholders
