@@ -21,6 +21,7 @@ services:
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
+      - ./vendor:/var/www/html/vendor  # Fixed: Mount vendor inside html directory
     env_file: .env
     environment:
       TZ: ${TZ:-Asia/Kolkata}
