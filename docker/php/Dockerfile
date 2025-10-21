@@ -6,11 +6,11 @@ WORKDIR /var/www/html
 
 # Install system dependencies and PHP extensions
 RUN apk update && apk add --no-cache \
-    git \
-    unzip \
-    libzip-dev \
-    && docker-php-ext-install mysqli pdo pdo_mysql zip \
-    && rm -rf /var/cache/apk/*
+  git \
+  unzip \
+  libzip-dev \
+  && docker-php-ext-install mysqli pdo pdo_mysql zip \
+  && rm -rf /var/cache/apk/*
 
 # Install Composer manually with retry logic
 RUN for i in 1 2 3; do \
