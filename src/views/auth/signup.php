@@ -11,7 +11,7 @@ include APP_ROOT . '/views/layouts/header.php';
         justify-content: center;
         padding: 40px 20px;
     }
-    
+
     .auth-card {
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(20px);
@@ -24,25 +24,26 @@ include APP_ROOT . '/views/layouts/header.php';
         width: 100%;
         margin: 0 auto;
     }
-    
+
     @keyframes slideInUp {
         from {
             opacity: 0;
             transform: translateY(20px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
         }
     }
-    
+
     .auth-header {
         text-align: center;
         padding: 2rem 1.5rem;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
         border-bottom: 1px solid rgba(102, 126, 234, 0.12);
     }
-    
+
     .auth-icon {
         width: 64px;
         height: 64px;
@@ -56,34 +57,34 @@ include APP_ROOT . '/views/layouts/header.php';
         color: white;
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.25);
     }
-    
+
     .auth-title {
         font-size: 1.75rem;
         font-weight: 700;
         color: #1f2937;
         margin-bottom: 0.5rem;
     }
-    
+
     .auth-subtitle {
         color: #6b7280;
         font-size: 1rem;
     }
-    
+
     .auth-body {
         padding: 2rem;
     }
-    
+
     .form-row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 1rem;
         margin-bottom: 1rem;
     }
-    
+
     .form-group {
         margin-bottom: 1rem;
     }
-    
+
     .form-label {
         font-weight: 600;
         color: #374151;
@@ -93,15 +94,15 @@ include APP_ROOT . '/views/layouts/header.php';
         align-items: center;
         gap: 0.25rem;
     }
-    
+
     .required-star {
         color: #dc2626;
     }
-    
+
     .input-group-modern {
         position: relative;
     }
-    
+
     .input-icon {
         position: absolute;
         left: 0.875rem;
@@ -111,7 +112,7 @@ include APP_ROOT . '/views/layouts/header.php';
         font-size: 1rem;
         transition: color 0.2s ease;
     }
-    
+
     .form-control-modern,
     .form-select-modern,
     .form-textarea-modern {
@@ -123,7 +124,7 @@ include APP_ROOT . '/views/layouts/header.php';
         transition: all 0.2s ease;
         background: #f9fafb;
     }
-    
+
     .form-select-modern {
         padding-right: 2.5rem;
         cursor: pointer;
@@ -132,13 +133,13 @@ include APP_ROOT . '/views/layouts/header.php';
         background-repeat: no-repeat;
         background-position: right 1rem center;
     }
-    
+
     .form-textarea-modern {
         min-height: 80px;
         resize: vertical;
         padding-top: 0.75rem;
     }
-    
+
     .form-control-modern:focus,
     .form-select-modern:focus,
     .form-textarea-modern:focus {
@@ -147,13 +148,13 @@ include APP_ROOT . '/views/layouts/header.php';
         background: white;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
     }
-    
-    .form-control-modern:focus + .input-icon,
-    .form-select-modern:focus + .input-icon,
-    .form-textarea-modern:focus + .input-icon {
+
+    .form-control-modern:focus+.input-icon,
+    .form-select-modern:focus+.input-icon,
+    .form-textarea-modern:focus+.input-icon {
         color: #667eea;
     }
-    
+
     .checkbox-modern {
         display: flex;
         align-items: flex-start;
@@ -164,12 +165,12 @@ include APP_ROOT . '/views/layouts/header.php';
         border: 1px solid transparent;
         transition: all 0.2s ease;
     }
-    
+
     .checkbox-modern:hover {
         background: rgba(102, 126, 234, 0.08);
         border-color: rgba(102, 126, 234, 0.2);
     }
-    
+
     .checkbox-modern input[type="checkbox"] {
         width: 18px;
         height: 18px;
@@ -177,23 +178,23 @@ include APP_ROOT . '/views/layouts/header.php';
         accent-color: #667eea;
         margin-top: 2px;
     }
-    
+
     .checkbox-label {
         font-size: 0.9375rem;
         color: #4b5563;
         line-height: 1.5;
     }
-    
+
     .checkbox-label a {
         color: #667eea;
         text-decoration: none;
         font-weight: 600;
     }
-    
+
     .checkbox-label a:hover {
         text-decoration: underline;
     }
-    
+
     .btn-auth {
         width: 100%;
         padding: 0.875rem;
@@ -208,74 +209,75 @@ include APP_ROOT . '/views/layouts/header.php';
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
         margin-top: 1.5rem;
     }
-    
+
     .btn-auth:hover {
         transform: translateY(-1px);
         box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
     }
-    
+
     .btn-auth:active {
         transform: translateY(0);
     }
-    
+
     .btn-auth i {
         margin-right: 0.5rem;
     }
-    
+
     .auth-footer {
         text-align: center;
         padding: 1.5rem;
         border-top: 1px solid rgba(102, 126, 234, 0.12);
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
     }
-    
+
     .auth-link {
         color: #667eea;
         text-decoration: none;
         font-weight: 600;
         transition: color 0.2s ease;
     }
-    
+
     .auth-link:hover {
         color: #764ba2;
         text-decoration: underline;
     }
-    
+
     @media (max-width: 640px) {
         .auth-container {
             padding: 20px 16px;
         }
-        
+
         .auth-card {
             border-radius: 12px;
         }
-        
+
         .auth-header {
             padding: 1.5rem 1rem;
         }
-        
+
         .auth-body {
             padding: 1.5rem;
         }
-        
+
         .form-row {
             grid-template-columns: 1fr;
             gap: 0.875rem;
         }
-        
+
         .auth-title {
             font-size: 1.5rem;
         }
-        
+
         .auth-subtitle {
             font-size: 0.9375rem;
         }
-        
+
         .btn-auth {
             padding: 0.75rem;
         }
     }
 </style>
+<link rel="stylesheet" href="../assets/css/form-icons-fix.css">
 
 <div class="auth-container">
     <div class="container">
@@ -289,7 +291,7 @@ include APP_ROOT . '/views/layouts/header.php';
                         <h2 class="auth-title">Create Your Account</h2>
                         <p class="auth-subtitle">Join the University Library community - Choose your username and Student ID will be auto-generated</p>
                     </div>
-                    
+
                     <div class="auth-body">
                         <form method="POST" action="<?= BASE_URL ?>signup">
                             <!-- Username -->
@@ -298,33 +300,33 @@ include APP_ROOT . '/views/layouts/header.php';
                                     Username <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <input type="text" 
-                                           class="form-control-modern" 
-                                           id="username" 
-                                           name="username"
-                                           placeholder="Choose your username" 
-                                           required
-                                           value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+                                    <input type="text"
+                                        class="form-control-modern"
+                                        id="username"
+                                        name="username"
+                                        placeholder="Choose your username"
+                                        required
+                                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
                                     <i class="fas fa-user input-icon"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Password -->
                             <div class="form-group">
                                 <label for="password" class="form-label">
                                     Password <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <input type="password" 
-                                           class="form-control-modern" 
-                                           id="password" 
-                                           name="password"
-                                           placeholder="Create a strong password" 
-                                           required>
+                                    <input type="password"
+                                        class="form-control-modern"
+                                        id="password"
+                                        name="password"
+                                        placeholder="Create a strong password"
+                                        required>
                                     <i class="fas fa-lock input-icon"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Gender -->
                             <div class="form-group">
                                 <label for="gender" class="form-label">
@@ -340,7 +342,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                     <i class="fas fa-venus-mars input-icon"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Email & Phone -->
                             <div class="form-row">
                                 <div class="form-group">
@@ -348,77 +350,77 @@ include APP_ROOT . '/views/layouts/header.php';
                                         Email Address <span class="required-star">*</span>
                                     </label>
                                     <div class="input-group-modern">
-                                        <input type="email" 
-                                               class="form-control-modern" 
-                                               id="emailId" 
-                                               name="emailId"
-                                               placeholder="your.email@example.com" 
-                                               required
-                                               value="<?= htmlspecialchars($_POST['emailId'] ?? '') ?>">
+                                        <input type="email"
+                                            class="form-control-modern"
+                                            id="emailId"
+                                            name="emailId"
+                                            placeholder="your.email@example.com"
+                                            required
+                                            value="<?= htmlspecialchars($_POST['emailId'] ?? '') ?>">
                                         <i class="fas fa-envelope input-icon"></i>
                                     </div>
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="phoneNumber" class="form-label">
                                         Phone Number <span class="required-star">*</span>
                                     </label>
                                     <div class="input-group-modern">
-                                        <input type="tel" 
-                                               class="form-control-modern" 
-                                               id="phoneNumber" 
-                                               name="phoneNumber"
-                                               placeholder="+94 XXX XXX XXX" 
-                                               required
-                                               value="<?= htmlspecialchars($_POST['phoneNumber'] ?? '') ?>">
+                                        <input type="tel"
+                                            class="form-control-modern"
+                                            id="phoneNumber"
+                                            name="phoneNumber"
+                                            placeholder="+94 XXX XXX XXX"
+                                            required
+                                            value="<?= htmlspecialchars($_POST['phoneNumber'] ?? '') ?>">
                                         <i class="fas fa-phone input-icon"></i>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Date of Birth -->
                             <div class="form-group">
                                 <label for="dob" class="form-label">
                                     Date of Birth <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <input type="date" 
-                                           class="form-control-modern" 
-                                           id="dob" 
-                                           name="dob" 
-                                           required
-                                           value="<?= htmlspecialchars($_POST['dob'] ?? '') ?>">
+                                    <input type="date"
+                                        class="form-control-modern"
+                                        id="dob"
+                                        name="dob"
+                                        required
+                                        value="<?= htmlspecialchars($_POST['dob'] ?? '') ?>">
                                     <i class="fas fa-calendar-alt input-icon"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Address -->
                             <div class="form-group">
                                 <label for="address" class="form-label">
                                     Address <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <textarea class="form-textarea-modern" 
-                                              id="address" 
-                                              name="address" 
-                                              rows="3"
-                                              placeholder="Enter your complete address" 
-                                              required><?= htmlspecialchars($_POST['address'] ?? '') ?></textarea>
+                                    <textarea class="form-textarea-modern"
+                                        id="address"
+                                        name="address"
+                                        rows="3"
+                                        placeholder="Enter your complete address"
+                                        required><?= htmlspecialchars($_POST['address'] ?? '') ?></textarea>
                                     <i class="fas fa-map-marker-alt input-icon"></i>
                                 </div>
                             </div>
-                            
+
                             <!-- Terms & Conditions -->
                             <div class="form-group">
                                 <div class="checkbox-modern">
                                     <input type="checkbox" id="terms" required>
                                     <label class="checkbox-label" for="terms">
-                                        I agree to the <a href="#">Terms and Conditions</a> and 
+                                        I agree to the <a href="#">Terms and Conditions</a> and
                                         <a href="#">Privacy Policy</a> of the University Library
                                     </label>
                                 </div>
                             </div>
-                            
+
                             <!-- Submit Button -->
                             <button type="submit" class="btn-auth">
                                 <i class="fas fa-user-plus"></i>
@@ -426,10 +428,10 @@ include APP_ROOT . '/views/layouts/header.php';
                             </button>
                         </form>
                     </div>
-                    
+
                     <div class="auth-footer">
                         <p class="mb-0">
-                            Already have an account? 
+                            Already have an account?
                             <a href="<?= BASE_URL ?>" class="auth-link">
                                 Login here
                             </a>
