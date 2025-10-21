@@ -9,7 +9,7 @@ echo 🚀 University Library Management System - Docker Setup
 echo ==================================================
 echo.
 
-REM Function to print colored output (Windows doesn't support colors in batch, so using echo)
+REM Function definitions
 goto :main
 
 :print_status
@@ -50,9 +50,24 @@ call :print_status "Checking if Docker is running..."
 docker info >nul 2>&1
 if errorlevel 1 (
     call :print_error "Docker is not running. Please start Docker Desktop first."
-    exit /b 1
+    echo.
+    echo Please start Docker Desktop and wait for it to fully start.
+    echo Press any key once Docker Desktop is running...
+    pause >nul
+    
+    REM Check again after user confirms
+    docker info >nul 2>&1
+    if errorlevel 1 (
+        call :print_error "Docker is still not running. Exiting..."
+        exit /b 1
+    )
 )
 call :print_success "Docker is running"
+
+REM Wait for Docker to be fully ready
+call :print_status "Waiting for Docker to be fully ready..."
+timeout /t 5 /nobreak >nul
+
 goto :eof
 
 :create_env_file
@@ -88,55 +103,97 @@ goto :eof
 
 :stop_containers
 call :print_status "Stopping existing containers..."
-docker-compose down >nul 2>&1
-call :print_success "Existing containers stopped"
+docker-compose down 2>nul
+if errorlevel 1 (
+    call :print_warning "No existing containers to stop"
+) else (
+    call :print_success "Existing containers stopped"
+)
+
+REM Wait a moment after stopping
+timeout /t 3 /nobreak >nul
 goto :eof
 
 :start_containers
 call :print_status "Building and starting containers..."
-docker-compose up -d --build
+call :print_status "This may take a few minutes on first run..."
+
+REM Try to build first
+docker-compose build --no-cache
+if errorlevel 1 (
+    call :print_error "Failed to build containers"
+    call :print_status "Trying alternative approach..."
+    
+    REM Clean everything and retry
+    docker system prune -f >nul 2>&1
+    timeout /t 3 /nobreak >nul
+    
+    docker-compose build
+    if errorlevel 1 (
+        call :print_error "Build failed. Please check Docker Desktop is running properly."
+        exit /b 1
+    )
+)
+
+REM Wait a moment between build and start
+timeout /t 5 /nobreak >nul
+
+REM Now start the containers
+call :print_status "Starting containers..."
+docker-compose up -d
 if errorlevel 1 (
     call :print_error "Failed to start containers"
+    call :print_status "Checking Docker status..."
+    docker info
     exit /b 1
 )
+
 call :print_success "Containers started successfully"
 goto :eof
 
 :wait_for_containers
 call :print_status "Waiting for containers to be ready..."
-timeout /t 10 /nobreak >nul
+timeout /t 15 /nobreak >nul
+
+REM Verify containers are running
+docker-compose ps
 call :print_success "Containers are running"
 goto :eof
 
 :install_composer_deps
 call :print_status "Installing Composer dependencies..."
 
-REM Try to copy composer files to container
-docker cp composer.json ils_php:/var/www/html/ >nul 2>&1
-if errorlevel 1 (
-    call :print_warning "Could not copy composer.json to ils_php, trying alternative container name..."
-    docker cp composer.json lms-php:/var/www/html/ >nul 2>&1
-    if errorlevel 1 (
-        call :print_error "Could not copy composer.json to container"
-        goto :eof
-    )
+REM Wait a bit more for PHP container to be fully ready
+timeout /t 5 /nobreak >nul
+
+REM Get the actual PHP container name
+for /f "tokens=*" %%i in ('docker ps --format "{{.Names}}" ^| findstr php') do set PHP_CONTAINER=%%i
+
+if not defined PHP_CONTAINER (
+    call :print_warning "PHP container not found. Skipping Composer installation."
+    call :print_status "You may need to install manually later:"
+    echo   docker exec ^<php_container_name^> composer install
+    goto :eof
 )
 
-docker cp composer.lock ils_php:/var/www/html/ >nul 2>&1
+call :print_status "Found PHP container: %PHP_CONTAINER%"
+
+REM Try to copy composer files
+docker cp composer.json %PHP_CONTAINER%:/var/www/html/ 2>nul
 if errorlevel 1 (
-    docker cp composer.lock lms-php:/var/www/html/ >nul 2>&1
+    call :print_warning "Could not copy composer.json - file may not exist"
+    goto :eof
 )
 
-REM Try to install dependencies
-docker exec ils_php composer install >nul 2>&1
+docker cp composer.lock %PHP_CONTAINER%:/var/www/html/ 2>nul
+
+REM Install dependencies
+docker exec %PHP_CONTAINER% composer install
 if errorlevel 1 (
-    docker exec lms-php composer install >nul 2>&1
-    if errorlevel 1 (
-        call :print_warning "Could not install Composer dependencies automatically"
-        call :print_status "You may need to install them manually:"
-        echo   docker exec ^<container_name^> composer install
-        goto :eof
-    )
+    call :print_warning "Could not install Composer dependencies automatically"
+    call :print_status "You may need to install them manually:"
+    echo   docker exec %PHP_CONTAINER% composer install
+    goto :eof
 )
 
 call :print_success "Composer dependencies installed"
@@ -145,27 +202,30 @@ goto :eof
 :verify_installation
 call :print_status "Verifying installation..."
 
-REM Check if autoload.php exists
-docker exec ils_php test -f /var/www/html/vendor/autoload.php >nul 2>&1
-if errorlevel 1 (
-    docker exec lms-php test -f /var/www/html/vendor/autoload.php >nul 2>&1
+REM Get PHP container name again
+for /f "tokens=*" %%i in ('docker ps --format "{{.Names}}" ^| findstr php') do set PHP_CONTAINER=%%i
+
+if defined PHP_CONTAINER (
+    REM Check if autoload.php exists
+    docker exec %PHP_CONTAINER% test -f /var/www/html/vendor/autoload.php 2>nul
     if errorlevel 1 (
         call :print_warning "Autoloader file not found - Composer dependencies may not be installed"
     ) else (
         call :print_success "Autoloader file found"
     )
-) else (
-    call :print_success "Autoloader file found"
 )
 
-REM Test web server (using PowerShell)
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:8080' -UseBasicParsing -TimeoutSec 5; if ($response.StatusCode -eq 200) { Write-Host '[SUCCESS] Web server is responding' } else { Write-Host '[WARNING] Web server may not be responding properly' } } catch { Write-Host '[WARNING] Web server may not be responding properly' }" 2>nul
+REM Test web server
+call :print_status "Testing web server..."
+timeout /t 5 /nobreak >nul
+powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:8080' -UseBasicParsing -TimeoutSec 10; if ($response.StatusCode -eq 200) { Write-Host '[SUCCESS] Web server is responding' } else { Write-Host '[WARNING] Web server may not be responding properly' } } catch { Write-Host '[WARNING] Web server may not be ready yet - wait a moment and try accessing it manually' }" 2>nul
 goto :eof
 
 :show_final_info
 echo.
+echo ========================================
 echo 🎉 Setup Complete!
-echo ==================
+echo ========================================
 echo.
 echo 📱 Access your application:
 echo   • Main Application: http://localhost:8080
@@ -173,7 +233,7 @@ echo   • PHPMyAdmin: http://localhost:8081
 echo.
 echo 🔧 Container Management:
 echo   • View containers: docker-compose ps
-echo   • View logs: docker-compose logs
+echo   • View logs: docker-compose logs -f
 echo   • Stop containers: docker-compose down
 echo   • Restart containers: docker-compose restart
 echo.
@@ -184,8 +244,8 @@ echo   • DB User: library_user
 echo   • DB Password: library_password
 echo.
 echo 🐛 Troubleshooting:
-echo   • Check logs: docker logs ils_php
-echo   • Install dependencies: docker exec ils_php composer install
+echo   • Check logs: docker-compose logs -f
+echo   • Restart Docker Desktop and run this script again
 echo   • Rebuild: docker-compose up -d --build
 echo.
 goto :eof
@@ -195,15 +255,37 @@ echo Starting setup process...
 echo.
 
 call :check_docker
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+    echo.
+    pause
+    exit /b 1
+)
 
 call :check_docker_running
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+    echo.
+    pause
+    exit /b 1
+)
 
 call :create_env_file
 call :stop_containers
 call :start_containers
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+    echo.
+    echo ========================================
+    echo ⚠️ Setup Failed
+    echo ========================================
+    echo.
+    echo Common solutions:
+    echo 1. Make sure Docker Desktop is fully started
+    echo 2. Try restarting Docker Desktop
+    echo 3. Move project out of OneDrive folder
+    echo 4. Run: docker-compose down, then try again
+    echo.
+    pause
+    exit /b 1
+)
 
 call :wait_for_containers
 call :install_composer_deps
@@ -212,4 +294,5 @@ call :show_final_info
 
 call :print_success "Setup completed successfully! 🎉"
 echo.
-pause
+echo Press any key to exit...
+pause >nul
