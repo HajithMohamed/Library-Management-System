@@ -12,10 +12,8 @@ RUN apk update && apk add --no-cache \
   && docker-php-ext-install mysqli pdo pdo_mysql zip \
   && rm -rf /var/cache/apk/*
 
-# Install Composer manually with retry logic
-RUN for i in 1 2 3; do \
-        curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && break || sleep 10; \
-    done
+# Install Composer manually to avoid timeout issues
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Copy custom PHP config
 COPY docker/php/php.ini /usr/local/etc/php/
@@ -23,10 +21,8 @@ COPY docker/php/php.ini /usr/local/etc/php/
 # Copy composer files first
 COPY composer.json composer.lock /var/www/html/
 
-# Install Composer dependencies with retry
-RUN for i in 1 2 3; do \
-        composer install --no-dev --optimize-autoloader && break || sleep 10; \
-    done
+# Install Composer dependencies
+RUN composer update --no-dev --optimize-autoloader
 
 # Copy project files
 COPY src /var/www/html
