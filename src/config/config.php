@@ -20,9 +20,9 @@ define('DIR_URL', APP_ROOT . '/');
 if (!defined('BASE_URL')) {
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $port = $_SERVER['SERVER_PORT'] ?? '8080';
+    $port = $_SERVER['SERVER_PORT'] ?? '80';
 
-    if ($host === 'localhost' && $port === '8080') {
+    if ($host === 'localhost' && in_array($port, ['8080', '80'])) {
         define('BASE_URL', "http://localhost:8080/");
     } else {
         define('BASE_URL', $protocol . "://$host/");
@@ -40,12 +40,33 @@ require_once $autoloadPath;
 
 use Dotenv\Dotenv;
 
-$dotenv = Dotenv::createImmutable(APP_ROOT);
-$dotenv->safeLoad();
+// Load .env file from project root
+$envPath = APP_ROOT;
+if (!file_exists($envPath . '/.env')) {
+    // Try parent directory if not found
+    $envPath = dirname(APP_ROOT);
+}
+
+if (file_exists($envPath . '/.env')) {
+    $dotenv = Dotenv::createImmutable($envPath);
+    $dotenv->safeLoad();
+}
 
 // Helper function to get environment variable with fallback
 function getEnvVar(string $key, $default = '') {
-    return $_ENV[$key] ?? $default;
+    // Check $_ENV first (Docker environment variables)
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    
+    // Check getenv() (alternative method)
+    $value = getenv($key);
+    if ($value !== false && $value !== '') {
+        return $value;
+    }
+    
+    // Return default
+    return $default;
 }
 
 // =========================
@@ -58,43 +79,72 @@ date_default_timezone_set(getEnvVar('TZ', 'Asia/Kolkata'));
 // Database Configuration
 // =========================
 define('DB_HOST', getEnvVar('DB_HOST', 'db'));
-define('DB_PORT', getEnvVar('DB_PORT', '3306')); // MySQL port inside Docker
+define('DB_PORT', getEnvVar('DB_PORT', '3306'));
 define('DB_USER', getEnvVar('DB_USER', 'library_user'));
 define('DB_PASSWORD', getEnvVar('DB_PASSWORD', 'library_password'));
 define('DB_NAME', getEnvVar('DB_NAME', 'integrated_library_system'));
 
 // =========================
-// MySQL Connection with Retry
+// MySQL Connection with Retry Logic
 // =========================
-$retry = 10; // number of retries
-$mysqli = null;
+function createDatabaseConnection($maxRetries = 10, $retryDelay = 2) {
+    $retry = $maxRetries;
+    $mysqli = null;
+    $lastError = '';
 
-while ($retry > 0) {
-    $mysqli = @new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, (int)DB_PORT);
-    if ($mysqli && $mysqli->connect_errno === 0) {
-        break; // connected successfully
+    while ($retry > 0) {
+        try {
+            $mysqli = @new mysqli(
+                DB_HOST,
+                DB_USER,
+                DB_PASSWORD,
+                DB_NAME,
+                (int)DB_PORT
+            );
+
+            if ($mysqli->connect_errno === 0) {
+                // Connection successful
+                $mysqli->set_charset('utf8mb4');
+                return $mysqli;
+            }
+
+            $lastError = "(" . $mysqli->connect_errno . ") " . $mysqli->connect_error;
+            
+        } catch (Exception $e) {
+            $lastError = $e->getMessage();
+        }
+
+        $retry--;
+        if ($retry > 0) {
+            sleep($retryDelay);
+        }
     }
-    $retry--;
-    sleep(2); // wait 2 seconds before retry
+
+    // Connection failed after all retries
+    $errorMsg = "Database connection failed after $maxRetries attempts.\n";
+    $errorMsg .= "Last error: $lastError\n";
+    $errorMsg .= "Connection details:\n";
+    $errorMsg .= "- Host: " . DB_HOST . "\n";
+    $errorMsg .= "- Port: " . DB_PORT . "\n";
+    $errorMsg .= "- Database: " . DB_NAME . "\n";
+    $errorMsg .= "- User: " . DB_USER . "\n";
+    
+    die($errorMsg);
 }
 
-if (!$mysqli || $mysqli->connect_errno) {
-    die("Database connection failed: (" . ($mysqli->connect_errno ?? 'N/A') . ") " . ($mysqli->connect_error ?? 'N/A'));
-}
-
-// Ensure UTF-8 encoding
-$mysqli->set_charset('utf8mb4');
+// Create database connection
+$mysqli = createDatabaseConnection();
 
 // =========================
 // SMTP / Email Configuration
 // =========================
 define('SMTP_HOST', getEnvVar('SMTP_HOST', 'smtp.gmail.com'));
 define('SMTP_PORT', getEnvVar('SMTP_PORT', '587'));
-define('SMTP_USERNAME', getEnvVar('SMTP_USERNAME', 'yourgmail'));
-define('SMTP_PASSWORD', getEnvVar('SMTP_PASSWORD', 'apppass'));
+define('SMTP_USERNAME', getEnvVar('SMTP_USERNAME', 'youremail@gmail.com'));
+define('SMTP_PASSWORD', getEnvVar('SMTP_PASSWORD', 'yourapppassword'));
 define('SMTP_ENCRYPTION', getEnvVar('SMTP_ENCRYPTION', 'tls'));
-define('SMTP_FROM_EMAIL', getEnvVar('SMTP_FROM_EMAIL', SMTP_USERNAME));
-define('SMTP_FROM_NAME', getEnvVar('SMTP_FROM_NAME', 'Library Management System University of Ruhuna'));
+define('SMTP_FROM_EMAIL', getEnvVar('SMTP_FROM_EMAIL', getEnvVar('SMTP_USERNAME', 'youremail@gmail.com')));
+define('SMTP_FROM_NAME', getEnvVar('SMTP_FROM_NAME', 'Library Management System'));
 
 // =========================
 // SMS Gateway (Optional)
@@ -102,3 +152,12 @@ define('SMTP_FROM_NAME', getEnvVar('SMTP_FROM_NAME', 'Library Management System 
 define('SMS_API_URL', getEnvVar('SMS_API_URL', ''));
 define('SMS_API_KEY', getEnvVar('SMS_API_KEY', ''));
 define('SMS_SENDER_ID', getEnvVar('SMS_SENDER_ID', ''));
+
+// =========================
+// Debug Mode (Optional - Remove in production)
+// =========================
+if (getEnvVar('APP_DEBUG', 'false') === 'true') {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+}
