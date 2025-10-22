@@ -269,6 +269,12 @@ include APP_ROOT . '/views/layouts/header.php';
                                 Login
                             </button>
                         </form>
+                        
+                        <div class="text-center mt-3">
+                            <a href="<?= BASE_URL ?>forgot-password" class="signup-link">
+                                <i class="fas fa-key"></i> Forgot Password?
+                            </a>
+                        </div>
                     </div>
 
                     <div class="login-footer">
