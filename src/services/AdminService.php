@@ -263,24 +263,6 @@ class AdminService
         return $report;
     }
 
-    /**
-     * Create database backup
-     */
-    public function createDatabaseBackup()
-    {
-        $backupDir = APP_ROOT . '/backups';
-        if (!is_dir($backupDir)) {
-            mkdir($backupDir, 0755, true);
-        }
-        
-        $backupFile = $backupDir . '/backup_' . date('Y-m-d_H-i-s') . '.sql';
-        
-        // This would typically use mysqldump command
-        // For now, we'll just create an empty file as a placeholder
-        file_put_contents($backupFile, "-- Database backup created on " . date('Y-m-d H:i:s') . "\n");
-        
-        return basename($backupFile);
-    }
 
     /**
      * Get system health status
@@ -380,6 +362,446 @@ class AdminService
         } else {
             return 'healthy';
         }
+    }
+
+    /**
+     * Get all fines with detailed information
+     */
+    public function getAllFines($status = null, $userId = null)
+    {
+        global $conn;
+        
+        $sql = "SELECT t.*, u.userId, u.emailId, u.userType, b.bookName, b.authorName 
+                FROM transactions t 
+                JOIN users u ON t.userId = u.userId 
+                JOIN books b ON t.isbn = b.isbn 
+                WHERE t.fineAmount > 0";
+        
+        $params = [];
+        
+        if ($status) {
+            $sql .= " AND t.fineStatus = ?";
+            $params[] = $status;
+        }
+        
+        if ($userId) {
+            $sql .= " AND t.userId = ?";
+            $params[] = $userId;
+        }
+        
+        $sql .= " ORDER BY t.fineAmount DESC, t.borrowDate DESC";
+        
+        $stmt = $conn->prepare($sql);
+        if ($params) {
+            $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $fines = [];
+        while ($row = $result->fetch_assoc()) {
+            $fines[] = $row;
+        }
+        
+        return $fines;
+    }
+
+    /**
+     * Update fine status
+     */
+    public function updateFineStatus($transactionId, $status, $paymentMethod = null)
+    {
+        global $conn;
+        
+        $sql = "UPDATE transactions SET fineStatus = ?, finePaymentDate = ?, finePaymentMethod = ? WHERE tid = ?";
+        $stmt = $conn->prepare($sql);
+        $paymentDate = ($status === 'paid') ? date('Y-m-d') : null;
+        $stmt->bind_param('ssss', $status, $paymentDate, $paymentMethod, $transactionId);
+        
+        if ($stmt->execute()) {
+            // Create notification for fine payment
+            if ($status === 'paid') {
+                $this->createNotification(
+                    null, // Get userId from transaction
+                    'fine_paid',
+                    'Fine Payment Confirmed',
+                    "Fine payment of ₹{$this->getFineAmount($transactionId)} has been processed.",
+                    'medium',
+                    $transactionId
+                );
+            }
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Get fine amount for a transaction
+     */
+    private function getFineAmount($transactionId)
+    {
+        global $conn;
+        $sql = "SELECT fineAmount FROM transactions WHERE tid = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('s', $transactionId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        return $row ? $row['fineAmount'] : 0;
+    }
+
+    /**
+     * Get all notifications
+     */
+    public function getAllNotifications($userId = null, $type = null, $unreadOnly = false)
+    {
+        global $conn;
+        
+        $sql = "SELECT * FROM notifications WHERE 1=1";
+        $params = [];
+        
+        if ($userId) {
+            $sql .= " AND (userId = ? OR userId IS NULL)";
+            $params[] = $userId;
+        }
+        
+        if ($type) {
+            $sql .= " AND type = ?";
+            $params[] = $type;
+        }
+        
+        if ($unreadOnly) {
+            $sql .= " AND isRead = FALSE";
+        }
+        
+        $sql .= " ORDER BY priority DESC, createdAt DESC";
+        
+        $stmt = $conn->prepare($sql);
+        if ($params) {
+            $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $notifications = [];
+        while ($row = $result->fetch_assoc()) {
+            $notifications[] = $row;
+        }
+        
+        return $notifications;
+    }
+
+    /**
+     * Create a new notification
+     */
+    public function createNotification($userId, $type, $title, $message, $priority = 'medium', $relatedId = null)
+    {
+        global $conn;
+        
+        $sql = "INSERT INTO notifications (userId, type, title, message, priority, relatedId) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('ssssss', $userId, $type, $title, $message, $priority, $relatedId);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Mark notification as read
+     */
+    public function markNotificationAsRead($notificationId)
+    {
+        global $conn;
+        
+        $sql = "UPDATE notifications SET isRead = TRUE WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('i', $notificationId);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Get out of stock books
+     */
+    public function getOutOfStockBooks()
+    {
+        global $conn;
+        
+        $sql = "SELECT * FROM books WHERE available = 0 ORDER BY bookName";
+        $result = $conn->query($sql);
+        
+        $books = [];
+        while ($row = $result->fetch_assoc()) {
+            $books[] = $row;
+        }
+        
+        return $books;
+    }
+
+    /**
+     * Check and create out of stock notifications
+     */
+    public function checkOutOfStockNotifications()
+    {
+        $outOfStockBooks = $this->getOutOfStockBooks();
+        $notificationsCreated = 0;
+        
+        foreach ($outOfStockBooks as $book) {
+            // Check if notification already exists for this book
+            $existingNotification = $this->getNotificationByTypeAndRelatedId('out_of_stock', $book['isbn']);
+            
+            if (!$existingNotification) {
+                $this->createNotification(
+                    null, // System-wide notification
+                    'out_of_stock',
+                    'Book Out of Stock',
+                    "Book '{$book['bookName']}' by {$book['authorName']} is currently out of stock.",
+                    'medium',
+                    $book['isbn']
+                );
+                $notificationsCreated++;
+            }
+        }
+        
+        return $notificationsCreated;
+    }
+
+    /**
+     * Get notification by type and related ID
+     */
+    private function getNotificationByTypeAndRelatedId($type, $relatedId)
+    {
+        global $conn;
+        
+        $sql = "SELECT * FROM notifications WHERE type = ? AND relatedId = ? AND isRead = FALSE LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('ss', $type, $relatedId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_assoc();
+    }
+
+    /**
+     * Create database backup using mysqldump
+     */
+    public function createDatabaseBackup($backupType = 'manual')
+    {
+        global $conn;
+        
+        $backupDir = APP_ROOT . '/backups';
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+        
+        $timestamp = date('Y-m-d_H-i-s');
+        $filename = "backup_{$timestamp}.sql";
+        $filepath = $backupDir . '/' . $filename;
+        
+        // Get database connection details
+        $host = DB_HOST;
+        $username = DB_USERNAME;
+        $password = DB_PASSWORD;
+        $database = DB_NAME;
+        
+        // Create mysqldump command
+        $command = "mysqldump --host={$host} --user={$username} --password={$password} --single-transaction --routines --triggers {$database} > {$filepath}";
+        
+        // Execute backup command
+        $output = [];
+        $returnCode = 0;
+        exec($command, $output, $returnCode);
+        
+        if ($returnCode === 0 && file_exists($filepath)) {
+            $filesize = filesize($filepath);
+            
+            // Log backup in database
+            $this->logBackup($filename, $filepath, $filesize, $backupType, 'success');
+            
+            return $filename;
+        } else {
+            // Log failed backup
+            $this->logBackup($filename, $filepath, 0, $backupType, 'failed');
+            return false;
+        }
+    }
+
+    /**
+     * Log backup operation
+     */
+    private function logBackup($filename, $filepath, $filesize, $backupType, $status)
+    {
+        global $conn;
+        
+        $sql = "INSERT INTO backup_log (filename, filepath, filesize, backupType, status, createdBy) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $createdBy = $_SESSION['userId'] ?? 'system';
+        $stmt->bind_param('ssisss', $filename, $filepath, $filesize, $backupType, $status, $createdBy);
+        $stmt->execute();
+    }
+
+    /**
+     * Get backup history
+     */
+    public function getBackupHistory($limit = 10)
+    {
+        global $conn;
+        
+        $sql = "SELECT * FROM backup_log ORDER BY createdAt DESC LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('i', $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $backups = [];
+        while ($row = $result->fetch_assoc()) {
+            $backups[] = $row;
+        }
+        
+        return $backups;
+    }
+
+    /**
+     * Perform system maintenance tasks
+     */
+    public function performMaintenance($tasks = [])
+    {
+        $results = [];
+        
+        foreach ($tasks as $task) {
+            switch ($task) {
+                case 'update_fines':
+                    $results[$task] = $this->updateAllFines();
+                    break;
+                case 'clean_notifications':
+                    $results[$task] = $this->cleanOldNotifications();
+                    break;
+                case 'optimize_database':
+                    $results[$task] = $this->optimizeDatabase();
+                    break;
+                case 'check_out_of_stock':
+                    $results[$task] = $this->checkOutOfStockNotifications();
+                    break;
+            }
+        }
+        
+        return $results;
+    }
+
+    /**
+     * Clean old notifications
+     */
+    private function cleanOldNotifications()
+    {
+        global $conn;
+        
+        // Delete notifications older than 30 days
+        $sql = "DELETE FROM notifications WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY) AND isRead = TRUE";
+        $result = $conn->query($sql);
+        
+        return $conn->affected_rows;
+    }
+
+    /**
+     * Optimize database tables
+     */
+    private function optimizeDatabase()
+    {
+        global $conn;
+        
+        $tables = ['users', 'books', 'transactions', 'notifications', 'borrow_requests', 'book_statistics'];
+        $optimized = 0;
+        
+        foreach ($tables as $table) {
+            $sql = "OPTIMIZE TABLE {$table}";
+            if ($conn->query($sql)) {
+                $optimized++;
+            }
+        }
+        
+        return $optimized;
+    }
+
+    /**
+     * Get fine settings
+     */
+    public function getFineSettings()
+    {
+        global $conn;
+        
+        $sql = "SELECT * FROM fine_settings ORDER BY setting_name";
+        $result = $conn->query($sql);
+        
+        $settings = [];
+        while ($row = $result->fetch_assoc()) {
+            $settings[$row['setting_name']] = $row['setting_value'];
+        }
+        
+        return $settings;
+    }
+
+    /**
+     * Update fine settings
+     */
+    public function updateFineSettings($settings)
+    {
+        global $conn;
+        
+        $updated = 0;
+        $updatedBy = $_SESSION['userId'] ?? 'admin';
+        
+        foreach ($settings as $name => $value) {
+            $sql = "UPDATE fine_settings SET setting_value = ?, updatedBy = ? WHERE setting_name = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('sss', $value, $updatedBy, $name);
+            
+            if ($stmt->execute()) {
+                $updated++;
+            }
+        }
+        
+        return $updated;
+    }
+
+    /**
+     * Get maintenance log
+     */
+    public function getMaintenanceLog($limit = 20)
+    {
+        global $conn;
+        
+        $sql = "SELECT ml.*, u.userId FROM maintenance_log ml 
+                JOIN users u ON ml.performedBy = u.userId 
+                ORDER BY ml.createdAt DESC LIMIT ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('i', $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $logs = [];
+        while ($row = $result->fetch_assoc()) {
+            $logs[] = $row;
+        }
+        
+        return $logs;
+    }
+
+    /**
+     * Log maintenance action
+     */
+    public function logMaintenanceAction($action, $description, $status = 'success', $details = null)
+    {
+        global $conn;
+        
+        $sql = "INSERT INTO maintenance_log (action, description, performedBy, status, details) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $performedBy = $_SESSION['userId'] ?? 'system';
+        $detailsJson = $details ? json_encode($details) : null;
+        $stmt->bind_param('sssss', $action, $description, $performedBy, $status, $detailsJson);
+        
+        return $stmt->execute();
     }
 }
 ?>
