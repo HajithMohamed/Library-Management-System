@@ -95,6 +95,8 @@ $router->addRoute('GET', '/signup', 'AuthController', 'signup');
 $router->addRoute('POST', '/signup', 'AuthController', 'signup');
 $router->addRoute('GET', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('POST', '/verify-otp', 'AuthController', 'verifyOtp');
+$router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword');
+$router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
 // User dashboard routes

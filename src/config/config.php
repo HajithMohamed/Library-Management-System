@@ -73,6 +73,7 @@ function getEnvVar(string $key, $default = '') {
 // Admin & Timezone
 // =========================
 define('ADMIN_CODE', getEnvVar('ADMIN_CODE', 'hello_world'));
+define('OTP_EXPIRY_MINUTES', getEnvVar('OTP_EXPIRY_MINUTES', '15'));
 date_default_timezone_set(getEnvVar('TZ', 'Asia/Kolkata'));
 
 // =========================

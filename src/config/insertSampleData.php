@@ -10,18 +10,18 @@ echo "<h2>Inserting Sample Data...</h2>";
 
 // Insert sample users
 $sampleUsers = [
-    ["userId" => "STU001", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Student", "name" => "John Doe", "gender" => "Male", "dob" => "2000-05-15", "emailId" => "john.doe@example.com", "phoneNumber" => "1234567890", "address" => "123 Main St, City", "isVerified" => 1],
-    ["userId" => "STU002", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Student", "name" => "Jane Smith", "gender" => "Female", "dob" => "2001-08-22", "emailId" => "jane.smith@example.com", "phoneNumber" => "0987654321", "address" => "456 Oak Ave, Town", "isVerified" => 1],
-    ["userId" => "FAC001", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Faculty", "name" => "Dr. Robert Brown", "gender" => "Male", "dob" => "1975-03-10", "emailId" => "robert.brown@example.com", "phoneNumber" => "5551234567", "address" => "789 Elm Rd, Village", "isVerified" => 1],
-    ["userId" => "LIB001", "password" => password_hash("librarian123", PASSWORD_DEFAULT), "userType" => "Librarian", "name" => "Sarah Wilson", "gender" => "Female", "dob" => "1985-11-30", "emailId" => "sarah.wilson@example.com", "phoneNumber" => "5559876543", "address" => "321 Pine St, City", "isVerified" => 1]
+    ["userId" => "STU001", "username" => "johndoe", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Student", "gender" => "Male", "dob" => "2000-05-15", "emailId" => "john.doe@example.com", "phoneNumber" => "1234567890", "address" => "123 Main St, City", "isVerified" => 1],
+    ["userId" => "STU002", "username" => "janesmith", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Student", "gender" => "Female", "dob" => "2001-08-22", "emailId" => "jane.smith@example.com", "phoneNumber" => "0987654321", "address" => "456 Oak Ave, Town", "isVerified" => 1],
+    ["userId" => "FAC001", "username" => "robertbrown", "password" => password_hash("password123", PASSWORD_DEFAULT), "userType" => "Faculty", "gender" => "Male", "dob" => "1975-03-10", "emailId" => "robert.brown@example.com", "phoneNumber" => "5551234567", "address" => "789 Elm Rd, Village", "isVerified" => 1],
+    ["userId" => "LIB001", "username" => "sarahwilson", "password" => password_hash("librarian123", PASSWORD_DEFAULT), "userType" => "Librarian", "gender" => "Female", "dob" => "1985-11-30", "emailId" => "sarah.wilson@example.com", "phoneNumber" => "5559876543", "address" => "321 Pine St, City", "isVerified" => 1]
 ];
 
 foreach ($sampleUsers as $user) {
     $checkUser = $conn->query("SELECT userId FROM users WHERE userId='{$user['userId']}'");
     if ($checkUser->num_rows == 0) {
-        $sql = "INSERT INTO users (userId, password, userType, name, gender, dob, emailId, phoneNumber, address, isVerified) VALUES ('{$user['userId']}', '{$user['password']}', '{$user['userType']}', '{$user['name']}', '{$user['gender']}', '{$user['dob']}', '{$user['emailId']}', '{$user['phoneNumber']}', '{$user['address']}', {$user['isVerified']})";
+        $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified) VALUES ('{$user['userId']}', '{$user['username']}', '{$user['password']}', '{$user['userType']}', '{$user['gender']}', '{$user['dob']}', '{$user['emailId']}', '{$user['phoneNumber']}', '{$user['address']}', {$user['isVerified']})";
         if ($conn->query($sql) === TRUE) {
-            echo "<p style='color: green;'>✓ Added user: {$user['name']} ({$user['userId']})</p>";
+            echo "<p style='color: green;'>✓ Added user: {$user['username']} ({$user['userId']})</p>";
         } else {
             echo "<p style='color: red;'>✗ Error adding user {$user['userId']}: " . $conn->error . "</p>";
         }

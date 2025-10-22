@@ -183,6 +183,26 @@ class User
     }
 
     /**
+     * Update user password (alias for updatePassword)
+     */
+    public function updateUserPassword($userId, $newPassword)
+    {
+        return $this->updatePassword($userId, $newPassword);
+    }
+
+    /**
+     * Update user OTP
+     */
+    public function updateUserOtp($userId, $otp, $otpExpiry)
+    {
+        $sql = "UPDATE users SET otp = ?, otpExpiry = ? WHERE userId = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param('sss', $otp, $otpExpiry, $userId);
+        
+        return $stmt->execute();
+    }
+
+    /**
      * Verify user account
      */
     public function verifyUser($userId, $otp)
