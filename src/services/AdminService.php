@@ -20,6 +20,37 @@ class AdminService
     }
 
     /**
+     * Check if a specific table exists
+     */
+    private function tableExists($tableName)
+    {
+        global $conn;
+        
+        try {
+            $result = $conn->query("SHOW TABLES LIKE '$tableName'");
+            return $result && $result->num_rows > 0;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Check if notifications table exists
+     */
+    private function notificationsTableExists()
+    {
+        return $this->tableExists('notifications');
+    }
+    
+    /**
+     * Check if borrow_requests table exists
+     */
+    private function borrowRequestsTableExists()
+    {
+        return $this->tableExists('borrow_requests');
+    }
+    
+    /**
      * Get dashboard statistics
      */
     public function getDashboardStats()
@@ -365,46 +396,74 @@ class AdminService
     }
 
     /**
-     * Get all fines with detailed information
+     * Check if transaction table has required columns for fines
+     */
+    private function transactionFineColumnsExist()
+    {
+        global $conn;
+        
+        try {
+            // Check if fineAmount column exists
+            $result = $conn->query("SHOW COLUMNS FROM transactions LIKE 'fineAmount'");
+            return $result && $result->num_rows > 0;
+        } catch (Exception $e) {
+            error_log("Error checking transaction fine columns: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get all fines with detailed information with error handling
      */
     public function getAllFines($status = null, $userId = null)
     {
         global $conn;
         
-        $sql = "SELECT t.*, u.userId, u.emailId, u.userType, b.bookName, b.authorName 
-                FROM transactions t 
-                JOIN users u ON t.userId = u.userId 
-                JOIN books b ON t.isbn = b.isbn 
-                WHERE t.fineAmount > 0";
-        
-        $params = [];
-        
-        if ($status) {
-            $sql .= " AND t.fineStatus = ?";
-            $params[] = $status;
+        // Check if table has the required columns
+        if (!$this->transactionFineColumnsExist()) {
+            error_log("transactions table is missing fine columns - returning empty results");
+            return [];
         }
         
-        if ($userId) {
-            $sql .= " AND t.userId = ?";
-            $params[] = $userId;
+        try {
+            $sql = "SELECT t.*, u.userId, u.emailId, u.userType, b.bookName, b.authorName 
+                    FROM transactions t 
+                    JOIN users u ON t.userId = u.userId 
+                    JOIN books b ON t.isbn = b.isbn 
+                    WHERE t.fineAmount > 0";
+            
+            $params = [];
+            
+            if ($status) {
+                $sql .= " AND t.fineStatus = ?";
+                $params[] = $status;
+            }
+            
+            if ($userId) {
+                $sql .= " AND t.userId = ?";
+                $params[] = $userId;
+            }
+            
+            $sql .= " ORDER BY t.borrowDate DESC";
+            
+            $stmt = $conn->prepare($sql);
+            if ($params) {
+                $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $fines = [];
+            while ($row = $result->fetch_assoc()) {
+                $fines[] = $row;
+            }
+            
+            return $fines;
+        } catch (Exception $e) {
+            error_log("Error getting fines: " . $e->getMessage());
+            return [];
         }
-        
-        $sql .= " ORDER BY t.fineAmount DESC, t.borrowDate DESC";
-        
-        $stmt = $conn->prepare($sql);
-        if ($params) {
-            $stmt->bind_param(str_repeat('s', count($params)), ...$params);
-        }
-        
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $fines = [];
-        while ($row = $result->fetch_assoc()) {
-            $fines[] = $row;
-        }
-        
-        return $fines;
     }
 
     /**
@@ -423,7 +482,7 @@ class AdminService
             // Create notification for fine payment
             if ($status === 'paid') {
                 $this->createNotification(
-                    null, // Get userId from transaction
+                    null,
                     'fine_paid',
                     'Fine Payment Confirmed',
                     "Fine payment of ₹{$this->getFineAmount($transactionId)} has been processed.",
@@ -453,73 +512,105 @@ class AdminService
     }
 
     /**
-     * Get all notifications
+     * Get all notifications - WITH ERROR HANDLING
      */
     public function getAllNotifications($userId = null, $type = null, $unreadOnly = false)
     {
         global $conn;
         
-        $sql = "SELECT * FROM notifications WHERE 1=1";
-        $params = [];
-        
-        if ($userId) {
-            $sql .= " AND (userId = ? OR userId IS NULL)";
-            $params[] = $userId;
+        // Check if table exists first
+        if (!$this->notificationsTableExists()) {
+            error_log("Notifications table does not exist");
+            return [];
         }
         
-        if ($type) {
-            $sql .= " AND type = ?";
-            $params[] = $type;
+        try {
+            $sql = "SELECT * FROM notifications WHERE 1=1";
+            $params = [];
+            
+            if ($userId) {
+                $sql .= " AND (userId = ? OR userId IS NULL)";
+                $params[] = $userId;
+            }
+            
+            if ($type) {
+                $sql .= " AND type = ?";
+                $params[] = $type;
+            }
+            
+            if ($unreadOnly) {
+                $sql .= " AND isRead = FALSE";
+            }
+            
+            $sql .= " ORDER BY priority DESC, createdAt DESC";
+            
+            $stmt = $conn->prepare($sql);
+            if ($params) {
+                $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $notifications = [];
+            while ($row = $result->fetch_assoc()) {
+                $notifications[] = $row;
+            }
+            
+            return $notifications;
+            
+        } catch (Exception $e) {
+            error_log("Error getting notifications: " . $e->getMessage());
+            return [];
         }
-        
-        if ($unreadOnly) {
-            $sql .= " AND isRead = FALSE";
-        }
-        
-        $sql .= " ORDER BY priority DESC, createdAt DESC";
-        
-        $stmt = $conn->prepare($sql);
-        if ($params) {
-            $stmt->bind_param(str_repeat('s', count($params)), ...$params);
-        }
-        
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $notifications = [];
-        while ($row = $result->fetch_assoc()) {
-            $notifications[] = $row;
-        }
-        
-        return $notifications;
     }
 
     /**
-     * Create a new notification
+     * Create a new notification - WITH ERROR HANDLING
      */
     public function createNotification($userId, $type, $title, $message, $priority = 'medium', $relatedId = null)
     {
         global $conn;
         
-        $sql = "INSERT INTO notifications (userId, type, title, message, priority, relatedId) VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('ssssss', $userId, $type, $title, $message, $priority, $relatedId);
+        // Check if table exists first
+        if (!$this->notificationsTableExists()) {
+            error_log("Cannot create notification - table does not exist");
+            return false;
+        }
         
-        return $stmt->execute();
+        try {
+            $sql = "INSERT INTO notifications (userId, type, title, message, priority, relatedId) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('ssssss', $userId, $type, $title, $message, $priority, $relatedId);
+            
+            return $stmt->execute();
+        } catch (Exception $e) {
+            error_log("Error creating notification: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
-     * Mark notification as read
+     * Mark notification as read - WITH ERROR HANDLING
      */
     public function markNotificationAsRead($notificationId)
     {
         global $conn;
         
-        $sql = "UPDATE notifications SET isRead = TRUE WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $notificationId);
+        if (!$this->notificationsTableExists()) {
+            return false;
+        }
         
-        return $stmt->execute();
+        try {
+            $sql = "UPDATE notifications SET isRead = TRUE WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $notificationId);
+            
+            return $stmt->execute();
+        } catch (Exception $e) {
+            error_log("Error marking notification as read: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -554,7 +645,7 @@ class AdminService
             
             if (!$existingNotification) {
                 $this->createNotification(
-                    null, // System-wide notification
+                    null,
                     'out_of_stock',
                     'Book Out of Stock',
                     "Book '{$book['bookName']}' by {$book['authorName']} is currently out of stock.",
@@ -569,23 +660,15 @@ class AdminService
     }
 
     /**
-     * Get notification by type and related ID
+     * Check if backup_log table exists
      */
-    private function getNotificationByTypeAndRelatedId($type, $relatedId)
+    private function backupLogTableExists()
     {
-        global $conn;
-        
-        $sql = "SELECT * FROM notifications WHERE type = ? AND relatedId = ? AND isRead = FALSE LIMIT 1";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('ss', $type, $relatedId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_assoc();
+        return $this->tableExists('backup_log');
     }
 
     /**
-     * Create database backup using mysqldump
+     * Create database backup using mysqldump with error handling
      */
     public function createDatabaseBackup($backupType = 'manual')
     {
@@ -602,7 +685,7 @@ class AdminService
         
         // Get database connection details
         $host = DB_HOST;
-        $username = DB_USERNAME;
+        $username = DB_USER;
         $password = DB_PASSWORD;
         $database = DB_NAME;
         
@@ -617,50 +700,72 @@ class AdminService
         if ($returnCode === 0 && file_exists($filepath)) {
             $filesize = filesize($filepath);
             
-            // Log backup in database
+            // Log backup in database if table exists
             $this->logBackup($filename, $filepath, $filesize, $backupType, 'success');
             
             return $filename;
         } else {
-            // Log failed backup
+            // Log failed backup if table exists
             $this->logBackup($filename, $filepath, 0, $backupType, 'failed');
             return false;
         }
     }
 
     /**
-     * Log backup operation
+     * Log backup operation with error handling
      */
     private function logBackup($filename, $filepath, $filesize, $backupType, $status)
     {
         global $conn;
         
-        $sql = "INSERT INTO backup_log (filename, filepath, filesize, backupType, status, createdBy) VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $createdBy = $_SESSION['userId'] ?? 'system';
-        $stmt->bind_param('ssisss', $filename, $filepath, $filesize, $backupType, $status, $createdBy);
-        $stmt->execute();
+        // Skip logging if backup_log table doesn't exist
+        if (!$this->backupLogTableExists()) {
+            error_log("backup_log table doesn't exist - skipping backup logging");
+            return false;
+        }
+        
+        try {
+            $sql = "INSERT INTO backup_log (filename, filepath, filesize, backupType, status, createdBy) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $createdBy = $_SESSION['userId'] ?? 'system';
+            $stmt->bind_param('ssisss', $filename, $filepath, $filesize, $backupType, $status, $createdBy);
+            return $stmt->execute();
+        } catch (Exception $e) {
+            error_log("Error logging backup: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
-     * Get backup history
+     * Get backup history with error handling
      */
     public function getBackupHistory($limit = 10)
     {
         global $conn;
         
-        $sql = "SELECT * FROM backup_log ORDER BY createdAt DESC LIMIT ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $limit);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $backups = [];
-        while ($row = $result->fetch_assoc()) {
-            $backups[] = $row;
+        // Return empty array if backup_log table doesn't exist
+        if (!$this->backupLogTableExists()) {
+            error_log("backup_log table doesn't exist - returning empty backup history");
+            return [];
         }
         
-        return $backups;
+        try {
+            $sql = "SELECT * FROM backup_log ORDER BY createdAt DESC LIMIT ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $limit);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $backups = [];
+            while ($row = $result->fetch_assoc()) {
+                $backups[] = $row;
+            }
+            
+            return $backups;
+        } catch (Exception $e) {
+            error_log("Error getting backup history: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -697,6 +802,10 @@ class AdminService
     {
         global $conn;
         
+        if (!$this->notificationsTableExists()) {
+            return 0;
+        }
+        
         // Delete notifications older than 30 days
         $sql = "DELETE FROM notifications WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY) AND isRead = TRUE";
         $result = $conn->query($sql);
@@ -711,7 +820,13 @@ class AdminService
     {
         global $conn;
         
-        $tables = ['users', 'books', 'transactions', 'notifications', 'borrow_requests', 'book_statistics'];
+        $tables = ['users', 'books', 'transactions', 'borrow_requests', 'book_statistics'];
+        
+        // Only add notifications if it exists
+        if ($this->notificationsTableExists()) {
+            $tables[] = 'notifications';
+        }
+        
         $optimized = 0;
         
         foreach ($tables as $table) {
@@ -725,83 +840,463 @@ class AdminService
     }
 
     /**
-     * Get fine settings
+     * Check if fine_settings table exists
+     */
+    private function fineSettingsTableExists()
+    {
+        return $this->tableExists('fine_settings');
+    }
+
+    /**
+     * Get fine settings with error handling
      */
     public function getFineSettings()
     {
         global $conn;
         
-        $sql = "SELECT * FROM fine_settings ORDER BY setting_name";
-        $result = $conn->query($sql);
-        
-        $settings = [];
-        while ($row = $result->fetch_assoc()) {
-            $settings[$row['setting_name']] = $row['setting_value'];
+        // Check if table exists first
+        if (!$this->fineSettingsTableExists()) {
+            error_log("fine_settings table does not exist");
+            
+            // Return default settings
+            return [
+                'fine_per_day' => '5',
+                'max_borrow_days' => '14',
+                'grace_period_days' => '0',
+                'max_fine_amount' => '500',
+                'fine_calculation_method' => 'daily'
+            ];
         }
         
-        return $settings;
+        try {
+            $sql = "SELECT * FROM fine_settings ORDER BY setting_name";
+            $result = $conn->query($sql);
+            
+            $settings = [];
+            while ($row = $result->fetch_assoc()) {
+                $settings[$row['setting_name']] = $row['setting_value'];
+            }
+            
+            return $settings;
+        } catch (Exception $e) {
+            error_log("Error getting fine settings: " . $e->getMessage());
+            
+            // Return default settings on error
+            return [
+                'fine_per_day' => '5',
+                'max_borrow_days' => '14',
+                'grace_period_days' => '0',
+                'max_fine_amount' => '500',
+                'fine_calculation_method' => 'daily'
+            ];
+        }
     }
 
     /**
-     * Update fine settings
+     * Update fine settings with error handling
      */
     public function updateFineSettings($settings)
     {
         global $conn;
         
-        $updated = 0;
-        $updatedBy = $_SESSION['userId'] ?? 'admin';
-        
-        foreach ($settings as $name => $value) {
-            $sql = "UPDATE fine_settings SET setting_value = ?, updatedBy = ? WHERE setting_name = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param('sss', $value, $updatedBy, $name);
-            
-            if ($stmt->execute()) {
-                $updated++;
-            }
+        if (!$this->fineSettingsTableExists()) {
+            error_log("fine_settings table does not exist");
+            return 0;
         }
         
-        return $updated;
+        try {
+            $updated = 0;
+            $updatedBy = $_SESSION['userId'] ?? 'admin';
+            
+            foreach ($settings as $name => $value) {
+                $sql = "UPDATE fine_settings SET setting_value = ?, updatedBy = ? WHERE setting_name = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param('sss', $value, $updatedBy, $name);
+                
+                if ($stmt->execute()) {
+                    $updated++;
+                }
+            }
+            
+            return $updated;
+        } catch (Exception $e) {
+            error_log("Error updating fine settings: " . $e->getMessage());
+            return 0;
+        }
     }
 
     /**
-     * Get maintenance log
+     * Check if maintenance_log table exists
+     */
+    private function maintenanceLogTableExists()
+    {
+        return $this->tableExists('maintenance_log');
+    }
+
+    /**
+     * Get maintenance log with error handling
      */
     public function getMaintenanceLog($limit = 20)
     {
         global $conn;
         
-        $sql = "SELECT ml.*, u.userId FROM maintenance_log ml 
-                JOIN users u ON ml.performedBy = u.userId 
-                ORDER BY ml.createdAt DESC LIMIT ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $limit);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $logs = [];
-        while ($row = $result->fetch_assoc()) {
-            $logs[] = $row;
+        // Return empty array if maintenance_log table doesn't exist
+        if (!$this->maintenanceLogTableExists()) {
+            error_log("maintenance_log table doesn't exist - returning empty maintenance log");
+            return [];
         }
         
-        return $logs;
+        try {
+            $sql = "SELECT ml.*, u.userId FROM maintenance_log ml 
+                    JOIN users u ON ml.performedBy = u.userId 
+                    ORDER BY ml.createdAt DESC LIMIT ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $limit);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $logs = [];
+            while ($row = $result->fetch_assoc()) {
+                $logs[] = $row;
+            }
+            
+            return $logs;
+        } catch (Exception $e) {
+            error_log("Error getting maintenance log: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
-     * Log maintenance action
+     * Log maintenance action with error handling
      */
     public function logMaintenanceAction($action, $description, $status = 'success', $details = null)
     {
         global $conn;
         
-        $sql = "INSERT INTO maintenance_log (action, description, performedBy, status, details) VALUES (?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $performedBy = $_SESSION['userId'] ?? 'system';
-        $detailsJson = $details ? json_encode($details) : null;
-        $stmt->bind_param('sssss', $action, $description, $performedBy, $status, $detailsJson);
+        // Skip logging if maintenance_log table doesn't exist
+        if (!$this->maintenanceLogTableExists()) {
+            error_log("maintenance_log table doesn't exist - skipping maintenance logging");
+            return false;
+        }
         
-        return $stmt->execute();
+        try {
+            $sql = "INSERT INTO maintenance_log (action, description, performedBy, status, details) VALUES (?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $performedBy = $_SESSION['userId'] ?? 'system';
+            $detailsJson = $details ? json_encode($details) : null;
+            $stmt->bind_param('sssss', $action, $description, $performedBy, $status, $detailsJson);
+            
+            return $stmt->execute();
+        } catch (Exception $e) {
+            error_log("Error logging maintenance action: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get recent transactions
+     */
+    public function getRecentTransactions($limit = 10)
+    {
+        return $this->transactionModel->getAllTransactions($limit);
+    }
+
+    /**
+     * Get popular books
+     */
+    public function getPopularBooks($limit = 5)
+    {
+        return $this->bookModel->getPopularBooks($limit);
+    }
+
+    /**
+     * Get all users with search
+     */
+    public function getAllUsers($search = '')
+    {
+        if (!empty($search)) {
+            return $this->userModel->searchUsers($search);
+        }
+        return $this->userModel->getAllUsers();
+    }
+
+    /**
+     * Delete user
+     */
+    public function deleteUser($userId)
+    {
+        return $this->userModel->deleteUser($userId);
+    }
+
+    /**
+     * Get borrow requests with error handling
+     */
+    public function getBorrowRequests($status = 'pending')
+    {
+        global $conn;
+        
+        // Check if table exists first
+        if (!$this->borrowRequestsTableExists()) {
+            error_log("borrow_requests table does not exist");
+            return [];
+        }
+        
+        try {
+            $sql = "SELECT br.*, u.emailId, u.userType, b.bookName, b.authorName 
+                    FROM borrow_requests br 
+                    JOIN users u ON br.userId = u.userId 
+                    JOIN books b ON br.isbn = b.isbn 
+                    WHERE br.status = ? 
+                    ORDER BY br.requestDate DESC";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $status);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $requests = [];
+            while ($row = $result->fetch_assoc()) {
+                $requests[] = $row;
+            }
+            
+            return $requests;
+        } catch (Exception $e) {
+            error_log("Error getting borrow requests: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Approve borrow request with error handling
+     */
+    public function approveBorrowRequest($requestId)
+    {
+        global $conn;
+        
+        // Check if table exists first
+        if (!$this->borrowRequestsTableExists()) {
+            error_log("borrow_requests table does not exist");
+            return false;
+        }
+        
+        try {
+            // Get request details
+            $sql = "SELECT * FROM borrow_requests WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('i', $requestId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $request = $result->fetch_assoc();
+            
+            if (!$request) {
+                return false;
+            }
+            
+            // Check if book is available
+            if (!$this->bookModel->isBookAvailable($request['isbn'])) {
+                return false;
+            }
+            
+            // Start transaction
+            $conn->begin_transaction();
+            
+            try {
+                // Update borrow request status
+                $sql = "UPDATE borrow_requests SET status = 'Approved', approvedBy = ? WHERE id = ?";
+                $stmt = $conn->prepare($sql);
+                $approvedBy = $_SESSION['userId'] ?? 'admin';
+                $stmt->bind_param('si', $approvedBy, $requestId);
+                $stmt->execute();
+                
+                // Create transaction record
+                $tid = 'TXN' . time() . rand(1000, 9999);
+                $transactionData = [
+                    'tid' => $tid,
+                    'userId' => $request['userId'],
+                    'isbn' => $request['isbn'],
+                    'fine' => 0,
+                    'borrowDate' => date('Y-m-d'),
+                    'returnDate' => null
+                ];
+                
+                if (!$this->transactionModel->createTransaction($transactionData)) {
+                    throw new Exception('Failed to create transaction');
+                }
+                
+                // Decrease available count
+                if (!$this->bookModel->decreaseAvailable($request['isbn'])) {
+                    throw new Exception('Failed to update book availability');
+                }
+                
+                // Create notification
+                $this->createNotification(
+                    $request['userId'],
+                    'approval',
+                    'Borrow Request Approved',
+                    "Your request for '{$request['bookName']}' has been approved.",
+                    'medium',
+                    $requestId
+                );
+                
+                $conn->commit();
+                return true;
+                
+            } catch (Exception $e) {
+                $conn->rollback();
+                error_log("Error approving borrow request: " . $e->getMessage());
+                return false;
+            }
+        } catch (Exception $e) {
+            error_log("Error getting borrow request details: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Reject borrow request with error handling
+     */
+    public function rejectBorrowRequest($requestId, $reason = '')
+    {
+        global $conn;
+        
+        // Check if table exists first
+        if (!$this->borrowRequestsTableExists()) {
+            error_log("borrow_requests table does not exist");
+            return false;
+        }
+        
+        try {
+            $sql = "UPDATE borrow_requests SET status = 'Rejected', approvedBy = ? WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $rejectedBy = $_SESSION['userId'] ?? 'admin';
+            $stmt->bind_param('si', $rejectedBy, $requestId);
+            
+            if ($stmt->execute()) {
+                // Get request details for notification
+                $sql = "SELECT br.*, b.bookName FROM borrow_requests br 
+                        JOIN books b ON br.isbn = b.isbn 
+                        WHERE br.id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param('i', $requestId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $request = $result->fetch_assoc();
+                
+                if ($request) {
+                    $message = "Your request for '{$request['bookName']}' has been rejected.";
+                    if (!empty($reason)) {
+                        $message .= " Reason: {$reason}";
+                    }
+                    
+                    $this->createNotification(
+                        $request['userId'],
+                        'approval',
+                        'Borrow Request Rejected',
+                        $message,
+                        'medium',
+                        $requestId
+                    );
+                }
+                
+                return true;
+            }
+            
+            return false;
+        } catch (Exception $e) {
+            error_log("Error rejecting borrow request: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Check and create overdue notifications
+     */
+    public function checkOverdueNotifications()
+    {
+        $overdueTransactions = $this->transactionModel->getOverdueTransactions();
+        $notificationsCreated = 0;
+        
+        foreach ($overdueTransactions as $transaction) {
+            // Check if notification already exists for this transaction
+            $existingNotification = $this->getNotificationByTypeAndRelatedId('overdue', $transaction['tid']);
+            
+            if (!$existingNotification) {
+                $this->createNotification(
+                    $transaction['userId'],
+                    'overdue',
+                    'Book Overdue',
+                    "The book you borrowed is now overdue. Please return it as soon as possible.",
+                    'high',
+                    $transaction['tid']
+                );
+                $notificationsCreated++;
+            }
+        }
+        
+        return $notificationsCreated;
+    }
+
+    /**
+     * Get notification by type and related ID
+     * 
+     * @param string $type Notification type
+     * @param int $relatedId Related entity ID
+     * @return array|null Notification or null if not found
+     */
+    public function getNotificationByTypeAndRelatedId($type, $relatedId)
+    {
+        global $conn;
+        
+        if (!$this->notificationsTableExists()) {
+            return null;
+        }
+        
+        try {
+            $sql = "SELECT * FROM notifications WHERE type = ? AND relatedId = ? AND isRead = FALSE LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('ss', $type, $relatedId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_assoc();
+        } catch (Exception $e) {
+            error_log("Error getting notification by type and related ID: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get notification by type and user ID
+     * 
+     * @param string $type Notification type
+     * @param string $userId User ID
+     * @return array|null Notification or null if not found
+     */
+    public function getNotificationByTypeAndUserId($type, $userId)
+    {
+        global $conn;
+        
+        if (!$this->notificationsTableExists()) {
+            return null;
+        }
+        
+        try {
+            $sql = "SELECT * FROM notifications WHERE type = ? AND userId = ? ORDER BY createdAt DESC LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('ss', $type, $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                return $result->fetch_assoc();
+            }
+            
+            return null;
+        } catch (Exception $e) {
+            error_log("Error getting notification by type and user ID: " . $e->getMessage());
+            return null;
+        }
     }
 }
 ?>

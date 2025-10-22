@@ -4,299 +4,253 @@ namespace App\Controllers;
 
 use App\Models\Book;
 use App\Services\BookService;
-use App\Helpers\AuthHelper;
 
-class BookController
-{
-    private $bookModel;
+class BookController {
     private $bookService;
-    private $authHelper;
-
-    public function __construct()
-    {
-        $this->bookModel = new Book();
+    
+    public function __construct() {
         $this->bookService = new BookService();
-        $this->authHelper = new AuthHelper();
     }
-
+    
     /**
      * Display books for regular users
      */
-    public function userBooks()
-    {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
+    public function userBooks() {
+        $books = $this->bookService->getAllBooks();
         
-        $search = $_GET['search'] ?? '';
-        $books = $this->bookModel->searchBooks($search);
-        
-        $this->render('books/user-books', [
-            'books' => $books,
-            'search' => $search
-        ]);
+        // Load user book view
+        include APP_ROOT . '/views/user/books.php';
     }
-
+    
     /**
-     * Display books for admin management
+     * Display book management page for admins
      */
-    public function adminBooks()
-    {
-        $this->authHelper->requireAuth(['Admin']);
+    public function adminBooks() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
         
-        $search = $_GET['search'] ?? '';
-        $books = $this->bookModel->searchBooks($search);
+        $books = $this->bookService->getAllBooks();
         
-        $this->render('books/admin-books', [
-            'books' => $books,
-            'search' => $search
-        ]);
+        $pageTitle = 'Manage Books';
+        $currentPage = 'books';
+        $contentView = APP_ROOT . '/views/admin/books.php';
+        
+        include APP_ROOT . '/views/admin/layout.php';
     }
-
+    
     /**
-     * Show add book form
+     * Display add book form
      */
-    public function addBook()
-    {
-        $this->authHelper->requireAuth(['Admin']);
+    public function addBook() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
         
-        $this->render('books/add-book');
+        $pageTitle = 'Add New Book';
+        $currentPage = 'books';
+        $contentView = APP_ROOT . '/views/admin/books/add.php';
+        
+        include APP_ROOT . '/views/admin/layout.php';
     }
-
+    
     /**
-     * Create a new book
+     * Handle book creation
      */
-    public function createBook()
-    {
-        $this->authHelper->requireAuth(['Admin']);
+    public function createBook() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/admin/books/add');
-            return;
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-
-        $data = [
-            'isbn' => $_POST['isbn'] ?? '',
-            'bookName' => $_POST['bookName'] ?? '',
-            'authorName' => $_POST['authorName'] ?? '',
-            'publisherName' => $_POST['publisherName'] ?? '',
-            'available' => (int)($_POST['available'] ?? 0),
-            'borrowed' => 0
+        
+        // Process form data
+        $bookData = [
+            'isbn' => $_POST['isbn'],
+            'bookName' => $_POST['bookName'],
+            'authorName' => $_POST['authorName'],
+            'publisherName' => $_POST['publisherName'],
+            'category' => $_POST['category'],
+            'description' => $_POST['description'],
+            'totalCopies' => (int)$_POST['totalCopies'],
+            'available' => (int)$_POST['totalCopies']
         ];
-
-        if ($this->bookService->createBook($data)) {
+        
+        // Handle file upload if present
+        if (isset($_FILES['bookImage']) && $_FILES['bookImage']['error'] === UPLOAD_ERR_OK) {
+            $uploadResult = $this->bookService->uploadBookImage($_FILES['bookImage']);
+            if ($uploadResult['success']) {
+                $bookData['bookImage'] = $uploadResult['path'];
+            }
+        }
+        
+        $result = $this->bookService->addBook($bookData);
+        
+        if ($result) {
             $_SESSION['success'] = 'Book added successfully!';
-            $this->redirect('/admin/books');
         } else {
             $_SESSION['error'] = 'Failed to add book. Please try again.';
-            $this->redirect('/admin/books/add');
         }
-    }
-
-    /**
-     * Show edit book form
-     */
-    public function editBook()
-    {
-        $this->authHelper->requireAuth(['Admin']);
         
-        $isbn = $_GET['isbn'] ?? '';
-        if (empty($isbn)) {
-            $this->redirect('/admin/books');
-            return;
+        header('Location: ' . BASE_URL . 'admin/books');
+        exit();
+    }
+    
+    /**
+     * Display edit book form
+     */
+    public function editBook() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
         }
-
-        $book = $this->bookModel->getBookByISBN($isbn);
+        
+        if (!isset($_GET['isbn'])) {
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
+        }
+        
+        $isbn = $_GET['isbn'];
+        $book = $this->bookService->getBookByISBN($isbn);
+        
         if (!$book) {
             $_SESSION['error'] = 'Book not found.';
-            $this->redirect('/admin/books');
-            return;
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-
-        $this->render('books/edit-book', ['book' => $book]);
+        
+        $pageTitle = 'Edit Book';
+        $currentPage = 'books';
+        $contentView = APP_ROOT . '/views/admin/books/edit.php';
+        
+        include APP_ROOT . '/views/admin/layout.php';
     }
-
+    
     /**
-     * Update a book
+     * Handle book update
      */
-    public function updateBook()
-    {
-        $this->authHelper->requireAuth(['Admin']);
+    public function updateBook() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/admin/books');
-            return;
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-
-        $isbn = $_POST['isbn'] ?? '';
-        $data = [
-            'bookName' => $_POST['bookName'] ?? '',
-            'authorName' => $_POST['authorName'] ?? '',
-            'publisherName' => $_POST['publisherName'] ?? '',
-            'available' => (int)($_POST['available'] ?? 0)
+        
+        $isbn = $_POST['isbn'];
+        
+        // Process form data
+        $bookData = [
+            'bookName' => $_POST['bookName'],
+            'authorName' => $_POST['authorName'],
+            'publisherName' => $_POST['publisherName'],
+            'category' => $_POST['category'],
+            'description' => $_POST['description'],
+            'totalCopies' => (int)$_POST['totalCopies']
         ];
-
-        if ($this->bookService->updateBook($isbn, $data)) {
+        
+        // Handle file upload if present
+        if (isset($_FILES['bookImage']) && $_FILES['bookImage']['error'] === UPLOAD_ERR_OK) {
+            $uploadResult = $this->bookService->uploadBookImage($_FILES['bookImage']);
+            if ($uploadResult['success']) {
+                $bookData['bookImage'] = $uploadResult['path'];
+            }
+        }
+        
+        $result = $this->bookService->updateBook($isbn, $bookData);
+        
+        if ($result) {
             $_SESSION['success'] = 'Book updated successfully!';
-            $this->redirect('/admin/books');
         } else {
             $_SESSION['error'] = 'Failed to update book. Please try again.';
-            $this->redirect('/admin/books/edit?isbn=' . $isbn);
         }
+        
+        header('Location: ' . BASE_URL . 'admin/books');
+        exit();
     }
-
+    
     /**
-     * Delete a book
+     * Handle book deletion
      */
-    public function deleteBook()
-    {
-        $this->authHelper->requireAuth(['Admin']);
-        
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/admin/books');
-            return;
+    public function deleteBook() {
+        // Ensure user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
         }
-
-        $isbn = $_POST['isbn'] ?? '';
         
-        if ($this->bookService->deleteBook($isbn)) {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['isbn'])) {
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
+        }
+        
+        $isbn = $_POST['isbn'];
+        $result = $this->bookService->deleteBook($isbn);
+        
+        if ($result) {
             $_SESSION['success'] = 'Book deleted successfully!';
         } else {
             $_SESSION['error'] = 'Failed to delete book. Please try again.';
         }
         
-        $this->redirect('/admin/books');
+        header('Location: ' . BASE_URL . 'admin/books');
+        exit();
     }
-
+    
     /**
-     * Show borrow book form
+     * Search books API
      */
-    public function borrow()
-    {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
+    public function searchBooks() {
+        $query = $_GET['q'] ?? '';
+        $category = $_GET['category'] ?? '';
         
-        $isbn = $_GET['isbn'] ?? '';
-        if (empty($isbn)) {
-            $this->redirect('/user/books');
-            return;
+        $books = $this->bookService->searchBooks($query, $category);
+        
+        // If AJAX request, return JSON
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode($books);
+            exit;
         }
-
-        $book = $this->bookModel->getBookByISBN($isbn);
+        
+        // Otherwise show search results page
+        include APP_ROOT . '/views/books/search.php';
+    }
+    
+    /**
+     * Get book details API
+     */
+    public function getBookDetails() {
+        if (!isset($_GET['isbn'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ISBN parameter is required']);
+            exit;
+        }
+        
+        $isbn = $_GET['isbn'];
+        $book = $this->bookService->getBookByISBN($isbn);
+        
         if (!$book) {
-            $_SESSION['error'] = 'Book not found.';
-            $this->redirect('/user/books');
-            return;
+            http_response_code(404);
+            echo json_encode(['error' => 'Book not found']);
+            exit;
         }
-
-        $this->render('books/borrow-book', ['book' => $book]);
-    }
-
-    /**
-     * Process book borrowing
-     */
-    public function borrowBook()
-    {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
-        
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/user/books');
-            return;
-        }
-
-        $isbn = $_POST['isbn'] ?? '';
-        $userId = $_SESSION['userId'];
-
-        if ($this->bookService->borrowBook($userId, $isbn)) {
-            $_SESSION['success'] = 'Book borrowed successfully!';
-            $this->redirect('/user/dashboard');
-        } else {
-            $_SESSION['error'] = 'Failed to borrow book. Please try again.';
-            $this->redirect('/user/books');
-        }
-    }
-
-    /**
-     * Show return book form
-     */
-    public function return()
-    {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
-        
-        $userId = $_SESSION['userId'];
-        $borrowedBooks = $this->bookModel->getBorrowedBooks($userId);
-        
-        $this->render('books/return-book', ['books' => $borrowedBooks]);
-    }
-
-    /**
-     * Process book return
-     */
-    public function returnBook()
-    {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
-        
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/user/return');
-            return;
-        }
-
-        $isbn = $_POST['isbn'] ?? '';
-        $userId = $_SESSION['userId'];
-
-        if ($this->bookService->returnBook($userId, $isbn)) {
-            $_SESSION['success'] = 'Book returned successfully!';
-            $this->redirect('/user/dashboard');
-        } else {
-            $_SESSION['error'] = 'Failed to return book. Please try again.';
-            $this->redirect('/user/return');
-        }
-    }
-
-    /**
-     * Search books API endpoint
-     */
-    public function searchBooks()
-    {
-        $search = $_GET['q'] ?? '';
-        $books = $this->bookModel->searchBooks($search);
-        
-        header('Content-Type: application/json');
-        echo json_encode($books);
-    }
-
-    /**
-     * Get book details API endpoint
-     */
-    public function getBookDetails()
-    {
-        $isbn = $_GET['isbn'] ?? '';
-        $book = $this->bookModel->getBookByISBN($isbn);
         
         header('Content-Type: application/json');
         echo json_encode($book);
     }
-
-    /**
-     * Render a view with data
-     */
-    private function render($view, $data = [])
-    {
-        extract($data);
-        $viewFile = APP_ROOT . '/views/' . $view . '.php';
-        
-        if (file_exists($viewFile)) {
-            include $viewFile;
-        } else {
-            http_response_code(404);
-            include APP_ROOT . '/views/errors/404.php';
-        }
-    }
-
-    /**
-     * Redirect to a URL
-     */
-    private function redirect($url)
-    {
-        header('Location: ' . BASE_URL . ltrim($url, '/'));
-        exit;
-    }
 }
-?>

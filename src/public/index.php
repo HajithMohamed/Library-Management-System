@@ -127,6 +127,15 @@ $router->addRoute('GET', '/admin/fines', 'AdminController', 'fines');
 $router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
 $router->addRoute('GET', '/admin/maintenance', 'AdminController', 'maintenance');
 $router->addRoute('POST', '/admin/backup', 'AdminController', 'createBackup');
+$router->addRoute('POST', '/admin/maintenance/perform', 'AdminController', 'performMaintenance');
+
+// Admin borrow requests routes
+$router->addRoute('GET', '/admin/borrow-requests', 'AdminController', 'borrowRequests');
+$router->addRoute('POST', '/admin/borrow-requests/handle', 'AdminController', 'handleBorrowRequest');
+
+// Admin notifications routes
+$router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
+$router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
 
 // Admin book management routes
 $router->addRoute('GET', '/admin/books', 'BookController', 'adminBooks');
