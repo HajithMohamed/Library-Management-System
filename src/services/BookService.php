@@ -3,214 +3,248 @@
 namespace App\Services;
 
 use App\Models\Book;
-use App\Models\Transaction;
-use App\Models\User;
 
 class BookService
 {
     private $bookModel;
-    private $transactionModel;
-    private $userModel;
 
     public function __construct()
     {
         $this->bookModel = new Book();
-        $this->transactionModel = new Transaction();
-        $this->userModel = new User();
     }
 
     /**
-     * Get all books
+     * Get all books with pagination
      *
-     * @return array List of books
+     * @param int $page Current page number
+     * @param int $perPage Items per page
+     * @return array Books and pagination info
      */
-    public function getAllBooks()
+    public function getAllBooks($page = 1, $perPage = 12)
     {
         global $conn;
-        
+
+        $offset = ($page - 1) * $perPage;
+
         try {
-            $query = "SELECT * FROM books ORDER BY bookName ASC";
-            $result = $conn->query($query);
-            
+            // Get total count
+            $countQuery = "SELECT COUNT(*) as total FROM books";
+            $countResult = $conn->query($countQuery);
+            $total = $countResult->fetch_assoc()['total'];
+
+            // Get paginated books
+            $query = "SELECT * FROM books ORDER BY createdAt DESC LIMIT ? OFFSET ?";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("ii", $perPage, $offset);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
             $books = [];
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $books[] = $row;
-                }
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
             }
-            
-            return $books;
+
+            return [
+                'books' => $books,
+                'total' => $total,
+                'page' => $page,
+                'perPage' => $perPage,
+                'totalPages' => ceil($total / $perPage)
+            ];
         } catch (\Exception $e) {
-            error_log("Error fetching books: " . $e->getMessage());
-            return [];
+            error_log("Error getting all books: " . $e->getMessage());
+            return [
+                'books' => [],
+                'total' => 0,
+                'page' => 1,
+                'perPage' => $perPage,
+                'totalPages' => 0
+            ];
         }
     }
-    
+
     /**
-     * Get book by ISBN
+     * Get a single book by ISBN
      *
      * @param string $isbn Book ISBN
-     * @return array|null Book data or null if not found
+     * @return array|null Book data or null
      */
     public function getBookByISBN($isbn)
     {
         global $conn;
-        
+
         try {
-            $query = "SELECT * FROM books WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
+            $stmt = $conn->prepare("SELECT * FROM books WHERE isbn = ?");
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
-            
-            if ($result && $result->num_rows > 0) {
-                return $result->fetch_assoc();
-            }
-            
-            return null;
+
+            return $result->fetch_assoc();
         } catch (\Exception $e) {
-            error_log("Error fetching book by ISBN: " . $e->getMessage());
+            error_log("Error getting book by ISBN: " . $e->getMessage());
             return null;
         }
     }
-    
+
     /**
-     * Add a new book with validation
+     * Add a new book
      *
-     * @param array $bookData Book data
+     * @param array $bookData Book information
      * @return bool Success status
      */
     public function addBook($bookData)
     {
         global $conn;
-        
-        try {
-            // Validate book data
-            $errors = $this->validateBookData($bookData);
-            if (!empty($errors)) {
-                $_SESSION['validation_errors'] = $errors;
-                return false;
-            }
 
-            // Check if book already exists
-            $existingBook = $this->getBookByISBN($bookData['isbn']);
-            if ($existingBook) {
-                $_SESSION['error'] = 'A book with this ISBN already exists.';
-                return false;
-            }
-            
-            $query = "INSERT INTO books (isbn, bookName, authorName, publisherName, category, description, totalCopies, available, borrowed";
-            
-            if (isset($bookData['bookImage'])) {
-                $query .= ", bookImage";
-            }
-            
-            $query .= ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0";
-            
-            if (isset($bookData['bookImage'])) {
-                $query .= ", ?";
-            }
-            
-            $query .= ")";
-            
+        try {
+            $query = "INSERT INTO books (
+                isbn, bookName, authorName, publisherName, 
+                category, description, totalCopies, available, 
+                bookImage, isTrending, isSpecial, specialBadge, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
             $stmt = $conn->prepare($query);
-            
-            if (isset($bookData['bookImage'])) {
-                $stmt->bind_param(
-                    "ssssssiis",
-                    $bookData['isbn'],
-                    $bookData['bookName'],
-                    $bookData['authorName'],
-                    $bookData['publisherName'],
-                    $bookData['category'],
-                    $bookData['description'],
-                    $bookData['totalCopies'],
-                    $bookData['available'],
-                    $bookData['bookImage']
-                );
-            } else {
-                $stmt->bind_param(
-                    "ssssssii",
-                    $bookData['isbn'],
-                    $bookData['bookName'],
-                    $bookData['authorName'],
-                    $bookData['publisherName'],
-                    $bookData['category'],
-                    $bookData['description'],
-                    $bookData['totalCopies'],
-                    $bookData['available']
-                );
-            }
-            
+
+            $isTrending = isset($bookData['isTrending']) ? (int)$bookData['isTrending'] : 0;
+            $isSpecial = isset($bookData['isSpecial']) ? (int)$bookData['isSpecial'] : 0;
+            $specialBadge = $bookData['specialBadge'] ?? null;
+            $bookImage = $bookData['bookImage'] ?? 'default-book.jpg';
+
+            $stmt->bind_param(
+                "ssssssiisiis",
+                $bookData['isbn'],
+                $bookData['bookName'],
+                $bookData['authorName'],
+                $bookData['publisherName'],
+                $bookData['category'],
+                $bookData['description'],
+                $bookData['totalCopies'],
+                $bookData['available'],
+                $bookImage,
+                $isTrending,
+                $isSpecial,
+                $specialBadge
+            );
+
             return $stmt->execute();
         } catch (\Exception $e) {
             error_log("Error adding book: " . $e->getMessage());
             return false;
         }
     }
-    
+
     /**
-     * Update an existing book - UNIFIED METHOD
+     * Update an existing book
      *
      * @param string $isbn Book ISBN
-     * @param array $bookData Book data to update
+     * @param array $bookData Updated book information
      * @return bool Success status
      */
     public function updateBook($isbn, $bookData)
     {
         global $conn;
-        
+
         try {
-            // Validate book data (with ISBN for context)
-            $errors = $this->validateBookData(array_merge($bookData, ['isbn' => $isbn]));
-            if (!empty($errors)) {
-                $_SESSION['validation_errors'] = $errors;
+            // Get current book to check if we need to update image
+            $currentBook = $this->getBookByISBN($isbn);
+            if (!$currentBook) {
                 return false;
             }
 
-            // Check if book exists
-            $existingBook = $this->getBookByISBN($isbn);
-            if (!$existingBook) {
-                $_SESSION['error'] = 'Book not found.';
-                return false;
-            }
-            
-            // Build the query dynamically based on provided fields
-            $query = "UPDATE books SET ";
-            $params = [];
+            // Build dynamic query based on provided fields
+            $fields = [];
             $types = "";
-            
-            foreach ($bookData as $field => $value) {
-                $query .= "$field = ?, ";
-                $params[] = $value;
-                
-                if (is_int($value)) {
-                    $types .= "i";
-                } else {
-                    $types .= "s";
-                }
+            $values = [];
+
+            if (isset($bookData['bookName'])) {
+                $fields[] = "bookName = ?";
+                $types .= "s";
+                $values[] = $bookData['bookName'];
             }
-            
-            // Remove the trailing comma and space
-            $query = rtrim($query, ", ");
-            
-            // Add the WHERE clause
-            $query .= " WHERE isbn = ?";
-            $params[] = $isbn;
+
+            if (isset($bookData['authorName'])) {
+                $fields[] = "authorName = ?";
+                $types .= "s";
+                $values[] = $bookData['authorName'];
+            }
+
+            if (isset($bookData['publisherName'])) {
+                $fields[] = "publisherName = ?";
+                $types .= "s";
+                $values[] = $bookData['publisherName'];
+            }
+
+            if (isset($bookData['category'])) {
+                $fields[] = "category = ?";
+                $types .= "s";
+                $values[] = $bookData['category'];
+            }
+
+            if (isset($bookData['description'])) {
+                $fields[] = "description = ?";
+                $types .= "s";
+                $values[] = $bookData['description'];
+            }
+
+            if (isset($bookData['totalCopies'])) {
+                $fields[] = "totalCopies = ?";
+                $types .= "i";
+                $values[] = $bookData['totalCopies'];
+
+                // Update available count proportionally
+                $borrowed = $currentBook['borrowed'] ?? 0;
+                $newAvailable = $bookData['totalCopies'] - $borrowed;
+                $fields[] = "available = ?";
+                $types .= "i";
+                $values[] = max(0, $newAvailable);
+            }
+
+            if (isset($bookData['bookImage'])) {
+                $fields[] = "bookImage = ?";
+                $types .= "s";
+                $values[] = $bookData['bookImage'];
+            }
+
+            if (isset($bookData['isTrending'])) {
+                $fields[] = "isTrending = ?";
+                $types .= "i";
+                $values[] = (int)$bookData['isTrending'];
+            }
+
+            if (isset($bookData['isSpecial'])) {
+                $fields[] = "isSpecial = ?";
+                $types .= "i";
+                $values[] = (int)$bookData['isSpecial'];
+            }
+
+            if (isset($bookData['specialBadge'])) {
+                $fields[] = "specialBadge = ?";
+                $types .= "s";
+                $values[] = $bookData['specialBadge'];
+            }
+
+            if (empty($fields)) {
+                return true; // Nothing to update
+            }
+
+            $fields[] = "updatedAt = NOW()";
+
+            $query = "UPDATE books SET " . implode(", ", $fields) . " WHERE isbn = ?";
             $types .= "s";
-            
+            $values[] = $isbn;
+
             $stmt = $conn->prepare($query);
-            $stmt->bind_param($types, ...$params);
-            
+            $stmt->bind_param($types, ...$values);
+
             return $stmt->execute();
         } catch (\Exception $e) {
             error_log("Error updating book: " . $e->getMessage());
             return false;
         }
     }
-    
+
     /**
-     * Delete a book with checks
+     * Delete a book
      *
      * @param string $isbn Book ISBN
      * @return bool Success status
@@ -218,33 +252,33 @@ class BookService
     public function deleteBook($isbn)
     {
         global $conn;
-        
+
         try {
-            // Check if book exists
-            $existingBook = $this->getBookByISBN($isbn);
-            if (!$existingBook) {
-                $_SESSION['error'] = 'Book not found.';
-                return false;
-            }
-            
-            // Check if book has active borrowings
-            $query = "SELECT COUNT(*) as active FROM transactions WHERE isbn = ? AND returnDate IS NULL";
-            $stmt = $conn->prepare($query);
+            // Check if book has active borrows
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM transactions WHERE isbn = ? AND status = 'borrowed'");
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
             $row = $result->fetch_assoc();
-            
-            if ($row['active'] > 0) {
-                $_SESSION['error'] = 'Cannot delete book with active borrowings.';
+
+            if ($row['count'] > 0) {
+                error_log("Cannot delete book with active borrows");
                 return false;
             }
-            
-            // Delete the book
-            $query = "DELETE FROM books WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
+
+            // Get book image to delete file
+            $book = $this->getBookByISBN($isbn);
+            if ($book && isset($book['bookImage']) && $book['bookImage'] !== 'default-book.jpg') {
+                $imagePath = APP_ROOT . '/public/uploads/books/' . $book['bookImage'];
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+
+            // Delete book
+            $stmt = $conn->prepare("DELETE FROM books WHERE isbn = ?");
             $stmt->bind_param("s", $isbn);
-            
+
             return $stmt->execute();
         } catch (\Exception $e) {
             error_log("Error deleting book: " . $e->getMessage());
@@ -253,344 +287,279 @@ class BookService
     }
 
     /**
-     * Validate book data
-     * 
-     * @param array $data Book data to validate
-     * @return array Validation errors (empty if valid)
-     */
-    private function validateBookData($data)
-    {
-        $errors = [];
-
-        if (empty($data['isbn'])) {
-            $errors['isbn'] = 'ISBN is required';
-        }
-
-        if (empty($data['bookName'])) {
-            $errors['bookName'] = 'Book name is required';
-        }
-
-        if (empty($data['authorName'])) {
-            $errors['authorName'] = 'Author name is required';
-        }
-
-        if (empty($data['publisherName'])) {
-            $errors['publisherName'] = 'Publisher name is required';
-        }
-
-        if (isset($data['totalCopies']) && (!is_numeric($data['totalCopies']) || $data['totalCopies'] < 0)) {
-            $errors['totalCopies'] = 'Total copies must be a positive number';
-        }
-
-        if (isset($data['available']) && (!is_numeric($data['available']) || $data['available'] < 0)) {
-            $errors['available'] = 'Available copies must be a positive number';
-        }
-
-        return $errors;
-    }
-    
-    /**
-     * Search books with advanced filters
+     * Search books
      *
-     * @param string $query Search term
-     * @param string $category Book category
-     * @return array List of matching books
+     * @param string $query Search query
+     * @param string $category Category filter
+     * @return array Search results
      */
     public function searchBooks($query = '', $category = '')
     {
         global $conn;
-        
+
         try {
-            $sqlQuery = "SELECT * FROM books WHERE 1=1";
+            $sql = "SELECT * FROM books WHERE 1=1";
             $params = [];
             $types = "";
-            
+
             if (!empty($query)) {
-                $searchTerm = "%$query%";
-                $sqlQuery .= " AND (bookName LIKE ? OR authorName LIKE ? OR publisherName LIKE ? OR isbn LIKE ?)";
+                $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ?)";
+                $searchTerm = "%{$query}%";
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
-                $params[] = $searchTerm;
-                $types .= "ssss";
+                $types .= "sss";
             }
-            
+
             if (!empty($category)) {
-                $sqlQuery .= " AND category = ?";
+                $sql .= " AND category = ?";
                 $params[] = $category;
                 $types .= "s";
             }
-            
-            $sqlQuery .= " ORDER BY bookName ASC";
-            
-            $stmt = $conn->prepare($sqlQuery);
-            
+
+            $sql .= " ORDER BY bookName";
+
+            $stmt = $conn->prepare($sql);
             if (!empty($params)) {
                 $stmt->bind_param($types, ...$params);
             }
-            
+
             $stmt->execute();
             $result = $stmt->get_result();
-            
+
             $books = [];
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $books[] = $row;
-                }
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
             }
-            
+
             return $books;
         } catch (\Exception $e) {
             error_log("Error searching books: " . $e->getMessage());
             return [];
         }
     }
-    
-    /**
-     * Borrow a book
-     */
-    public function borrowBook($userId, $isbn)
-    {
-        // Check if user exists and is active
-        $user = $this->userModel->getUserById($userId);
-        if (!$user || !$user['isVerified']) {
-            $_SESSION['error'] = 'User not found or not verified.';
-            return false;
-        }
-
-        // Check if book is available
-        if (!$this->isBookAvailable($isbn)) {
-            $_SESSION['error'] = 'Book is not available for borrowing.';
-            return false;
-        }
-
-        // Check if user has already borrowed this book
-        if ($this->transactionModel->hasActiveBorrowing($userId, $isbn)) {
-            $_SESSION['error'] = 'You have already borrowed this book.';
-            return false;
-        }
-
-        // Check borrowing limits based on user type
-        $borrowedCount = $this->transactionModel->getActiveBorrowingCount($userId);
-        $maxBooks = ($user['userType'] === 'Faculty') ? 5 : 3;
-        
-        if ($borrowedCount >= $maxBooks) {
-            $_SESSION['error'] = "You have reached the maximum borrowing limit ({$maxBooks} books).";
-            return false;
-        }
-
-        // Create transaction
-        $transactionId = $this->generateTransactionId();
-        $borrowDate = date('Y-m-d');
-        
-        if ($this->transactionModel->createTransaction([
-            'tid' => $transactionId,
-            'userId' => $userId,
-            'isbn' => $isbn,
-            'borrowDate' => $borrowDate,
-            'fine' => 0
-        ])) {
-            // Update book availability
-            $this->decreaseAvailable($isbn);
-            return true;
-        }
-
-        return false;
-    }
 
     /**
-     * Return a book
-     */
-    public function returnBook($userId, $isbn)
-    {
-        // Check if user has an active borrowing for this book
-        $transaction = $this->transactionModel->getActiveBorrowing($userId, $isbn);
-        if (!$transaction) {
-            $_SESSION['error'] = 'No active borrowing found for this book.';
-            return false;
-        }
-
-        $returnDate = date('Y-m-d');
-        $fine = $this->calculateFine($transaction['borrowDate'], $returnDate);
-
-        // Update transaction
-        if ($this->transactionModel->returnBook($transaction['tid'], $returnDate, $fine)) {
-            // Update book availability
-            $this->increaseAvailable($isbn);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Calculate fine for overdue books
-     */
-    public function calculateFine($borrowDate, $returnDate = null)
-    {
-        $returnDate = $returnDate ?: date('Y-m-d');
-        $borrowTimestamp = strtotime($borrowDate);
-        $returnTimestamp = strtotime($returnDate);
-        
-        $daysDiff = ($returnTimestamp - $borrowTimestamp) / (60 * 60 * 24);
-        $maxDays = 14; // 2 weeks borrowing period
-        
-        if ($daysDiff > $maxDays) {
-            $overdueDays = $daysDiff - $maxDays;
-            return $overdueDays * 5; // 5 rupees per day fine
-        }
-        
-        return 0;
-    }
-
-    /**
-     * Update fines for all overdue books
-     */
-    public function updateAllFines()
-    {
-        $overdueTransactions = $this->transactionModel->getOverdueTransactions();
-        $updatedCount = 0;
-
-        foreach ($overdueTransactions as $transaction) {
-            $fine = $this->calculateFine($transaction['borrowDate']);
-            if ($fine > $transaction['fine']) {
-                $this->transactionModel->updateFine($transaction['tid'], $fine);
-                $updatedCount++;
-            }
-        }
-
-        return $updatedCount;
-    }
-
-    /**
-     * Get book borrowing statistics
-     */
-    public function getBorrowingStats()
-    {
-        return [
-            'total_books' => $this->bookModel->getBookStats(),
-            'active_borrowings' => $this->transactionModel->getActiveBorrowingCount(),
-            'overdue_books' => count($this->transactionModel->getOverdueTransactions()),
-            'popular_books' => $this->bookModel->getPopularBooks(5)
-        ];
-    }
-
-    /**
-     * Upload a book image
+     * Get trending books
      *
-     * @param array $file File upload data ($_FILES['bookImage'])
+     * @param int $limit Number of books to return
+     * @return array Trending books
+     */
+    public function getTrendingBooks($limit = 6)
+    {
+        global $conn;
+
+        try {
+            $stmt = $conn->prepare("SELECT * FROM books WHERE isTrending = 1 ORDER BY createdAt DESC LIMIT ?");
+            $stmt->bind_param("i", $limit);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            $books = [];
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
+            }
+
+            return $books;
+        } catch (\Exception $e) {
+            error_log("Error getting trending books: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get special feature books
+     *
+     * @param int $limit Number of books to return
+     * @return array Special books
+     */
+    public function getSpecialBooks($limit = 6)
+    {
+        global $conn;
+
+        try {
+            $stmt = $conn->prepare("SELECT * FROM books WHERE isSpecial = 1 ORDER BY createdAt DESC LIMIT ?");
+            $stmt->bind_param("i", $limit);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            $books = [];
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
+            }
+
+            return $books;
+        } catch (\Exception $e) {
+            error_log("Error getting special books: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Upload book image
+     *
+     * @param array $file Uploaded file data
      * @return array Result with success status and path
      */
     public function uploadBookImage($file)
     {
-        $result = ['success' => false, 'path' => '', 'error' => ''];
-        
-        // Check for upload errors
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            $result['error'] = 'File upload failed with error code ' . $file['error'];
-            return $result;
+        $uploadDir = APP_ROOT . '/public/uploads/books/';
+
+        // Create directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
         }
-        
-        // Check file type
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        $fileType = mime_content_type($file['tmp_name']);
-        
-        if (!in_array($fileType, $allowedTypes)) {
-            $result['error'] = 'Invalid file type. Only JPG, PNG, and WebP are allowed.';
-            return $result;
+
+        // Validate file
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!in_array($file['type'], $allowedTypes)) {
+            return ['success' => false, 'error' => 'Invalid file type'];
         }
-        
-        // Create upload directory if it doesn't exist
-        $uploadDir = PUBLIC_ROOT . '/uploads/books/';
-        if (!is_dir($uploadDir)) {
-            if (!mkdir($uploadDir, 0755, true)) {
-                $result['error'] = 'Failed to create upload directory';
-                return $result;
-            }
+
+        // Check file size (max 5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            return ['success' => false, 'error' => 'File too large'];
         }
-        
+
         // Generate unique filename
         $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = uniqid('book_') . '.' . $extension;
+        $filename = uniqid('book_') . '_' . time() . '.' . $extension;
         $filepath = $uploadDir . $filename;
-        
+
         // Move uploaded file
         if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            $result['success'] = true;
-            $result['path'] = 'uploads/books/' . $filename;
-            return $result;
+            return ['success' => true, 'path' => $filename];
         }
-        
-        $result['error'] = 'Failed to move uploaded file';
-        return $result;
+
+        return ['success' => false, 'error' => 'Failed to upload file'];
     }
-    
+
     /**
-     * Check if a book is available for borrowing
+     * Get all categories
+     *
+     * @return array List of categories
+     */
+    public function getCategories()
+    {
+        global $conn;
+
+        try {
+            $query = "SELECT DISTINCT category FROM books WHERE category IS NOT NULL AND category != '' ORDER BY category";
+            $result = $conn->query($query);
+
+            $categories = [];
+            while ($row = $result->fetch_assoc()) {
+                $categories[] = $row['category'];
+            }
+
+            return $categories;
+        } catch (\Exception $e) {
+            error_log("Error getting categories: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Toggle trending status
      *
      * @param string $isbn Book ISBN
-     * @return bool Availability status
+     * @return bool Success status
+     */
+    public function toggleTrending($isbn)
+    {
+        global $conn;
+
+        try {
+            $stmt = $conn->prepare("UPDATE books SET isTrending = NOT isTrending WHERE isbn = ?");
+            $stmt->bind_param("s", $isbn);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error toggling trending: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Toggle special status
+     *
+     * @param string $isbn Book ISBN
+     * @return bool Success status
+     */
+    public function toggleSpecial($isbn)
+    {
+        global $conn;
+
+        try {
+            $stmt = $conn->prepare("UPDATE books SET isSpecial = NOT isSpecial WHERE isbn = ?");
+            $stmt->bind_param("s", $isbn);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error toggling special: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if a book is available for borrowing
+     * 
+     * @param string $isbn Book ISBN
+     * @return bool Whether the book is available
      */
     public function isBookAvailable($isbn)
     {
         global $conn;
-        
+
         try {
-            $query = "SELECT available FROM books WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
+            $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
-            
-            if ($result && $result->num_rows > 0) {
-                $row = $result->fetch_assoc();
-                return $row['available'] > 0;
+
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['available'] > 0;
             }
-            
+
             return false;
         } catch (\Exception $e) {
             error_log("Error checking book availability: " . $e->getMessage());
             return false;
         }
     }
-    
+
     /**
      * Update book availability (increase/decrease available copies)
-     *
+     * 
      * @param string $isbn Book ISBN
-     * @param int $change Change amount (+1 for return, -1 for borrow)
+     * @param int $change Change in availability (+1 or -1)
      * @return bool Success status
      */
-    private function updateAvailability($isbn, $change)
+    public function updateAvailability($isbn, $change)
     {
         global $conn;
-        
+
         try {
-            // Start transaction
-            $conn->begin_transaction();
-            
-            $query = "UPDATE books SET available = available + ?, borrowed = borrowed - ? WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("iis", $change, $change, $isbn);
-            $result = $stmt->execute();
-            
-            if ($result) {
-                $conn->commit();
-                return true;
+            if ($change > 0) {
+                // Returning a book
+                $stmt = $conn->prepare("UPDATE books SET available = available + ?, borrowed = borrowed - ? WHERE isbn = ?");
+                $positiveChange = abs($change);
+                $stmt->bind_param("iis", $positiveChange, $positiveChange, $isbn);
+            } else {
+                // Borrowing a book
+                $stmt = $conn->prepare("UPDATE books SET available = available - ?, borrowed = borrowed + ? WHERE isbn = ? AND available > 0");
+                $positiveChange = abs($change);
+                $stmt->bind_param("iis", $positiveChange, $positiveChange, $isbn);
             }
-            
-            $conn->rollback();
-            return false;
+
+            return $stmt->execute() && $stmt->affected_rows > 0;
         } catch (\Exception $e) {
-            $conn->rollback();
-            error_log("Error updating book availability: " . $e->getMessage());
+            error_log("Error updating availability: " . $e->getMessage());
             return false;
         }
     }
-    
+
     /**
      * Decrease available count when book is borrowed
-     *
+     * 
      * @param string $isbn Book ISBN
      * @return bool Success status
      */
@@ -598,10 +567,10 @@ class BookService
     {
         return $this->updateAvailability($isbn, -1);
     }
-    
+
     /**
      * Increase available count when book is returned
-     *
+     * 
      * @param string $isbn Book ISBN
      * @return bool Success status
      */
@@ -609,50 +578,16 @@ class BookService
     {
         return $this->updateAvailability($isbn, 1);
     }
-    
+
     /**
      * Get popular books
-     *
+     * 
      * @param int $limit Number of books to return
-     * @return array List of popular books
+     * @return array Popular books
      */
     public function getPopularBooks($limit = 5)
     {
-        global $conn;
-        
-        try {
-            $query = "SELECT b.*, COUNT(t.tid) as borrow_count 
-                      FROM books b 
-                      LEFT JOIN transactions t ON b.isbn = t.isbn 
-                      GROUP BY b.isbn 
-                      ORDER BY borrow_count DESC 
-                      LIMIT ?";
-            
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("i", $limit);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            $books = [];
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $books[] = $row;
-                }
-            }
-            
-            return $books;
-        } catch (\Exception $e) {
-            error_log("Error fetching popular books: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Generate unique transaction ID
-     */
-    private function generateTransactionId()
-    {
-        return 'TXN' . date('Ymd') . rand(1000, 9999);
+        return $this->bookModel->getPopularBooks($limit);
     }
 }
 ?>

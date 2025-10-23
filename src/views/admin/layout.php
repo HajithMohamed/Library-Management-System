@@ -18,70 +18,7 @@ $currentPage = $currentPage ?? 'dashboard';
     <!-- CSS Libraries -->
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/fontawesome.min.css">
-    
-    <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #f8f9fa;
-        }
-        .sidebar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 1rem;
-            color: white;
-        }
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            padding: 0.75rem 1rem;
-        }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            color: white;
-            background: rgba(255, 255, 255, 0.15);
-        }
-        .sidebar .nav-link i {
-            width: 24px;
-            text-align: center;
-            margin-right: 0.5rem;
-        }
-        .main-content {
-            padding: 2rem;
-        }
-        .dashboard-card {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease;
-            height: 100%;
-        }
-        .dashboard-card:hover {
-            transform: translateY(-5px);
-        }
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
-        }
-        .navbar-brand {
-            font-weight: bold;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            margin-right: 0.5rem;
-        }
-    </style>
+    <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/admin.css">
     
     <!-- Page-specific CSS -->
     <?php if (isset($additionalCss)): ?>
@@ -92,12 +29,12 @@ $currentPage = $currentPage ?? 'dashboard';
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
                 <?php include APP_ROOT . '/views/admin/sidebar.php'; ?>
             </div>
             
             <!-- Main content -->
-            <div class="col-md-9 col-lg-10 ml-sm-auto px-4 main-content">
+            <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <nav class="navbar navbar-light mt-3 mb-4">
                     <span class="navbar-brand mb-0 h1"><?= $pageTitle ?? 'Admin Dashboard' ?></span>
                     <div class="user-info">
@@ -122,13 +59,15 @@ $currentPage = $currentPage ?? 'dashboard';
                     </div>
                 <?php endif; ?>
                 
-                <?php if (isset($contentView) && file_exists($contentView)): ?>
-                    <?php include $contentView; ?>
-                <?php else: ?>
-                    <div class="alert alert-warning">
-                        Content view not found: <?= $contentView ?? 'No view specified' ?>
-                    </div>
-                <?php endif; ?>
+                <div class="content">
+                    <?php if (isset($contentView) && file_exists($contentView)): ?>
+                        <?php include $contentView; ?>
+                    <?php else: ?>
+                        <div class="alert alert-warning">
+                            Content view not found: <?= $contentView ?? 'No view specified' ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
