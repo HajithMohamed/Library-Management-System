@@ -1,155 +1,218 @@
-<!-- Enhanced Books Management Page - Matching Users Management Design -->
+<?php
+// Prevent direct access
+if (!defined('APP_ROOT')) {
+    exit('Direct access not allowed');
+}
+
+// Include header
+include APP_ROOT . '/views/layouts/header.php';
+?>
 
 <style>
-    
-    
-    .page-header {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        color: white;
+    /* Fix Modal Display Issues */
+    .modal {
+    display: none;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Changed from 'hidden' to 'auto' to enable scrolling if content overflows */
+    background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Additional rules for better scrollable modal support (add these if not present) */
+    .modal-dialog {
+        max-height: 90vh; /* Limit dialog height to viewport */
+        overflow-y: auto; /* Enable vertical scrolling for the dialog */
+    }
+
+    .modal-body {
+        max-height: 60vh; /* Limit body height */
+        overflow-y: auto; /* Enable scrolling within the body */
+    }
+
+    /* Custom scrollbar for better UX */
+    .modal::-webkit-scrollbar,
+    .modal-dialog::-webkit-scrollbar,
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal::-webkit-scrollbar-track,
+    .modal-dialog::-webkit-scrollbar-track,
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .modal::-webkit-scrollbar-thumb,
+    .modal-dialog::-webkit-scrollbar-thumb,
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .modal::-webkit-scrollbar-thumb:hover,
+    .modal-dialog::-webkit-scrollbar-thumb:hover,
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
     }
     
-    .page-header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+    .modal .show {
+        display: block !important;
     }
     
-    .stats-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    
-    .stat-card.blue {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-    
-    .stat-card.green {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-    }
-    
-    .stat-card.orange {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-    }
-    
-    .stat-card.cyan {
-        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-        color: white;
-    }
-    
-    .stat-content h4 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin: 0 0 0.5rem 0;
-    }
-    
-    .stat-content p {
-        margin: 0;
-        font-size: 1rem;
-        opacity: 0.95;
-    }
-    
-    .stat-icon {
-        font-size: 3rem;
-        opacity: 0.3;
-    }
-    
-    .search-card {
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-    }
-    
-    .search-card h5 {
-        margin: 0 0 1.5rem 0;
-        color: #1f2937;
-        font-weight: 600;
-    }
-    
-    .search-form {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
-        gap: 1rem;
-        align-items: end;
-    }
-    
-    .form-group {
+    .modal-dialog {
+        position: relative;
+        width: auto;
+        max-width: 800px;
+        margin: 1.75rem auto;
+        max-height: calc(100vh - 3.5rem);
         display: flex;
         flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     
-    .form-group label {
-        font-weight: 500;
+    .modal-content {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        pointer-events: auto;
+        background-color: #fff;
+        border-radius: 16px;
+        outline: 0;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        max-height: calc(100vh - 3.5rem);
+      
+    }
+    
+    .modal-header {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 16px 16px 0 0;
+    }
+    
+    .modal-header .btn-close {
+        padding: 0.5rem;
+        margin: -0.5rem -0.5rem -0.5rem auto;
+        background: transparent;
+        border: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        opacity: 0.8;
+        cursor: pointer;
+    }
+    
+    .modal-header .btn-close:hover {
+        opacity: 1;
+    }
+    
+    .modal-body {
+        position: relative;
+        flex: 1 1 auto;
+        padding: 1.5rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: calc(100vh - 250px);
+    }
+    
+    .modal-footer {
+        display: flex;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 1.25rem;
+        border-top: 1px solid #dee2e6;
+        border-radius: 0 0 16px 16px;
+        background: #f8f9fa;
+        gap: 0.5rem;
+    }
+    
+    /* Custom Scrollbar */
+    .modal-body::-webkit-scrollbar {
+        width: 10px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    
+    /* Form Styling */
+    .form-label {
+        font-weight: 600;
         color: #374151;
-        margin-bottom: 0.5rem;
-        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+        display: block;
     }
     
-    .form-control {
-        padding: 0.75rem 1rem;
+    .form-control,
+    .form-select {
+        display: block;
+        width: 100%;
+        padding: 0.875rem 1.25rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
         border: 2px solid #e5e7eb;
         border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     }
     
-    .form-control:focus {
-        outline: none;
+    .form-control:focus,
+    .form-select:focus {
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
     }
     
-    .btn-group {
-        display: flex;
-        gap: 0.5rem;
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
     }
     
+    /* Button Styling */
     .btn {
-        padding: 0.75rem 1.5rem;
-        border: none;
+        display: inline-block;
+        font-weight: 600;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        user-select: none;
+        border: 1px solid transparent;
+        padding: 0.875rem 1.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
         border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 500;
+        transition: all 0.15s ease-in-out;
         cursor: pointer;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
     }
     
     .btn-primary {
+        color: #fff;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        border-color: #667eea;
     }
     
     .btn-primary:hover {
@@ -158,600 +221,730 @@
     }
     
     .btn-secondary {
-        background: #6b7280;
-        color: white;
+        color: #fff;
+        background-color: #6c757d;
+        border-color: #6c757d;
     }
     
     .btn-secondary:hover {
-        background: #4b5563;
+        background-color: #5a6268;
+        border-color: #545b62;
     }
     
-    .btn-success {
-        background: #10b981;
-        color: white;
-    }
-    
-    .btn-info {
-        background: #06b6d4;
-        color: white;
-    }
-    
-    .btn-warning {
-        background: #f59e0b;
-        color: white;
-    }
-    
-    .btn-danger {
-        background: #ef4444;
-        color: white;
-    }
-    
-    .btn-sm {
-        padding: 0.5rem 1rem;
-        font-size: 0.85rem;
-    }
-    
-    .table-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-    
-    .table-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.25rem 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .table-header h5 {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
-    .badge {
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    
-    .badge.bg-primary {
-        background: #667eea;
-    }
-    
-    .badge.bg-trending {
-        background: #ef4444;
-    }
-    
-    .badge.bg-special {
-        background: #10b981;
-    }
-    
-    .badge.bg-available {
-        background: #06b6d4;
-    }
-    
-    .badge.bg-unavailable {
-        background: #6b7280;
-    }
-    
-    .badge.bg-warning {
-        background: #f59e0b;
-    }
-    
-    .table-responsive {
-        overflow-x: auto;
-    }
-    
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    
-    thead {
+    /* Image Preview */
+    #add_imagePreview,
+    #edit_imagePreview,
+    #edit_currentImage {
+        margin-top: 1rem;
+        padding: 1rem;
         background: #f9fafb;
-        border-bottom: 2px solid #e5e7eb;
-    }
-    
-    th {
-        padding: 1rem 1.5rem;
-        text-align: left;
-        font-weight: 600;
-        color: #374151;
-        font-size: 0.95rem;
-    }
-    
-    td {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #e5e7eb;
-        color: #4b5563;
-    }
-    
-    tbody tr:hover {
-        background: #f9fafb;
-    }
-    
-    .book-img {
-        width: 60px;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .book-title {
-        font-weight: 600;
-        color: #1f2937;
-        margin-bottom: 0.25rem;
-    }
-    
-    .book-author {
-        font-size: 0.85rem;
-        color: #6b7280;
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #6b7280;
-    }
-    
-    .empty-state i {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.3;
-    }
-    
-    .alert {
-        padding: 1rem 1.25rem;
         border-radius: 8px;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        border: 2px dashed #e5e7eb;
+        text-align: center;
     }
     
-    .alert-success {
-        background: #d1fae5;
-        color: #065f46;
-        border-left: 4px solid #10b981;
+    .text-danger {
+        color: #dc3545;
     }
     
-    .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border-left: 4px solid #ef4444;
+    .text-muted {
+        color: #6c757d;
     }
     
-    .back-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        backdrop-filter: blur(10px);
+    small {
+        font-size: 0.875rem;
     }
     
-    .back-btn:hover {
-        background: rgba(255, 255, 255, 0.3);
-    }
-    
-    @media (max-width: 768px) {
-        .search-form {
-            grid-template-columns: 1fr;
-        }
-        
-        .stats-container {
-            grid-template-columns: 1fr;
-        }
+    /* Improve grid spacing */
+    .row.g-4 {
+        --bs-gutter-x: 1.5rem;
+        --bs-gutter-y: 1.5rem;
     }
 </style>
 
-<div class="container-fluid" style="padding: 1rem;">
-    <?php include APP_ROOT . '/views/layouts/header.php'; ?>
+<div class="container-fluid py-4">
     <!-- Page Header -->
-    <div class="page-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1>
-                <i class="fas fa-books"></i> Books Management
-            </h1>
-            <a href="<?php echo BASE_URL; ?>admin/dashboard" class="btn back-btn">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Book Management</h2>
+            <p class="text-muted mb-0">Manage your library collection</p>
         </div>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookModal">
+            <i class="fas fa-plus me-2"></i>Add New Book
+        </button>
     </div>
 
+    <!-- Alert Messages -->
     <?php if (isset($_SESSION['success'])): ?>
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle"></i>
-            <span><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></span>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i><?= $_SESSION['success'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+        <?php unset($_SESSION['success']); ?>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert alert-error">
-            <i class="fas fa-exclamation-circle"></i>
-            <span><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></span>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i><?= $_SESSION['error'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+        <?php unset($_SESSION['error']); ?>
     <?php endif; ?>
 
     <!-- Statistics Cards -->
-    <div class="stats-container">
-        <div class="stat-card blue">
-            <div class="stat-content">
-                <h4><?php echo $pagination['total'] ?? 0; ?></h4>
-                <p>Total Books</p>
-            </div>
-            <div class="stat-icon">
-                <i class="fas fa-book"></i>
-            </div>
-        </div>
-
-        <div class="stat-card green">
-            <div class="stat-content">
-                <h4>
-                    <?php 
-                    $available = 0;
-                    foreach($books as $book) {
-                        $available += $book['available'] ?? 0;
-                    }
-                    echo $available;
-                    ?>
-                </h4>
-                <p>Available Copies</p>
-            </div>
-            <div class="stat-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-        </div>
-
-        <div class="stat-card orange">
-            <div class="stat-content">
-                <h4>
-                    <?php 
-                    $borrowed = 0;
-                    foreach($books as $book) {
-                        $borrowed += $book['borrowed'] ?? 0;
-                    }
-                    echo $borrowed;
-                    ?>
-                </h4>
-                <p>Borrowed Copies</p>
-            </div>
-            <div class="stat-icon">
-                <i class="fas fa-book-reader"></i>
-            </div>
-        </div>
-
-        <div class="stat-card cyan">
-            <div class="stat-content">
-                <h4><?php echo count($categories ?? []); ?></h4>
-                <p>Categories</p>
-            </div>
-            <div class="stat-icon">
-                <i class="fas fa-tags"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- Search and Filters -->
-    <div class="search-card">
-        <h5><i class="fas fa-search"></i> Search and Filters</h5>
-        <form method="GET" action="<?php echo BASE_URL; ?>admin/books" class="search-form">
-            <div class="form-group">
-                <label for="search">Search Books</label>
-                <input type="text" 
-                       class="form-control" 
-                       id="search" 
-                       name="q" 
-                       value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>" 
-                       placeholder="Search by title, author, or ISBN">
-            </div>
-            
-            <div class="form-group">
-                <label for="category">Category</label>
-                <select class="form-control" id="category" name="category">
-                    <option value="">All Categories</option>
-                    <?php foreach ($categories as $cat): ?>
-                        <option value="<?php echo htmlspecialchars($cat); ?>" 
-                                <?php echo (isset($_GET['category']) && $_GET['category'] === $cat) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($cat); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="status">Status</label>
-                <select class="form-control" id="status" name="status">
-                    <option value="">All Status</option>
-                    <option value="available" <?php echo (isset($_GET['status']) && $_GET['status'] === 'available') ? 'selected' : ''; ?>>Available</option>
-                    <option value="borrowed" <?php echo (isset($_GET['status']) && $_GET['status'] === 'borrowed') ? 'selected' : ''; ?>>Out of Stock</option>
-                    <option value="trending" <?php echo (isset($_GET['status']) && $_GET['status'] === 'trending') ? 'selected' : ''; ?>>Trending</option>
-                    <option value="special" <?php echo (isset($_GET['status']) && $_GET['status'] === 'special') ? 'selected' : ''; ?>>Special</option>
-                </select>
-            </div>
-            
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> Search
-                </button>
-                <a href="<?php echo BASE_URL; ?>admin/books" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Clear
-                </a>
-            </div>
-        </form>
-    </div>
-
-    <!-- Books Table -->
-    <div class="table-card">
-        <div class="table-header">
-            <h5>
-                <i class="fas fa-list"></i> Books List
-                <span class="badge bg-primary"><?php echo count($books); ?> records</span>
-            </h5>
-            <a href="<?php echo BASE_URL; ?>admin/books/add" class="btn btn-success">
-                <i class="fas fa-plus"></i> Add New Book
-            </a>
-        </div>
-        
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Cover</th>
-                        <th>Book Details</th>
-                        <th>ISBN</th>
-                        <th>Category</th>
-                        <th>Copies</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($books)): ?>
-                        <?php foreach ($books as $book): ?>
-                            <tr>
-                                <td>
-                                    <img src="<?php echo BASE_URL; ?>public/uploads/books/<?php echo htmlspecialchars($book['bookImage'] ?? 'default-book.jpg'); ?>" 
-                                         alt="Book cover" 
-                                         class="book-img"
-                                         onerror="this.src='<?php echo BASE_URL; ?>public/assets/images/default-book.jpg'">
-                                </td>
-                                <td>
-                                    <div class="book-title"><?php echo htmlspecialchars($book['bookName']); ?></div>
-                                    <div class="book-author">by <?php echo htmlspecialchars($book['authorName']); ?></div>
-                                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <?php if ($book['isTrending']): ?>
-                                            <span class="badge bg-trending">
-                                                <i class="fas fa-fire"></i> Trending
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if ($book['isSpecial']): ?>
-                                            <span class="badge bg-special">
-                                                <i class="fas fa-star"></i> <?php echo htmlspecialchars($book['specialBadge'] ?: 'Special'); ?>
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td>
-                                    <strong><?php echo htmlspecialchars($book['isbn']); ?></strong>
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary"><?php echo htmlspecialchars($book['category']); ?></span>
-                                </td>
-                                <td>
-                                    <div><strong>Total:</strong> <?php echo $book['totalCopies']; ?></div>
-                                    <div style="color: #10b981;"><strong>Available:</strong> <?php echo $book['available']; ?></div>
-                                    <div style="color: #f59e0b;"><strong>Borrowed:</strong> <?php echo $book['borrowed'] ?? 0; ?></div>
-                                </td>
-                                <td>
-                                    <?php if ($book['available'] > 0): ?>
-                                        <span class="badge bg-available">
-                                            <i class="fas fa-check"></i> Available
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="badge bg-unavailable">
-                                            <i class="fas fa-times"></i> Out of Stock
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button type="button" 
-                                                class="btn btn-info btn-sm" 
-                                                onclick="viewBookDetails('<?php echo htmlspecialchars($book['isbn']); ?>')">
-                                            <i class="fas fa-eye"></i> View
-                                        </button>
-                                        <a href="<?php echo BASE_URL; ?>admin/books/edit?isbn=<?php echo urlencode($book['isbn']); ?>" 
-                                           class="btn btn-warning btn-sm">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <button type="button" 
-                                                class="btn btn-danger btn-sm" 
-                                                onclick="deleteBook('<?php echo htmlspecialchars($book['isbn']); ?>', '<?php echo htmlspecialchars($book['bookName']); ?>')">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="7">
-                                <div class="empty-state">
-                                    <i class="fas fa-book"></i>
-                                    <h3>No books found</h3>
-                                    <p>Start by adding your first book to the library</p>
-                                    <a href="<?php echo BASE_URL; ?>admin/books/add" class="btn btn-primary" style="margin-top: 1rem;">
-                                        <i class="fas fa-plus"></i> Add Your First Book
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Pagination -->
-    <?php if (isset($pagination) && $pagination['totalPages'] > 1): ?>
-        <div style="display: flex; justify-content: center; margin-top: 2rem; gap: 0.5rem;">
-            <?php if ($pagination['page'] > 1): ?>
-                <a href="?page=<?php echo $pagination['page'] - 1; ?><?php echo isset($_GET['q']) ? '&q='.urlencode($_GET['q']) : ''; ?><?php echo isset($_GET['category']) ? '&category='.urlencode($_GET['category']) : ''; ?>" 
-                   class="btn btn-secondary">
-                    <i class="fas fa-chevron-left"></i> Previous
-                </a>
-            <?php endif; ?>
-            
-            <?php for ($i = 1; $i <= $pagination['totalPages']; $i++): ?>
-                <a href="?page=<?php echo $i; ?><?php echo isset($_GET['q']) ? '&q='.urlencode($_GET['q']) : ''; ?><?php echo isset($_GET['category']) ? '&category='.urlencode($_GET['category']) : ''; ?>" 
-                   class="btn <?php echo $i === $pagination['page'] ? 'btn-primary' : 'btn-secondary'; ?>">
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
-            
-            <?php if ($pagination['page'] < $pagination['totalPages']): ?>
-                <a href="?page=<?php echo $pagination['page'] + 1; ?><?php echo isset($_GET['q']) ? '&q='.urlencode($_GET['q']) : ''; ?><?php echo isset($_GET['category']) ? '&category='.urlencode($_GET['category']) : ''; ?>" 
-                   class="btn btn-secondary">
-                    Next <i class="fas fa-chevron-right"></i>
-                </a>
-            <?php endif; ?>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- Book Details Modal -->
-<div class="modal fade" id="bookDetailsModal" tabindex="-1" style="display: none;">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border-radius: 12px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <h5 class="modal-title"><i class="fas fa-book"></i> Book Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="closeModal('bookDetailsModal')"></button>
-            </div>
-            <div class="modal-body" id="bookDetailsContent">
-                <!-- Book details will be loaded here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('bookDetailsModal')">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Book Modal -->
-<div class="modal fade" id="deleteBookModal" tabindex="-1" style="display: none;">
-    <div class="modal-dialog">
-        <div class="modal-content" style="border-radius: 12px;">
-            <div class="modal-header" style="background: #ef4444; color: white;">
-                <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h5>
-                <button type="button" class="btn-close" onclick="closeModal('deleteBookModal')"></button>
-            </div>
-            <form method="POST" action="<?php echo BASE_URL; ?>admin/books/delete">
-                <div class="modal-body">
-                    <input type="hidden" name="isbn" id="deleteIsbn">
-                    <p>Are you sure you want to delete "<strong id="deleteBookName"></strong>"?</p>
-                    <div class="alert alert-error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Warning:</strong> This action cannot be undone. The book must not have any active borrows.
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2">Total Books</h6>
+                            <h3 class="mb-0"><?= $stats['totalBooks'] ?? 0 ?></h3>
+                        </div>
+                        <i class="fas fa-book fa-2x opacity-50"></i>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('deleteBookModal')">Cancel</button>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Delete Book
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2">Available</h6>
+                            <h3 class="mb-0"><?= $stats['availableBooks'] ?? 0 ?></h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2">Borrowed</h6>
+                            <h3 class="mb-0"><?= $stats['borrowedBooks'] ?? 0 ?></h3>
+                        </div>
+                        <i class="fas fa-exchange-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2">Publishers</h6>
+                            <h3 class="mb-0"><?= $stats['categories'] ?? 0 ?></h3>
+                        </div>
+                        <i class="fas fa-building fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="<?= BASE_URL ?>admin/books" class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="q" placeholder="Search by title, author, ISBN..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Publisher</label>
+                    <select class="form-select" name="category">
+                        <option value="">All Publishers</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>" <?= (($_GET['category'] ?? '') === $cat) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($cat) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All Status</option>
+                        <option value="available" <?= (($_GET['status'] ?? '') === 'available') ? 'selected' : '' ?>>Available</option>
+                        <option value="borrowed" <?= (($_GET['status'] ?? '') === 'borrowed') ? 'selected' : '' ?>>Borrowed</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Filter
                     </button>
                 </div>
             </form>
         </div>
     </div>
-    
+
+    <!-- Books Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Cover</th>
+                            <th>ISBN</th>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Publisher</th>
+                            <th>Total</th>
+                            <th>Available</th>
+                            <th>Borrowed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($books)): ?>
+                            <tr>
+                                <td colspan="9" class="text-center py-4">
+                                    <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted mb-0">No books found</p>
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($books as $book): ?>
+                                <tr>
+                                    <td>
+                                        <?php if (!empty($book['bookImage'])): ?>
+                                            <img src="<?= BASE_URL ?>public/uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
+                                                 alt="<?= htmlspecialchars($book['bookName']) ?>" 
+                                                 class="img-thumbnail" 
+                                                 style="width: 50px; height: 70px; object-fit: cover;"
+                                                 onerror="this.src='<?= BASE_URL ?>public/assets/images/default-book.jpg'">
+                                        <?php else: ?>
+                                            <div class="bg-secondary d-flex align-items-center justify-content-center" 
+                                                 style="width: 50px; height: 70px; border-radius: 4px;">
+                                                <i class="fas fa-book text-white"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($book['isbn']) ?></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($book['bookName']) ?></strong>
+                                        <?php if (!empty($book['isTrending'])): ?>
+                                            <span class="badge bg-danger ms-1">
+                                                <i class="fas fa-fire"></i> Trending
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($book['isSpecial'])): ?>
+                                            <span class="badge bg-success ms-1">
+                                                <i class="fas fa-star"></i> <?= htmlspecialchars($book['specialBadge'] ?? 'Special') ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($book['authorName']) ?></td>
+                                    <td><?= htmlspecialchars($book['publisherName']) ?></td>
+                                    <td><?= htmlspecialchars($book['totalCopies']) ?></td>
+                                    <td>
+                                        <?php if ($book['available'] > 0): ?>
+                                            <span class="badge bg-success"><?= $book['available'] ?></span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger">0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning"><?= $book['borrowed'] ?? 0 ?></span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-info" onclick="viewBook('<?= htmlspecialchars($book['isbn']) ?>')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick='openEditModal(<?= json_encode($book) ?>)'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteBook('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars(addslashes($book['bookName'])) ?>')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <?php if ($pagination['totalPages'] > 1): ?>
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item <?= ($pagination['page'] <= 1) ? 'disabled' : '' ?>">
+                            <a class="page-link" href="?page=<?= $pagination['page'] - 1 ?><?= !empty($_GET['q']) ? '&q=' . urlencode($_GET['q']) : '' ?><?= !empty($_GET['category']) ? '&category=' . urlencode($_GET['category']) : '' ?><?= !empty($_GET['status']) ? '&status=' . urlencode($_GET['status']) : '' ?>">
+                                Previous
+                            </a>
+                        </li>
+                        
+                        <?php for ($i = 1; $i <= $pagination['totalPages']; $i++): ?>
+                            <?php if ($i == 1 || $i == $pagination['totalPages'] || ($i >= $pagination['page'] - 2 && $i <= $pagination['page'] + 2)): ?>
+                                <li class="page-item <?= ($i == $pagination['page']) ? 'active' : '' ?>">
+                                    <a class="page-link" href="?page=<?= $i ?><?= !empty($_GET['q']) ? '&q=' . urlencode($_GET['q']) : '' ?><?= !empty($_GET['category']) ? '&category=' . urlencode($_GET['category']) : '' ?><?= !empty($_GET['status']) ? '&status=' . urlencode($_GET['status']) : '' ?>">
+                                        <?= $i ?>
+                                    </a>
+                                </li>
+                            <?php elseif ($i == $pagination['page'] - 3 || $i == $pagination['page'] + 3): ?>
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        
+                        <li class="page-item <?= ($pagination['page'] >= $pagination['totalPages']) ? 'disabled' : '' ?>">
+                            <a class="page-link" href="?page=<?= $pagination['page'] + 1 ?><?= !empty($_GET['q']) ? '&q=' . urlencode($_GET['q']) : '' ?><?= !empty($_GET['category']) ? '&category=' . urlencode($_GET['category']) : '' ?><?= !empty($_GET['status']) ? '&status=' . urlencode($_GET['status']) : '' ?>">
+                                Next
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal fade" id="addBookModal" tabindex="-1" aria-labelledby="addBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addBookModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Add New Book
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">&times;</button>
+            </div>
+            <form id="addBookForm" enctype="multipart/form-data" onsubmit="return handleAddBook(event)">
+                <div class="modal-body">
+                    <div class="row g-9">
+                        <div class="col-md-6">
+                            <label for="add_isbn" class="form-label">
+                                ISBN <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="add_isbn" 
+                                   name="isbn" 
+                                   required 
+                                   maxlength="13" 
+                                   pattern="[0-9]{10,13}"
+                                   placeholder="Enter 10 or 13 digit ISBN">
+                            <small class="text-muted">10 or 13 digit ISBN number</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_bookName" class="form-label">
+                                Book Title <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="add_bookName" 
+                                   name="bookName" 
+                                   required 
+                                   maxlength="255"
+                                   placeholder="Enter book title">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_author" class="form-label">
+                                Author <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="add_author" 
+                                   name="authorName" 
+                                   required 
+                                   maxlength="255"
+                                   placeholder="Enter author name">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_publisher" class="form-label">
+                                Publisher <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="add_publisher" 
+                                   name="publisherName" 
+                                   required 
+                                   maxlength="255"
+                                   placeholder="Enter publisher name">
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="add_description" class="form-label">Description</label>
+                            <textarea class="form-control" 
+                                      id="add_description" 
+                                      name="description" 
+                                      rows="5" 
+                                      maxlength="1000"
+                                      placeholder="Enter book description (optional)"></textarea>
+                            <small class="text-muted">Maximum 1000 characters</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_totalCopies" class="form-label">
+                                Total Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="add_totalCopies" 
+                                   name="totalCopies" 
+                                   required 
+                                   min="1" 
+                                   value="1">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_coverImage" class="form-label">
+                                Cover Image
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="add_coverImage" 
+                                   name="coverImage" 
+                                   accept="image/jpeg,image/jpg,image/png,image/gif,image/webp">
+                            <small class="text-muted">Max 5MB. JPG, PNG, GIF, WebP</small>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div id="add_imagePreview" style="display: none;">
+                                <label class="form-label">Preview:</label>
+                                <div class="text-center">
+                                    <img id="add_previewImage" 
+                                         src="" 
+                                         alt="Preview" 
+                                         class="img-thumbnail" 
+                                         style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="addBookBtn">
+                        <i class="fas fa-save me-2"></i>Add Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Book Modal -->
+<div class="modal fade" id="editBookModal" tabindex="-1" aria-labelledby="editBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="editBookModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Book
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editBookForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" id="edit_isbn" name="isbn">
+                    
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label for="edit_isbn_display" class="form-label">ISBN</label>
+                            <input type="text" class="form-control" id="edit_isbn_display" disabled>
+                            <small class="text-muted">ISBN cannot be changed</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_bookName" class="form-label">
+                                Book Title <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="edit_bookName" name="bookName" required maxlength="255">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_author" class="form-label">
+                                Author <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="edit_author" name="authorName" required maxlength="255">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_publisher" class="form-label">
+                                Publisher <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="edit_publisher" name="publisherName" required maxlength="255">
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="edit_description" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description" name="description" rows="5" maxlength="1000"></textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_totalCopies" class="form-label">
+                                Total Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="edit_totalCopies" name="totalCopies" required min="1">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_available" class="form-label">
+                                Available Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="edit_available" name="available" required min="0">
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="edit_coverImage" class="form-label">Cover Image</label>
+                            <input type="file" class="form-control" id="edit_coverImage" name="coverImage" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp">
+                            <small class="text-muted">Leave empty to keep current image. Max 5MB.</small>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div id="edit_currentImage" style="display: none;">
+                                <label class="form-label">Current Cover:</label>
+                                <div class="text-center">
+                                    <img id="edit_currentImageDisplay" src="" alt="Current Cover" class="img-thumbnail" style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                                </div>
+                            </div>
+                            
+                            <div id="edit_imagePreview" style="display: none;">
+                                <label class="form-label">New Cover Preview:</label>
+                                <div class="text-center">
+                                    <img id="edit_previewImage" src="" alt="Preview" class="img-thumbnail" style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
-function viewBookDetails(isbn) {
-    fetch('<?php echo BASE_URL; ?>admin/books/api/details?isbn=' + encodeURIComponent(isbn))
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert('Failed to load book details');
-                return;
-            }
-            
-            const content = `
-                <div style="display: grid; grid-template-columns: 200px 1fr; gap: 2rem;">
-                    <div>
-                        <img src="<?php echo BASE_URL; ?>public/uploads/books/${data.bookImage || 'default-book.jpg'}" 
-                             alt="Book cover" 
-                             style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    </div>
-                    <div>
-                        <h3 style="margin-top: 0;">${data.bookName}</h3>
-                        <p><strong>Author:</strong> ${data.authorName}</p>
-                        <p><strong>Publisher:</strong> ${data.publisherName}</p>
-                        <p><strong>ISBN:</strong> ${data.isbn}</p>
-                        <p><strong>Category:</strong> ${data.category}</p>
-                        <p><strong>Description:</strong> ${data.description || 'No description available'}</p>
-                        <hr>
-                        <p><strong>Total Copies:</strong> ${data.totalCopies}</p>
-                        <p><strong>Available:</strong> ${data.available}</p>
-                        <p><strong>Borrowed:</strong> ${data.borrowed || 0}</p>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('bookDetailsContent').innerHTML = content;
-            showModal('bookDetailsModal');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to load book details');
-        });
-}
-
-function deleteBook(isbn, bookName) {
-    document.getElementById('deleteIsbn').value = isbn;
-    document.getElementById('deleteBookName').textContent = bookName;
-    showModal('deleteBookModal');
-}
-
-function showModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.background = 'rgba(0, 0, 0, 0.5)';
-    modal.style.zIndex = '1000';
-    modal.classList.add('show');
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.style.display = 'none';
-    modal.classList.remove('show');
-}
-
-// Close modal on background click
-document.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        closeModal(event.target.id);
+// Image preview for Add form
+document.getElementById('add_coverImage').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 5242880) {
+            alert('File size must be less than 5MB');
+            this.value = '';
+            document.getElementById('add_imagePreview').style.display = 'none';
+            return;
+        }
+        
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
+            this.value = '';
+            document.getElementById('add_imagePreview').style.display = 'none';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('add_previewImage').src = event.target.result;
+            document.getElementById('add_imagePreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        document.getElementById('add_imagePreview').style.display = 'none';
     }
 });
+
+// Handle Add Book Form Submission
+function handleAddBook(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const submitBtn = document.getElementById('addBookBtn');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
+    
+    fetch('<?= BASE_URL ?>admin/books/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Book added successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            alert(data.message || 'Failed to add book');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    });
+    
+    return false;
+}
+
+// Validate available copies
+document.getElementById('edit_available').addEventListener('input', function() {
+    const totalCopies = parseInt(document.getElementById('edit_totalCopies').value);
+    const availableCopies = parseInt(this.value);
+    
+    if (availableCopies > totalCopies) {
+        this.setCustomValidity('Available copies cannot exceed total copies');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+document.getElementById('edit_totalCopies').addEventListener('input', function() {
+    const availableCopies = parseInt(document.getElementById('edit_available').value);
+    const totalCopies = parseInt(this.value);
+    
+    if (availableCopies > totalCopies) {
+        document.getElementById('edit_available').setCustomValidity('Available copies cannot exceed total copies');
+    } else {
+        document.getElementById('edit_available').setCustomValidity('');
+    }
+});
+
+// Open Edit Modal with book data
+function openEditModal(book) {
+    // Populate form fields
+    document.getElementById('edit_isbn').value = book.isbn;
+    document.getElementById('edit_isbn_display').value = book.isbn;
+    document.getElementById('edit_bookName').value = book.bookName;
+    document.getElementById('edit_author').value = book.authorName;
+    document.getElementById('edit_publisher').value = book.publisherName;
+    document.getElementById('edit_description').value = book.description || '';
+    document.getElementById('edit_totalCopies').value = book.totalCopies;
+    document.getElementById('edit_available').value = book.available;
+    
+    // Show current image if exists
+    if (book.bookImage) {
+        document.getElementById('edit_currentImageDisplay').src = '<?= BASE_URL ?>public/uploads/books/' + book.bookImage;
+        document.getElementById('edit_currentImage').style.display = 'block';
+    } else {
+        document.getElementById('edit_currentImage').style.display = 'none';
+    }
+    
+    // Hide preview
+    document.getElementById('edit_imagePreview').style.display = 'none';
+    document.getElementById('edit_coverImage').value = '';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editBookModal'));
+    modal.show();
+}
+
+// Handle Edit Book Form Submission
+document.getElementById('editBookForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+    
+    fetch('<?= BASE_URL ?>admin/books/edit', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('editBookModal')).hide();
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showAlert('danger', data.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'An error occurred. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    });
+});
+
+// Delete Book
+function deleteBook(isbn, bookName) {
+    if (!confirm(`Are you sure you want to delete "${bookName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('isbn', isbn);
+    
+    fetch('<?= BASE_URL ?>admin/books/delete', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'An error occurred. Please try again.');
+    });
+}
+
+// Show Alert
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Reset form when modal is closed
+document.getElementById('addBookModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('addBookForm').reset();
+    document.getElementById('add_imagePreview').style.display = 'none';
+});
+
+document.getElementById('editBookModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('editBookForm').reset();
+    document.getElementById('edit_imagePreview').style.display = 'none';
+    document.getElementById('edit_currentImage').style.display = 'none';
+});
 </script>
+
+<?php include APP_ROOT . '/views/layouts/footer.php'; ?>

@@ -75,7 +75,22 @@ class Router {
             return;
         }
         
-        $controllerInstance->$action();
+        try {
+            // Call the controller action
+            $controllerInstance->$action();
+        } catch (\Exception $e) {
+            // Log the error
+            error_log("Error in {$controller}::{$action} - " . $e->getMessage());
+            
+            // Show appropriate error page
+            if ($e->getCode() == 403) {
+                http_response_code(403);
+                include APP_ROOT . '/views/errors/403.php';
+            } else {
+                http_response_code(500);
+                include APP_ROOT . '/views/errors/500.php';
+            }
+        }
     }
 }
 
@@ -119,6 +134,8 @@ $router->addRoute('POST', '/user/pay-fine', 'UserController', 'payFine');
 // Admin dashboard routes
 $router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
 $router->addRoute('GET', '/admin/users', 'AdminController', 'users');
+$router->addRoute('POST', '/admin/users/add', 'AdminController', 'addUser');
+$router->addRoute('POST', '/admin/users/edit', 'AdminController', 'editUser');
 $router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
 $router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
 $router->addRoute('GET', '/admin/settings', 'AdminController', 'settings');
@@ -137,12 +154,12 @@ $router->addRoute('POST', '/admin/borrow-requests/handle', 'AdminController', 'h
 $router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
 $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
 
-// Admin book management routes
+// Admin book management routes - UPDATED
 $router->addRoute('GET', '/admin/books', 'BookController', 'adminBooks');
 $router->addRoute('GET', '/admin/books/add', 'BookController', 'addBook');
-$router->addRoute('POST', '/admin/books/add', 'BookController', 'createBook');
+$router->addRoute('POST', '/admin/books/add', 'BookController', 'addBook');
 $router->addRoute('GET', '/admin/books/edit', 'BookController', 'editBook');
-$router->addRoute('POST', '/admin/books/edit', 'BookController', 'updateBook');
+$router->addRoute('POST', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/delete', 'BookController', 'deleteBook');
 
 // Public book browsing routes (accessible without login)

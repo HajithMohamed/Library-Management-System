@@ -27,288 +27,294 @@ class BookController {
      * Display book management page for admins
      */
     public function adminBooks() {
-        // Ensure user is admin
-        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+        // Ensure user is logged in
+        if (!isset($_SESSION['userId'])) {
+            $_SESSION['error'] = 'Please login to access this page';
+            header('Location: ' . BASE_URL . 'login');
+            exit();
+        }
+        
+        // Ensure user is admin (case-insensitive check)
+        $userType = strtolower($_SESSION['userType'] ?? '');
+        if ($userType !== 'admin') {
+            $_SESSION['error'] = 'You do not have permission to access this page. Admin access required.';
+            error_log("Access denied to books page. User type: " . $_SESSION['userType'] . ", User ID: " . $_SESSION['userId']);
             header('Location: ' . BASE_URL . '403');
             exit();
         }
         
         try {
-            // Get books without pagination for simplicity
-            $booksData = $this->bookService->getAllBooks();
+            // Get pagination parameters
+            $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+            $perPage = 12;
             
-            // Check if we have the books property in the returned data
-            if (isset($booksData['books'])) {
-                $books = $booksData['books'];
-            } else {
-                // Fall back to using the bookModel directly if needed
-                $books = $this->bookModel->getAllBooks();
+            // Get search parameters
+            $search = $_GET['q'] ?? '';
+            $category = $_GET['category'] ?? '';
+            $status = $_GET['status'] ?? '';
+            
+            // Get books with pagination
+            $result = $this->bookService->getAllBooks($page, $perPage);
+            
+            // Extract books array from result
+            $books = $result['books'] ?? [];
+            
+            // Set up pagination
+            $pagination = [
+                'page' => $result['page'] ?? $page,
+                'perPage' => $result['perPage'] ?? $perPage,
+                'total' => $result['total'] ?? 0,
+                'totalPages' => $result['totalPages'] ?? 1
+            ];
+            
+            // Get all categories for filter dropdown
+            $categories = $this->bookService->getCategories();
+            if (!is_array($categories)) {
+                $categories = [];
             }
             
-            // Verify $books is an array
-            if (!is_array($books)) {
-                $books = [];
-                error_log("Invalid books data returned from service: " . print_r($books, true));
+            // Calculate statistics
+            $stats = [
+                'totalBooks' => $pagination['total'],
+                'availableBooks' => 0,
+                'borrowedBooks' => 0,
+                'categories' => count($categories)
+            ];
+            
+            // Calculate available and borrowed books
+            foreach ($books as $book) {
+                if (isset($book['available'])) {
+                    $stats['availableBooks'] += (int)$book['available'];
+                }
+                if (isset($book['borrowed'])) {
+                    $stats['borrowedBooks'] += (int)$book['borrowed'];
+                }
             }
             
-            $pageTitle = 'Manage Books';
-            $currentPage = 'books';
-            $contentView = APP_ROOT . '/views/admin/books.php';
+            // Set page title
+            $pageTitle = 'Books Management';
             
-            include APP_ROOT . '/views/admin/layout.php';
+            // Load admin book view
+            include APP_ROOT . '/views/admin/books.php';
+            
         } catch (\Exception $e) {
             error_log("Error in adminBooks: " . $e->getMessage());
-            $_SESSION['error'] = 'An error occurred while loading books. Please try again.';
+            error_log("Stack trace: " . $e->getTraceAsString());
+            $_SESSION['error'] = 'Error loading books: ' . $e->getMessage();
             header('Location: ' . BASE_URL . 'admin/dashboard');
             exit();
         }
     }
     
-    // Display all books
-    public function index() {
-        // Get filters from request
-        $filters = [];
-        if(isset($_GET['category'])) {
-            $filters['category'] = $_GET['category'];
+    /**
+     * Add a new book (GET: show form, POST: process form)
+     */
+    public function addBook() {
+        // Check admin permission
+        if (!isset($_SESSION['userId']) || strtolower($_SESSION['userType'] ?? '') !== 'admin') {
+            http_response_code(403);
+            header('Location: ' . BASE_URL . '403');
+            exit();
         }
-        if(isset($_GET['search'])) {
-            $filters['search'] = $_GET['search'];
-        }
-        if(isset($_GET['trending'])) {
-            $filters['is_trending'] = true;
-        }
-        if(isset($_GET['featured'])) {
-            $filters['is_featured'] = true;
-        }
-
-        $result = $this->book->read($filters);
-        $books = $result->fetchAll(PDO::FETCH_ASSOC);
         
-        // Get categories for filter
-        $categoriesResult = $this->book->getCategories();
-        $categories = $categoriesResult->fetchAll(PDO::FETCH_COLUMN);
-
-        require_once __DIR__ . '/../views/books/index.php';
-    }
-
-    // Show single book
-    public function show($id) {
-        $this->book->id = $id;
-        
-        if($this->book->readOne()) {
-            require_once __DIR__ . '/../views/books/show.php';
-        } else {
-            $_SESSION['error'] = "Book not found";
-            header('Location: /books');
-            exit();
-        }
-    }
-
-    // Show create form
-    public function create() {
-        require_once __DIR__ . '/../views/books/create.php';
-    }
-
-    // Store new book
-    public function store() {
-        if($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: /books/create');
-            exit();
-        }
-
-        // Handle image upload
-        $coverImage = $this->handleImageUpload();
-
-        // Set book properties
-        $this->book->title = $_POST['title'] ?? '';
-        $this->book->author = $_POST['author'] ?? '';
-        $this->book->isbn = $_POST['isbn'] ?? '';
-        $this->book->publisher = $_POST['publisher'] ?? '';
-        $this->book->published_year = $_POST['published_year'] ?? null;
-        $this->book->category = $_POST['category'] ?? '';
-        $this->book->description = $_POST['description'] ?? '';
-        $this->book->cover_image = $coverImage;
-        $this->book->total_copies = $_POST['total_copies'] ?? 1;
-        $this->book->available_copies = $_POST['total_copies'] ?? 1;
-        $this->book->is_trending = isset($_POST['is_trending']) ? 1 : 0;
-        $this->book->is_featured = isset($_POST['is_featured']) ? 1 : 0;
-        $this->book->special_tag = $_POST['special_tag'] ?? null;
-
-        if($this->book->create()) {
-            $_SESSION['success'] = "Book created successfully!";
-            header('Location: /books');
-            exit();
-        } else {
-            $_SESSION['error'] = "Failed to create book";
-            header('Location: /books/create');
-            exit();
-        }
-    }
-
-    // Show edit form
-    public function edit($id) {
-        $this->book->id = $id;
-        
-        if($this->book->readOne()) {
-            require_once __DIR__ . '/../views/books/edit.php';
-        } else {
-            $_SESSION['error'] = "Book not found";
-            header('Location: /books');
-            exit();
-        }
-    }
-
-    // Update book
-    public function update($id) {
-        if($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header('Location: /books/' . $id . '/edit');
-            exit();
-        }
-
-        $this->book->id = $id;
-        
-        if(!$this->book->readOne()) {
-            $_SESSION['error'] = "Book not found";
-            header('Location: /books');
-            exit();
-        }
-
-        // Handle image upload (if new image provided)
-        $coverImage = $this->handleImageUpload();
-        if($coverImage) {
-            // Delete old image if exists
-            if($this->book->cover_image && file_exists(__DIR__ . '/../../public/assets/uploads/' . $this->book->cover_image)) {
-                unlink(__DIR__ . '/../../public/assets/uploads/' . $this->book->cover_image);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            
+            try {
+                // Validate required fields
+                $required = ['isbn', 'bookName', 'author', 'publisher', 'totalCopies'];
+                foreach ($required as $field) {
+                    if (empty($_POST[$field])) {
+                        echo json_encode(['success' => false, 'message' => ucfirst($field) . ' is required']);
+                        exit();
+                    }
+                }
+                
+                // Create book data
+                $bookData = [
+                    'isbn' => trim($_POST['isbn']),
+                    'bookName' => trim($_POST['bookName']),
+                    'authorName' => trim($_POST['author']),
+                    'publisherName' => trim($_POST['publisher']),
+                    'totalCopies' => (int)$_POST['totalCopies'],
+                    'available' => (int)$_POST['totalCopies'],
+                    'borrowed' => 0,
+                    'description' => trim($_POST['description'] ?? ''),
+                ];
+                
+                // Handle file upload
+                if (isset($_FILES['coverImage']) && $_FILES['coverImage']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = APP_ROOT . '/public/uploads/books/';
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $extension = pathinfo($_FILES['coverImage']['name'], PATHINFO_EXTENSION);
+                    $filename = $bookData['isbn'] . '_' . time() . '.' . $extension;
+                    
+                    if (move_uploaded_file($_FILES['coverImage']['tmp_name'], $uploadDir . $filename)) {
+                        $bookData['bookImage'] = $filename;
+                    }
+                }
+                
+                // Add book
+                if ($this->bookService->addBook($bookData)) {
+                    echo json_encode(['success' => true, 'message' => 'Book added successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to add book']);
+                }
+                
+            } catch (\Exception $e) {
+                error_log("Error adding book: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
             }
-            $this->book->cover_image = $coverImage;
-        }
-
-        // Update book properties
-        $this->book->title = $_POST['title'] ?? '';
-        $this->book->author = $_POST['author'] ?? '';
-        $this->book->isbn = $_POST['isbn'] ?? '';
-        $this->book->publisher = $_POST['publisher'] ?? '';
-        $this->book->published_year = $_POST['published_year'] ?? null;
-        $this->book->category = $_POST['category'] ?? '';
-        $this->book->description = $_POST['description'] ?? '';
-        $this->book->total_copies = $_POST['total_copies'] ?? 1;
-        $this->book->available_copies = $_POST['available_copies'] ?? 1;
-        $this->book->is_trending = isset($_POST['is_trending']) ? 1 : 0;
-        $this->book->is_featured = isset($_POST['is_featured']) ? 1 : 0;
-        $this->book->special_tag = $_POST['special_tag'] ?? null;
-
-        if($this->book->update()) {
-            $_SESSION['success'] = "Book updated successfully!";
-            header('Location: /books/' . $id);
-            exit();
-        } else {
-            $_SESSION['error'] = "Failed to update book";
-            header('Location: /books/' . $id . '/edit');
             exit();
         }
     }
-
-    // Delete book
-    public function delete($id) {
-        $this->book->id = $id;
-        
-        if(!$this->book->readOne()) {
-            $_SESSION['error'] = "Book not found";
-            header('Location: /books');
+    
+    /**
+     * Edit a book (GET: show form, POST: process form)
+     */
+    public function editBook() {
+        // Check admin permission
+        if (!isset($_SESSION['userId']) || strtolower($_SESSION['userType'] ?? '') !== 'admin') {
+            http_response_code(403);
+            header('Location: ' . BASE_URL . '403');
             exit();
         }
-
-        // Delete book image if exists
-        if($this->book->cover_image && file_exists(__DIR__ . '/../../public/assets/uploads/' . $this->book->cover_image)) {
-            unlink(__DIR__ . '/../../public/assets/uploads/' . $this->book->cover_image);
-        }
-
-        if($this->book->delete()) {
-            $_SESSION['success'] = "Book deleted successfully!";
-        } else {
-            $_SESSION['error'] = "Failed to delete book";
-        }
-
-        header('Location: /books');
-        exit();
-    }
-
-    // Toggle trending status
-    public function toggleTrending($id) {
-        $this->book->id = $id;
         
-        if($this->book->toggleTrending()) {
-            $_SESSION['success'] = "Trending status updated!";
-        } else {
-            $_SESSION['error'] = "Failed to update trending status";
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            
+            try {
+                $isbn = trim($_POST['isbn'] ?? '');
+                if (empty($isbn)) {
+                    echo json_encode(['success' => false, 'message' => 'ISBN is required']);
+                    exit();
+                }
+                
+                // Create update data
+                $bookData = [
+                    'bookName' => trim($_POST['bookName']),
+                    'authorName' => trim($_POST['author']),
+                    'publisherName' => trim($_POST['publisher']),
+                    'totalCopies' => (int)$_POST['totalCopies'],
+                    'available' => (int)$_POST['available'],
+                    'description' => trim($_POST['description'] ?? ''),
+                ];
+                
+                // Handle file upload
+                if (isset($_FILES['coverImage']) && $_FILES['coverImage']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = APP_ROOT . '/public/uploads/books/';
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $extension = pathinfo($_FILES['coverImage']['name'], PATHINFO_EXTENSION);
+                    $filename = $isbn . '_' . time() . '.' . $extension;
+                    
+                    if (move_uploaded_file($_FILES['coverImage']['tmp_name'], $uploadDir . $filename)) {
+                        $bookData['bookImage'] = $filename;
+                    }
+                }
+                
+                // Update book
+                if ($this->bookService->updateBook($isbn, $bookData)) {
+                    echo json_encode(['success' => true, 'message' => 'Book updated successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to update book']);
+                }
+                
+            } catch (\Exception $e) {
+                error_log("Error updating book: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+            }
+            exit();
         }
-
-        header('Location: /books');
-        exit();
     }
-
-    // Toggle featured status
-    public function toggleFeatured($id) {
-        $this->book->id = $id;
+    
+    /**
+     * Delete a book
+     */
+    public function deleteBook() {
+        // Check admin permission
+        if (!isset($_SESSION['userId']) || strtolower($_SESSION['userType'] ?? '') !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            exit();
+        }
         
-        if($this->book->toggleFeatured()) {
-            $_SESSION['success'] = "Featured status updated!";
-        } else {
-            $_SESSION['error'] = "Failed to update featured status";
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            
+            try {
+                $isbn = trim($_POST['isbn'] ?? '');
+                if (empty($isbn)) {
+                    echo json_encode(['success' => false, 'message' => 'ISBN is required']);
+                    exit();
+                }
+                
+                // Delete book
+                if ($this->bookService->deleteBook($isbn)) {
+                    echo json_encode(['success' => true, 'message' => 'Book deleted successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to delete book. It may have active transactions.']);
+                }
+                
+            } catch (\Exception $e) {
+                error_log("Error deleting book: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+            }
+            exit();
         }
-
-        header('Location: /books');
-        exit();
     }
-
-    // Handle image upload
+    
+    /**
+     * Handle image upload
+     */
     private function handleImageUpload() {
-        if(!isset($_FILES['cover_image']) || $_FILES['cover_image']['error'] === UPLOAD_ERR_NO_FILE) {
+        if (!isset($_FILES['coverImage']) || $_FILES['coverImage']['error'] === UPLOAD_ERR_NO_FILE) {
             return null;
         }
-
-        $file = $_FILES['cover_image'];
-
+        
+        $file = $_FILES['coverImage'];
+        
         // Check for upload errors
-        if($file['error'] !== UPLOAD_ERR_OK) {
-            $_SESSION['error'] = "File upload error";
+        if ($file['error'] !== UPLOAD_ERR_OK) {
             return null;
         }
-
+        
         // Validate file type
         $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mimeType = finfo_file($finfo, $file['tmp_name']);
         finfo_close($finfo);
-
-        if(!in_array($mimeType, $allowedTypes)) {
-            $_SESSION['error'] = "Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.";
+        
+        if (!in_array($mimeType, $allowedTypes)) {
             return null;
         }
-
+        
         // Validate file size (5MB max)
-        if($file['size'] > 5242880) {
-            $_SESSION['error'] = "File too large. Maximum size is 5MB.";
+        if ($file['size'] > 5242880) {
             return null;
         }
-
+        
         // Create uploads directory if it doesn't exist
-        $uploadDir = __DIR__ . '/../../public/assets/uploads/';
-        if(!is_dir($uploadDir)) {
+        $uploadDir = APP_ROOT . '/public/assets/uploads/';
+        if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
-
+        
         // Generate unique filename
         $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = uniqid('book_', true) . '.' . $extension;
         $destination = $uploadDir . $filename;
-
+        
         // Move uploaded file
-        if(move_uploaded_file($file['tmp_name'], $destination)) {
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
             return $filename;
-        } else {
-            $_SESSION['error'] = "Failed to upload file";
-            return null;
         }
+        
+        return null;
     }
 }

@@ -33,7 +33,7 @@ class AuthController
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      $username = $_POST['username'] ?? '';
+      $username = trim($_POST['username'] ?? '');
       $password = $_POST['password'] ?? '';
 
       if (empty($username) || empty($password)) {
@@ -57,7 +57,7 @@ class AuthController
         // Verified user -> set session and redirect by role
         $_SESSION['userId'] = $user['userId'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['userType'] = $user['userType'];
+        $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
         $_SESSION['emailId'] = $user['emailId'];
 
         $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
@@ -72,11 +72,11 @@ class AuthController
     }
   }
 
-// In src/controllers/AuthController.php
-// Replace the signup() method with this fixed version:
-
-public function signup()
-{
+  /**
+   * Signup method
+   */
+  public function signup()
+  {
     // Redirect if already logged in
     if ($this->authHelper->isLoggedIn()) {
         $this->authHelper->redirectByUserType();
@@ -156,7 +156,7 @@ public function signup()
         // Show signup form
         $this->render('auth/signup');
     }
-}
+  }
 
   /**
    * Logout user
@@ -408,5 +408,58 @@ public function signup()
   {
     header('Location: ' . BASE_URL . ltrim($url, '/'));
     exit;
+  }
+
+  /**
+   * Show 403 Forbidden page
+   */
+  public function show403()
+  {
+      http_response_code(403);
+      $pageTitle = 'Access Denied - 403';
+      include APP_ROOT . '/views/errors/403.php';
+  }
+
+  /**
+   * Show 404 Not Found page
+   */
+  public function show404()
+  {
+      http_response_code(404);
+      $pageTitle = 'Page Not Found - 404';
+      include APP_ROOT . '/views/errors/404.php';
+  }
+
+  /**
+   * Health check endpoint
+   */
+  public function healthCheck()
+  {
+      header('Content-Type: application/json');
+      echo json_encode([
+          'status' => 'ok',
+          'timestamp' => date('Y-m-d H:i:s'),
+          'database' => 'connected'
+      ]);
+      exit();
+  }
+
+  /**
+   * System status endpoint
+   */
+  public function systemStatus()
+  {
+      global $conn;
+      
+      $status = [
+          'system' => 'online',
+          'database' => $conn ? 'connected' : 'disconnected',
+          'php_version' => phpversion(),
+          'timestamp' => date('Y-m-d H:i:s')
+      ];
+      
+      header('Content-Type: application/json');
+      echo json_encode($status);
+      exit();
   }
 }
