@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Notifications Management';
-include APP_ROOT . '/views/layouts/header.php';
+include APP_ROOT . '/views/layouts/admin-header.php';
 ?>
 
 <div class="container-fluid">
