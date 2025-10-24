@@ -1069,10 +1069,12 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </div>
             </div>
 
-            <!-- Footer -->
-            <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+     
+           
 
         </div>
+               <!-- Footer -->
+ <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
     </main>
 </div>
 

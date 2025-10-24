@@ -1141,6 +1141,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </div>
             </div>
         </div>
+        <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
     </main>
 </div>
 
@@ -1725,4 +1726,4 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 
- <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+ 

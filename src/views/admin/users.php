@@ -1,8 +1,6 @@
 <?php
 $pageTitle = 'Users Management';
 include APP_ROOT . '/views/layouts/admin-header.php';
-
-// Get current admin's userId to prevent self-deletion
 $currentAdminId = $_SESSION['userId'] ?? '';
 ?>
 

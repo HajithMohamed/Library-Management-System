@@ -785,7 +785,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         <?php endif; ?>
                     </div>
                 </div>
+                 
             </div>
+             <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
         </main>
     </div>
 

@@ -922,6 +922,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             </div>
             <?php endif; ?>
         </div>
+        <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
     </main>
 </div>
 
@@ -970,5 +971,3 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         toggleMobileSidebar();
     });
 </script>
-
- <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>

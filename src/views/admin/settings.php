@@ -778,7 +778,10 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         </div>
                     </div>
                 </div>
+                
+
             </div>
+             <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
         </main>
     </div>
 
