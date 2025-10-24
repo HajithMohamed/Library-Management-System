@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Models\Book;
 use App\Services\BookService;
+use App\Helpers\BarcodeHelper;
 
 class BookController {
     private $bookService;
@@ -121,47 +122,83 @@ class BookController {
             header('Content-Type: application/json');
             
             try {
-                // Validate required fields
-                $required = ['isbn', 'bookName', 'author', 'publisher', 'totalCopies'];
-                foreach ($required as $field) {
-                    if (empty($_POST[$field])) {
-                        echo json_encode(['success' => false, 'message' => ucfirst($field) . ' is required']);
-                        exit();
+                global $conn;
+                
+                $isbn = $_POST['isbn'] ?? '';
+                $bookName = $_POST['bookName'] ?? '';
+                $authorName = $_POST['authorName'] ?? '';
+                $publisherName = $_POST['publisherName'] ?? '';
+                $description = $_POST['description'] ?? '';
+                $totalCopies = (int)($_POST['totalCopies'] ?? 1);
+                $available = (int)($_POST['available'] ?? $totalCopies);
+                
+                // Validate
+                if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
+                    echo json_encode(['success' => false, 'message' => 'All required fields must be filled']);
+                    exit();
+                }
+                
+                // Check if ISBN exists
+                $checkStmt = $conn->prepare("SELECT isbn FROM books WHERE isbn = ?");
+                $checkStmt->bind_param("s", $isbn);
+                $checkStmt->execute();
+                if ($checkStmt->get_result()->num_rows > 0) {
+                    echo json_encode(['success' => false, 'message' => 'Book with this ISBN already exists']);
+                    exit();
+                }
+                
+                // Generate barcode
+                $barcodeResult = BarcodeHelper::generateBookBarcode($isbn, $bookName, $authorName);
+                
+                if (!$barcodeResult['success']) {
+                    echo json_encode(['success' => false, 'message' => 'Failed to generate barcode: ' . $barcodeResult['error']]);
+                    exit();
+                }
+                
+                // Handle cover image upload
+                $bookImage = '';
+                if (!empty($_FILES['coverImage']['name'])) {
+                    $targetDir = APP_ROOT . '/public/uploads/books/';
+                    if (!file_exists($targetDir)) {
+                        mkdir($targetDir, 0777, true);
+                    }
+                    
+                    $imageFileType = strtolower(pathinfo($_FILES['coverImage']['name'], PATHINFO_EXTENSION));
+                    $newFileName = str_replace('-', '', $isbn) . '_' . time() . '.' . $imageFileType;
+                    $targetFile = $targetDir . $newFileName;
+                    
+                    if (move_uploaded_file($_FILES['coverImage']['tmp_name'], $targetFile)) {
+                        $bookImage = $newFileName;
                     }
                 }
                 
-                // Create book data
-                $bookData = [
-                    'isbn' => trim($_POST['isbn']),
-                    'bookName' => trim($_POST['bookName']),
-                    'authorName' => trim($_POST['author']),
-                    'publisherName' => trim($_POST['publisher']),
-                    'totalCopies' => (int)$_POST['totalCopies'],
-                    'available' => (int)$_POST['totalCopies'],
-                    'borrowed' => 0,
-                    'description' => trim($_POST['description'] ?? ''),
-                ];
+                // Insert book with barcode
+                $stmt = $conn->prepare("INSERT INTO books (isbn, barcode, bookName, authorName, publisherName, description, totalCopies, available, borrowed, bookImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)");
                 
-                // Handle file upload
-                if (isset($_FILES['coverImage']) && $_FILES['coverImage']['error'] === UPLOAD_ERR_OK) {
-                    $uploadDir = APP_ROOT . '/public/uploads/books/';
-                    if (!file_exists($uploadDir)) {
-                        mkdir($uploadDir, 0755, true);
-                    }
-                    
-                    $extension = pathinfo($_FILES['coverImage']['name'], PATHINFO_EXTENSION);
-                    $filename = $bookData['isbn'] . '_' . time() . '.' . $extension;
-                    
-                    if (move_uploaded_file($_FILES['coverImage']['tmp_name'], $uploadDir . $filename)) {
-                        $bookData['bookImage'] = $filename;
-                    }
-                }
+                $barcodeValue = $barcodeResult['barcode_value'];
                 
-                // Add book
-                if ($this->bookService->addBook($bookData)) {
-                    echo json_encode(['success' => true, 'message' => 'Book added successfully']);
+                $stmt->bind_param("ssssssiis", 
+                    $isbn, 
+                    $barcodeValue,
+                    $bookName, 
+                    $authorName, 
+                    $publisherName, 
+                    $description, 
+                    $totalCopies, 
+                    $available,
+                    $bookImage
+                );
+                
+                if ($stmt->execute()) {
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => 'Book added successfully with barcode!',
+                        'barcode' => $barcodeValue,
+                        'barcode_image' => $barcodeResult['filename'],
+                        'barcode_label' => $barcodeResult['label_filename']
+                    ]);
                 } else {
-                    echo json_encode(['success' => false, 'message' => 'Failed to add book']);
+                    echo json_encode(['success' => false, 'message' => 'Failed to add book: ' . $conn->error]);
                 }
                 
             } catch (\Exception $e) {

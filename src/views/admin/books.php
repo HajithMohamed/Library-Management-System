@@ -1111,6 +1111,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         </td>
                                         <td>
                                             <div class="action-buttons">
+                                                <!-- Add Barcode View Button -->
+                                                <?php if (!empty($book['barcode'])): ?>
+                                                <button class="btn-action" style="background: #dbeafe; color: #1e40af;" 
+                                                        onclick="viewBarcode('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars($book['barcode']) ?>', '<?= htmlspecialchars($book['bookName']) ?>')"
+                                                        title="View Barcode">
+                                                    <i class="fas fa-barcode"></i>
+                                                </button>
+                                                <?php endif; ?>
+                                                
                                                 <button class="btn-action btn-edit" 
                                                         onclick='openEditModal(<?= json_encode($book) ?>)'
                                                         title="Edit">
@@ -1364,6 +1373,52 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Barcode Modal before closing </main> -->
+<div class="modal" id="barcodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-barcode"></i>
+                    Book Barcode
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <h4 id="barcodeBookTitle" style="margin-bottom: 1rem;"></h4>
+                
+                <div style="margin: 2rem 0;">
+                    <img id="barcodeLabelImage" src="" alt="Barcode Label" style="max-width: 100%; border: 2px solid #e5e7eb; border-radius: 8px;">
+                </div>
+                
+                <div style="margin: 1rem 0;">
+                    <strong>Barcode Value:</strong>
+                    <code id="barcodeValue" style="background: #f3f4f6; padding: 0.5rem 1rem; border-radius: 4px; font-size: 1.1rem;"></code>
+                </div>
+                
+                <div style="margin: 1rem 0;">
+                    <strong>ISBN:</strong>
+                    <span id="barcodeIsbn"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary" onclick="printBarcode()">
+                    <i class="fas fa-print"></i>
+                    Print Label
+                </button>
+                <button type="button" class="btn btn-primary" onclick="downloadBarcode()">
+                    <i class="fas fa-download"></i>
+                    Download
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1724,6 +1779,50 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// View Barcode Function
+function viewBarcode(isbn, barcodeValue, bookName) {
+    const cleanIsbn = isbn.replace(/-/g, '');
+    const labelPath = '<?= BASE_URL ?>public/uploads/barcodes/' + cleanIsbn + '_label.png';
+    
+    document.getElementById('barcodeBookTitle').textContent = bookName;
+    document.getElementById('barcodeLabelImage').src = labelPath;
+    document.getElementById('barcodeValue').textContent = barcodeValue;
+    document.getElementById('barcodeIsbn').textContent = isbn;
+    
+    // Store for download/print
+    window.currentBarcodeLabel = labelPath;
+    
+    new bootstrap.Modal(document.getElementById('barcodeModal')).show();
+}
+
+// Print Barcode
+function printBarcode() {
+    const printWindow = window.open('', '', 'height=600,width=800');
+    const img = document.getElementById('barcodeLabelImage').src;
+    const bookName = document.getElementById('barcodeBookTitle').textContent;
+    const isbn = document.getElementById('barcodeIsbn').textContent;
+    
+    printWindow.document.write('<html><head><title>Print Barcode</title>');
+    printWindow.document.write('<style>body{text-align:center;font-family:Arial;padding:20px;}</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<h2>' + bookName + '</h2>');
+    printWindow.document.write('<p>ISBN: ' + isbn + '</p>');
+    printWindow.document.write('<img src="' + img + '" style="max-width:100%;">');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
+}
+
+// Download Barcode
+function downloadBarcode() {
+    const link = document.createElement('a');
+    link.href = window.currentBarcodeLabel;
+    link.download = 'barcode_label.png';
+    link.click();
+}
 </script>
 
- 
