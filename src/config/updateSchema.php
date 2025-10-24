@@ -1,137 +1,216 @@
 <?php
 /**
- * Idempotent DB schema updater without using ALTER ... IF NOT EXISTS
+ * Fixed Notifications Table Creation
+ * Run this separately if the main schema update fails
  */
 include_once('config.php');
 $conn = mysqli_connect(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
-if ($conn->connect_error) { die("Connection failed: " . $conn->connect_error); }
+if ($conn->connect_error) { 
+    die("Connection failed: " . $conn->connect_error); 
+}
 mysqli_set_charset($conn, 'utf8mb4');
 
-function columnMissing($conn,$table,$col){
-  $db = DB_NAME;
-  $stmt = $conn->prepare("SELECT COUNT(*) c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?");
-  $stmt->bind_param('sss',$db,$table,$col);
-  $stmt->execute(); $res=$stmt->get_result()->fetch_assoc(); $stmt->close();
-  return ($res['c']==0);
+echo "<h2>Creating Notifications Table...</h2>";
+
+// Check if table exists
+$tableExists = $conn->query("SHOW TABLES LIKE 'notifications'")->num_rows > 0;
+
+if ($tableExists) {
+    echo "<p style='color:orange'>⚠ notifications table already exists</p>";
+} else {
+    // Try creating without foreign key first
+    $sql = "CREATE TABLE notifications(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId VARCHAR(255) NULL,
+        title VARCHAR(150) NOT NULL,
+        message TEXT NOT NULL,
+        type ENUM('overdue','fine_paid','out_of_stock','system','reminder','approval') NOT NULL DEFAULT 'system',
+        priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+        isRead TINYINT(1) NOT NULL DEFAULT 0,
+        relatedId VARCHAR(255) NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_userId (userId),
+        INDEX idx_type_relatedId (type, relatedId),
+        INDEX idx_isRead (isRead)
+    )";
+    
+    if ($conn->query($sql) === TRUE) {
+        echo "<p style='color:green'>✓ notifications table created successfully</p>";
+        
+        // Now try to add foreign key constraint
+        $fkSql = "ALTER TABLE notifications 
+                  ADD CONSTRAINT fk_notifications_userId 
+                  FOREIGN KEY(userId) REFERENCES users(userId) 
+                  ON UPDATE CASCADE ON DELETE CASCADE";
+        
+        if ($conn->query($fkSql) === TRUE) {
+            echo "<p style='color:green'>✓ Foreign key constraint added</p>";
+        } else {
+            echo "<p style='color:orange'>⚠ Table created but foreign key constraint failed: " . $conn->error . "</p>";
+            echo "<p style='color:info'>ℹ This is OK - the table will work without the constraint</p>";
+        }
+    } else {
+        echo "<p style='color:red'>✗ Error creating notifications table: " . $conn->error . "</p>";
+    }
 }
-function tableCreate($conn,$sql,$ok,$fail){
-  if($conn->query($sql)===TRUE) echo "<p style='color:green'>✓ $ok</p>";
-  else echo "<p style='color:red'>✗ $fail: ".$conn->error."</p>";
+
+// Verify table structure
+$result = $conn->query("DESCRIBE notifications");
+if ($result) {
+    echo "<h3>Table Structure:</h3>";
+    echo "<table border='1' style='border-collapse:collapse; margin:20px 0;'>";
+    echo "<tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr>";
+    while ($row = $result->fetch_assoc()) {
+        echo "<tr>";
+        echo "<td>{$row['Field']}</td>";
+        echo "<td>{$row['Type']}</td>";
+        echo "<td>{$row['Null']}</td>";
+        echo "<td>{$row['Key']}</td>";
+        echo "<td>{$row['Default']}</td>";
+        echo "</tr>";
+    }
+    echo "</table>";
 }
 
-echo "<h2>Updating Database Schema...</h2>";
+// Insert some test notifications
+$testInsert = "INSERT INTO notifications (userId, title, message, type, priority) VALUES 
+    (NULL, 'System Test', 'This is a test notification', 'system', 'low')";
 
-// Users columns
-if (columnMissing($conn,'users','name'))          $conn->query("ALTER TABLE users ADD COLUMN name VARCHAR(255)");
-if (columnMissing($conn,'users','isVerified'))     $conn->query("ALTER TABLE users ADD COLUMN isVerified TINYINT(1) DEFAULT 0");
-if (columnMissing($conn,'users','otp'))            $conn->query("ALTER TABLE users ADD COLUMN otp VARCHAR(10)");
-if (columnMissing($conn,'users','otpExpiry'))      $conn->query("ALTER TABLE users ADD COLUMN otpExpiry VARCHAR(20)");
+if ($conn->query($testInsert) === TRUE) {
+    echo "<p style='color:green'>✓ Test notification inserted successfully</p>";
+} else {
+    echo "<p style='color:red'>✗ Failed to insert test notification: " . $conn->error . "</p>";
+}
 
-// Books columns
-if (columnMissing($conn,'books','bookImage'))      $conn->query("ALTER TABLE books ADD COLUMN bookImage VARCHAR(255)");
-if (columnMissing($conn,'books','description'))    $conn->query("ALTER TABLE books ADD COLUMN description TEXT");
-if (columnMissing($conn,'books','category'))       $conn->query("ALTER TABLE books ADD COLUMN category VARCHAR(100)");
-if (columnMissing($conn,'books','publicationYear'))$conn->query("ALTER TABLE books ADD COLUMN publicationYear YEAR");
-if (columnMissing($conn,'books','totalCopies'))    $conn->query("ALTER TABLE books ADD COLUMN totalCopies INT DEFAULT 0");
+// Borrow requests table creation
+if ($conn->query("SHOW TABLES LIKE 'borrow_requests'")->num_rows == 0) {
+    $sql = "CREATE TABLE borrow_requests(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId VARCHAR(255) NOT NULL,
+        isbn VARCHAR(13) NOT NULL,
+        requestDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+        approvedBy VARCHAR(255) NULL,
+        dueDate DATE NULL,
+        INDEX idx_userId (userId),
+        INDEX idx_isbn (isbn),
+        INDEX idx_status (status)
+    )";
+    
+    if ($conn->query($sql) === TRUE) {
+        echo "<p style='color:green'>✓ borrow_requests table created successfully</p>";
+        
+        // Add foreign keys if users and books tables exist
+        try {
+            $conn->query("ALTER TABLE borrow_requests 
+                          ADD CONSTRAINT fk_borrow_requests_userId
+                          FOREIGN KEY (userId) REFERENCES users(userId) 
+                          ON UPDATE CASCADE ON DELETE CASCADE");
+                          
+            $conn->query("ALTER TABLE borrow_requests 
+                          ADD CONSTRAINT fk_borrow_requests_isbn
+                          FOREIGN KEY (isbn) REFERENCES books(isbn) 
+                          ON UPDATE CASCADE ON DELETE CASCADE");
+                          
+            echo "<p style='color:green'>✓ Foreign key constraints added to borrow_requests</p>";
+        } catch (Exception $e) {
+            echo "<p style='color:orange'>⚠ Tables created but foreign keys could not be added: " . $e->getMessage() . "</p>";
+        }
+    } else {
+        echo "<p style='color:red'>✗ Error creating borrow_requests table: " . $conn->error . "</p>";
+    }
+}
 
-// Borrow requests table and columns
-tableCreate(
-  $conn,
-  "CREATE TABLE IF NOT EXISTS borrow_requests(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    isbn VARCHAR(13) NOT NULL,
-    userId VARCHAR(255) NOT NULL,
-    requestDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-    approvedBy VARCHAR(255) NULL,
-    dueDate DATE NULL,
-    FOREIGN KEY(isbn) REFERENCES books(isbn) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(userId) REFERENCES users(userId) ON UPDATE CASCADE ON DELETE CASCADE
-  )",
-  "borrow_requests table ready",
-  "Error creating borrow_requests table"
-);
+// Fine settings table creation
+if ($conn->query("SHOW TABLES LIKE 'fine_settings'")->num_rows == 0) {
+    // Create fine_settings table
+    $sql = "CREATE TABLE IF NOT EXISTS fine_settings(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        setting_name VARCHAR(100) NOT NULL UNIQUE,
+        setting_value VARCHAR(255) NOT NULL,
+        description TEXT,
+        updatedBy VARCHAR(255),
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )";
+    
+    if ($conn->query($sql) === TRUE) {
+        echo "<p style='color:green'>✓ fine_settings table created successfully</p>";
+        
+        // Insert default values
+        $conn->query("INSERT INTO fine_settings (setting_name, setting_value, description, updatedBy) VALUES 
+            ('fine_per_day', '5', 'Fine amount per day for overdue books', 'system'),
+            ('max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system'),
+            ('grace_period_days', '0', 'Grace period before fines start', 'system'),
+            ('max_fine_amount', '500', 'Maximum fine amount per book', 'system'),
+            ('fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system')");
+    } else {
+        echo "<p style='color:red'>✗ Error creating fine_settings table: " . $conn->error . "</p>";
+    }
+}
 
-// Transactions extra columns
-if (columnMissing($conn,'transactions','dueDate'))       $conn->query("ALTER TABLE transactions ADD COLUMN dueDate DATE NULL");
-if (columnMissing($conn,'transactions','status'))        $conn->query("ALTER TABLE transactions ADD COLUMN status ENUM('Borrowed','Returned','Overdue') DEFAULT 'Borrowed'");
-if (columnMissing($conn,'transactions','extendedOnce'))  $conn->query("ALTER TABLE transactions ADD COLUMN extendedOnce TINYINT(1) DEFAULT 0");
-if (columnMissing($conn,'transactions','paymentRef'))    $conn->query("ALTER TABLE transactions ADD COLUMN paymentRef VARCHAR(100) NULL");
+// Backup log table creation
+if ($conn->query("SHOW TABLES LIKE 'backup_log'")->num_rows == 0) {
+    $sql = "CREATE TABLE backup_log(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        filename VARCHAR(255) NOT NULL,
+        filepath VARCHAR(500) NOT NULL,
+        filesize BIGINT NOT NULL,
+        backupType ENUM('manual','scheduled','system') NOT NULL DEFAULT 'manual',
+        status ENUM('success','failed','in_progress') NOT NULL DEFAULT 'success',
+        createdBy VARCHAR(255) NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )";
+    
+    if ($conn->query($sql) === TRUE) {
+        echo "<p style='color:green'>✓ backup_log table created successfully</p>";
+    } else {
+        echo "<p style='color:red'>✗ Error creating backup_log table: " . $conn->error . "</p>";
+    }
+}
 
-// Book statistics
-tableCreate(
-  $conn,
-  "CREATE TABLE IF NOT EXISTS book_statistics(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    isbn VARCHAR(13),
-    date_added DATE,
-    total_borrowed INT DEFAULT 0,
-    total_returned INT DEFAULT 0,
-    new_arrivals INT DEFAULT 0,
-    FOREIGN KEY(isbn) REFERENCES books(isbn) ON UPDATE CASCADE ON DELETE CASCADE
-  )",
-  "book_statistics table ready",
-  "Error creating book_statistics table"
-);
+// Maintenance log table creation
+if ($conn->query("SHOW TABLES LIKE 'maintenance_log'")->num_rows == 0) {
+    $sql = "CREATE TABLE maintenance_log(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        action VARCHAR(255) NOT NULL,
+        description TEXT,
+        performedBy VARCHAR(255) NOT NULL,
+        status ENUM('success','failed','warning') NOT NULL DEFAULT 'success',
+        details TEXT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )";
+    
+    if ($conn->query($sql) === TRUE) {
+        echo "<p style='color:green'>✓ maintenance_log table created successfully</p>";
+    } else {
+        echo "<p style='color:red'>✗ Error creating maintenance_log table: " . $conn->error . "</p>";
+    }
+}
 
-// Payments
-tableCreate(
-  $conn,
-  "CREATE TABLE IF NOT EXISTS payments(
-    paymentId INT AUTO_INCREMENT PRIMARY KEY,
-    userId VARCHAR(255) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    type ENUM('fine','membership') NOT NULL,
-    method ENUM('cash','online') NOT NULL,
-    reference VARCHAR(100),
-    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(userId) REFERENCES users(userId) ON UPDATE CASCADE ON DELETE CASCADE
-  )",
-  "payments table ready",
-  "Error creating payments table"
-);
+// Transactions fine columns
+echo "<h3>Checking fine columns in transactions table...</h3>";
 
-// Notifications
-tableCreate(
-  $conn,
-  "CREATE TABLE IF NOT EXISTS notifications(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    userId VARCHAR(255) NOT NULL,
-    title VARCHAR(150) NOT NULL,
-    message TEXT NOT NULL,
-    type ENUM('System','Reminder','Approval') NOT NULL DEFAULT 'System',
-    isRead TINYINT(1) NOT NULL DEFAULT 0,
-    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(userId) REFERENCES users(userId) ON UPDATE CASCADE ON DELETE CASCADE
-  )",
-  "notifications table ready",
-  "Error creating notifications table"
-);
+$fineColumns = [
+    'fineAmount' => 'ALTER TABLE transactions ADD COLUMN fineAmount DECIMAL(10,2) DEFAULT 0',
+    'fineStatus' => 'ALTER TABLE transactions ADD COLUMN fineStatus ENUM("pending","paid","waived") DEFAULT "pending"',
+    'finePaymentDate' => 'ALTER TABLE transactions ADD COLUMN finePaymentDate DATE NULL',
+    'finePaymentMethod' => 'ALTER TABLE transactions ADD COLUMN finePaymentMethod ENUM("cash","online","card") NULL'
+];
 
-// Audit logs
-tableCreate(
-  $conn,
-  "CREATE TABLE IF NOT EXISTS audit_logs(
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    userId VARCHAR(255) NULL,
-    action VARCHAR(255) NOT NULL,
-    ipAddress VARCHAR(64),
-    userAgent VARCHAR(255),
-    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )",
-  "audit_logs table ready",
-  "Error creating audit_logs table"
-);
+foreach ($fineColumns as $column => $sql) {
+    if ($conn->query("SHOW COLUMNS FROM transactions LIKE '$column'")->num_rows == 0) {
+        if ($conn->query($sql) === TRUE) {
+            echo "<p style='color:green'>✓ Added '$column' column to transactions table</p>";
+        } else {
+            echo "<p style='color:red'>✗ Error adding '$column' column: " . $conn->error . "</p>";
+        }
+    } else {
+        echo "<p style='color:blue'>ℹ '$column' column already exists</p>";
+    }
+}
 
-// Tweak totals for existing data
-$conn->query("UPDATE books SET totalCopies = COALESCE(totalCopies,0)");
-$conn->query("UPDATE books SET available = COALESCE(available,0), borrowed = COALESCE(borrowed,0)");
-$conn->query("UPDATE books SET totalCopies = GREATEST(totalCopies, available + borrowed)");
+echo "<h3>Setup Complete!</h3>";
+echo "<p><a href='../admin/adminDashboard.php'>Go to Dashboard</a></p>";
 
-echo "<h3>Schema update completed.</h3>";
-echo "<p><a href='../src/admin/adminDashboard.php'>Go to Dashboard</a></p>";
 $conn->close();
 ?>
-
-
-

@@ -87,9 +87,10 @@ class AuthHelper
     {
         if (!$this->isLoggedIn()) {
             $this->redirectToLogin();
+            return;
         }
 
-        $userType = $_SESSION['userType'];
+        $userType = $_SESSION['userType'] ?? '';
         
         switch ($userType) {
             case 'Admin':
@@ -100,24 +101,9 @@ class AuthHelper
                 header('Location: ' . BASE_URL . 'user/dashboard');
                 break;
             default:
-                $this->redirectToLogin();
+                header('Location: ' . BASE_URL);
+                break;
         }
-        exit;
-    }
-
-    /**
-     * Logout user
-     */
-    public function logout()
-    {
-        // Clear all session data safely
-        $_SESSION = [];
-        if (ini_get('session.use_cookies')) {
-            $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
-        }
-        session_destroy();
-        header('Location: ' . BASE_URL);
         exit;
     }
 
@@ -135,6 +121,22 @@ class AuthHelper
     public function verifyPassword($password, $hash)
     {
         return password_verify($password, $hash);
+    }
+
+    /**
+     * Logout user
+     */
+    public function logout()
+    {
+        // Clear all session data safely
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
+        session_destroy();
+        header('Location: ' . BASE_URL);
+        exit;
     }
 
     /**
@@ -181,4 +183,3 @@ class AuthHelper
         }
     }
 }
-?>
