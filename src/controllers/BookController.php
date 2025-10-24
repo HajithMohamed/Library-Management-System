@@ -25,7 +25,7 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all books with all actual columns from the books table
+        // Fetch all books - ONLY columns that exist in your table
         $sql = "SELECT 
                     isbn,
                     barcode,
@@ -52,8 +52,9 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Add bookImage path if it exists (assuming it might be in uploads folder)
-                $row['bookImage'] = ''; // Default empty, since table doesn't have this column
+                // Add empty description and bookImage since they don't exist in DB
+                $row['description'] = '';
+                $row['bookImage'] = '';
                 $books[] = $row;
             }
             $result->free();
@@ -62,21 +63,26 @@ class BookController
         // Debug: Log the number of books fetched
         error_log("Books fetched: " . count($books));
         
-        // Get unique publishers for filter
-        $publisherSql = "SELECT DISTINCT publisherName 
-                        FROM books 
-                        WHERE publisherName IS NOT NULL AND publisherName != '' 
-                        ORDER BY publisherName ASC";
-        $publisherResult = $mysqli->query($publisherSql);
-        
+        // Get unique publishers for filter - with error handling
         $publishers = [];
-        if ($publisherResult) {
-            while ($row = $publisherResult->fetch_assoc()) {
-                if (!empty($row['publisherName'])) {
-                    $publishers[] = $row['publisherName'];
+        try {
+            $publisherSql = "SELECT DISTINCT publisherName 
+                            FROM books 
+                            WHERE publisherName IS NOT NULL AND publisherName != '' 
+                            ORDER BY publisherName ASC";
+            $publisherResult = $mysqli->query($publisherSql);
+            
+            if ($publisherResult) {
+                while ($row = $publisherResult->fetch_assoc()) {
+                    if (!empty($row['publisherName'])) {
+                        $publishers[] = $row['publisherName'];
+                    }
                 }
+                $publisherResult->free();
             }
-            $publisherResult->free();
+        } catch (Exception $e) {
+            error_log("Error fetching publishers: " . $e->getMessage());
+            // Continue with empty publishers array
         }
         
         // Pass data to view

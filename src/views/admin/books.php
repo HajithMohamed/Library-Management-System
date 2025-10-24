@@ -4,6 +4,11 @@ if (!defined('APP_ROOT')) {
     exit('Direct access not allowed');
 }
 
+// Set default values to prevent undefined variable errors
+$books = $books ?? [];
+$publishers = $publishers ?? [];
+$pageTitle = $pageTitle ?? 'Books Management';
+
 // Include header
 include APP_ROOT . '/views/layouts/admin-header.php';
 ?>
@@ -1003,7 +1008,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 <!-- Admin Layout -->
 <div class="admin-layout">
     <!-- Left Sidebar -->
-<?include APP_ROOT . '/views/admin/admin-navbar.php' ?>;
+    <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -1070,15 +1075,13 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <tr>
                                 <th>ISBN</th>
                                 <th>Barcode</th>
-                                <th>Cover</th>
                                 <th>Title</th>
                                 <th>Author</th>
                                 <th>Publisher</th>
-                                <th>Description</th>
                                 <th>Total Copies</th>
                                 <th>Available</th>
                                 <th>Borrowed</th>
-                                <th>Image</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1096,47 +1099,49 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                                 <span class="text-muted">-</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
-                                            <?php if (!empty($book['bookImage'])): ?>
-                                                <img src="<?= BASE_URL ?>public/uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
-                                                     alt="Book Cover" 
-                                                     class="book-cover"
-                                                     onerror="this.src='<?= BASE_URL ?>public/assets/images/default-book.jpg'">
-                                            <?php else: ?>
-                                                <div class="book-cover" style="display: flex; align-items: center; justify-content: center; background: var(--gray-200); color: var(--gray-400);">
-                                                    <i class="fas fa-book"></i>
-                                                </div>
+                                        <td class="book-title">
+                                            <?= htmlspecialchars($book['bookName']) ?>
+                                            <?php if ($book['isTrending']): ?>
+                                                <span class="badge" style="background: #fbbf24; color: #92400e; margin-left: 0.5rem;">
+                                                    <i class="fas fa-fire"></i> Trending
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if ($book['isSpecial'] && !empty($book['specialBadge'])): ?>
+                                                <span class="badge" style="background: #8b5cf6; color: white; margin-left: 0.5rem;">
+                                                    <?= htmlspecialchars($book['specialBadge']) ?>
+                                                </span>
                                             <?php endif; ?>
                                         </td>
-                                        <td class="book-title"><?= htmlspecialchars($book['bookName']) ?></td>
                                         <td><?= htmlspecialchars($book['authorName']) ?></td>
                                         <td><?= htmlspecialchars($book['publisherName']) ?></td>
-                                        <td>
-                                            <?php if (!empty($book['description'])): ?>
-                                                <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
-                                                     title="<?= htmlspecialchars($book['description']) ?>">
-                                                    <?= htmlspecialchars(substr($book['description'], 0, 50)) ?>...
-                                                </div>
-                                            <?php else: ?>
-                                                <span class="text-muted">No description</span>
-                                            <?php endif; ?>
-                                        </td>
                                         <td><?= htmlspecialchars($book['totalCopies']) ?></td>
                                         <td>
                                             <?php if ($book['available'] > 0): ?>
-                                                <span class="badge bg-success"><?= $book['available'] ?></span>
+                                                <span class="status-badge available"><?= $book['available'] ?></span>
                                             <?php else: ?>
-                                                <span class="badge bg-danger">0</span>
+                                                <span class="status-badge unavailable">0</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <span class="badge bg-warning"><?= $book['borrowed'] ?? 0 ?></span>
+                                            <?php if ($book['borrowed'] > 0): ?>
+                                                <span class="badge" style="background: #fbbf24; color: #92400e;"><?= $book['borrowed'] ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">0</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if (!empty($book['bookImage'])): ?>
-                                                <span class="badge bg-success"><i class="fas fa-check"></i> Yes</span>
+                                            <?php if ($book['available'] > 5): ?>
+                                                <span class="status-badge available">
+                                                    <i class="fas fa-check-circle"></i> In Stock
+                                                </span>
+                                            <?php elseif ($book['available'] > 0): ?>
+                                                <span class="status-badge low-stock">
+                                                    <i class="fas fa-exclamation-triangle"></i> Low Stock
+                                                </span>
                                             <?php else: ?>
-                                                <span class="badge bg-secondary"><i class="fas fa-times"></i> No</span>
+                                                <span class="status-badge unavailable">
+                                                    <i class="fas fa-times-circle"></i> Out of Stock
+                                                </span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -1149,7 +1154,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                                 </button>
                                                 <?php endif; ?>
                                                 <button class="btn-action btn-edit" 
-                                                        onclick='openEditModal(<?= json_encode($book) ?>)'
+                                                        onclick='openEditModal(<?= json_encode($book, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
                                                         title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
@@ -1164,7 +1169,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="12">
+                                    <td colspan="10">
                                         <div class="empty-state">
                                             <i class="fas fa-book-open"></i>
                                             <h3>No Books Found</h3>

@@ -57,7 +57,7 @@ class AdminController
         $activeBorrowingsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
         $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
         
-        // Fetch overdue books
+        // Fetch overdue books (borrowed more than 14 days ago, not returned)
         $overdueBooksResult = $mysqli->query("
             SELECT COUNT(*) as count 
             FROM transactions 
@@ -66,39 +66,36 @@ class AdminController
         ");
         $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
         
-        // Fetch pending fines
-        $pendingFinesResult = $mysqli->query("
-            SELECT COALESCE(SUM(fineAmount), 0) as total 
-            FROM transactions 
-            WHERE fineStatus = 'pending' AND fineAmount > 0
-        ");
-        $pendingFines = $pendingFinesResult->fetch_assoc()['total'];
+        // Fetch low stock books (available <= 2)
+        $lowStockBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
+        $lowStockBooks = $lowStockBooksResult->fetch_assoc()['count'];
         
-        // Fetch total fines collected
-        $collectedFinesResult = $mysqli->query("
-            SELECT COALESCE(SUM(fineAmount), 0) as total 
-            FROM transactions 
-            WHERE fineStatus = 'paid'
-        ");
-        $collectedFines = $collectedFinesResult->fetch_assoc()['total'];
+        // Prepare stats array for dashboard
+        $stats = [
+            'users' => [
+                'total_users' => $totalUsers,
+                'active_users' => $activeUsers
+            ],
+            'books' => [
+                'total_books' => $totalBooks,
+                'available_books' => $availableBooks,
+                'borrowed_books' => $borrowedBooks
+            ],
+            'active_borrowings' => $activeBorrowings,
+            'overdue_books' => $overdueBooks,
+            'total_transactions' => $totalTransactions
+        ];
         
-        // Fetch pending borrow requests
-        $pendingRequestsResult = $mysqli->query("
-            SELECT COUNT(*) as count 
-            FROM borrow_requests 
-            WHERE status = 'Pending'
-        ");
-        $pendingRequests = $pendingRequestsResult->fetch_assoc()['count'];
+        // Prepare system health array
+        $systemHealth = [
+            'database' => $mysqli->ping() ? 'healthy' : 'error',
+            'disk_space' => 'healthy', // Simplified for now
+            'overdue_books' => $overdueBooks,
+            'low_stock_books' => $lowStockBooks,
+            'overall' => ($overdueBooks > 50 || $lowStockBooks > 20) ? 'warning' : 'healthy'
+        ];
         
-        // Fetch unread notifications
-        $unreadNotificationsResult = $mysqli->query("
-            SELECT COUNT(*) as count 
-            FROM notifications 
-            WHERE isRead = 0
-        ");
-        $unreadNotifications = $unreadNotificationsResult->fetch_assoc()['count'];
-        
-        // Fetch recent transactions (last 5) - UPDATED to use actual columns
+        // Fetch recent transactions (last 5)
         $recentTransactionsQuery = "
             SELECT 
                 t.tid,
@@ -109,12 +106,7 @@ class AdminController
                 b.bookName,
                 b.authorName,
                 t.borrowDate,
-                t.returnDate,
-                CASE 
-                    WHEN t.returnDate IS NOT NULL THEN 'Returned'
-                    WHEN DATEDIFF(CURDATE(), t.borrowDate) > 14 THEN 'Overdue'
-                    ELSE 'Active'
-                END as status
+                t.returnDate
             FROM transactions t
             LEFT JOIN users u ON t.userId = u.userId
             LEFT JOIN books b ON t.isbn = b.isbn
@@ -123,108 +115,51 @@ class AdminController
         ";
         $recentTransactionsResult = $mysqli->query($recentTransactionsQuery);
         $recentTransactions = [];
-        while ($row = $recentTransactionsResult->fetch_assoc()) {
-            $recentTransactions[] = $row;
+        if ($recentTransactionsResult) {
+            while ($row = $recentTransactionsResult->fetch_assoc()) {
+                $recentTransactions[] = $row;
+            }
         }
         
-        // Fetch popular books (top 5 most borrowed) - UPDATED
+        // Fetch popular books (top 5 most borrowed)
         $popularBooksQuery = "
             SELECT 
                 b.isbn,
                 b.bookName,
                 b.authorName,
                 b.publisherName,
-                b.isTrending,
-                b.isSpecial,
-                b.specialBadge,
-                COUNT(t.tid) as borrowCount
+                COUNT(t.tid) as borrow_count
             FROM books b
             LEFT JOIN transactions t ON b.isbn = t.isbn
-            GROUP BY b.isbn, b.bookName, b.authorName, b.publisherName, 
-                     b.isTrending, b.isSpecial, b.specialBadge
-            ORDER BY borrowCount DESC
+            GROUP BY b.isbn, b.bookName, b.authorName, b.publisherName
+            ORDER BY borrow_count DESC
             LIMIT 5
         ";
         $popularBooksResult = $mysqli->query($popularBooksQuery);
         $popularBooks = [];
-        while ($row = $popularBooksResult->fetch_assoc()) {
-            $popularBooks[] = $row;
+        if ($popularBooksResult) {
+            while ($row = $popularBooksResult->fetch_assoc()) {
+                $popularBooks[] = $row;
+            }
         }
         
-        // Fetch low stock books (available <= 2) - UPDATED
-        $lowStockBooksQuery = "
-            SELECT 
-                isbn,
-                bookName,
-                authorName,
-                available,
-                totalCopies,
-                isTrending,
-                isSpecial
-            FROM books
-            WHERE available <= 2
-            ORDER BY available ASC
-            LIMIT 5
-        ";
-        $lowStockBooksResult = $mysqli->query($lowStockBooksQuery);
-        $lowStockBooks = [];
-        while ($row = $lowStockBooksResult->fetch_assoc()) {
-            $lowStockBooks[] = $row;
-        }
-        
-        // Fetch recent notifications (last 5)
-        $recentNotificationsQuery = "
-            SELECT 
-                id,
-                userId,
-                title,
-                message,
-                type,
-                priority,
-                isRead,
-                createdAt
+        // Fetch recent notifications (last 5 unread)
+        $notificationsQuery = "
+            SELECT id, userId, title, message, type, priority, isRead, createdAt
             FROM notifications
+            WHERE isRead = 0
             ORDER BY createdAt DESC
             LIMIT 5
         ";
-        $recentNotificationsResult = $mysqli->query($recentNotificationsQuery);
-        $recentNotifications = [];
-        while ($row = $recentNotificationsResult->fetch_assoc()) {
-            $recentNotifications[] = $row;
+        $notificationsResult = $mysqli->query($notificationsQuery);
+        $notifications = [];
+        if ($notificationsResult) {
+            while ($row = $notificationsResult->fetch_assoc()) {
+                $notifications[] = $row;
+            }
         }
         
-        // Fetch user type breakdown
-        $userTypeQuery = "
-            SELECT 
-                userType,
-                COUNT(*) as count
-            FROM users
-            GROUP BY userType
-        ";
-        $userTypeResult = $mysqli->query($userTypeQuery);
-        $userTypeBreakdown = [];
-        while ($row = $userTypeResult->fetch_assoc()) {
-            $userTypeBreakdown[$row['userType']] = $row['count'];
-        }
-        
-        // Calculate monthly statistics (current month)
-        $monthlyBorrowingsResult = $mysqli->query("
-            SELECT COUNT(*) as count 
-            FROM transactions 
-            WHERE MONTH(borrowDate) = MONTH(CURDATE()) 
-            AND YEAR(borrowDate) = YEAR(CURDATE())
-        ");
-        $monthlyBorrowings = $monthlyBorrowingsResult->fetch_assoc()['count'];
-        
-        $monthlyReturnsResult = $mysqli->query("
-            SELECT COUNT(*) as count 
-            FROM transactions 
-            WHERE MONTH(returnDate) = MONTH(CURDATE()) 
-            AND YEAR(returnDate) = YEAR(CURDATE())
-        ");
-        $monthlyReturns = $monthlyReturnsResult->fetch_assoc()['count'];
-        
-        // Pass data to view
+        // Pass all data to view
         $pageTitle = 'Admin Dashboard';
         include APP_ROOT . '/views/admin/dashboard.php';
     }
