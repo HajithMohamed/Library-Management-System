@@ -22,10 +22,26 @@ if (!defined('BASE_URL')) {
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $port = $_SERVER['SERVER_PORT'] ?? '80';
 
-    if ($host === 'localhost' && in_array($port, ['8080', '80'])) {
-        define('BASE_URL', "http://localhost:8080/");
+    // Docker-specific URL handling
+    if (file_exists('/.dockerenv') || isset($_ENV['DOCKER_CONTAINER'])) {
+        // Running in Docker
+        if (isset($_ENV['DOCKER_HOST'])) {
+            $host = $_ENV['DOCKER_HOST'];
+        }
+        
+        // Handle common Docker port mappings
+        if ($port === '80' || $port === '8080') {
+            define('BASE_URL', $protocol . "://" . $host . "/");
+        } else {
+            define('BASE_URL', $protocol . "://" . $host . ":" . $port . "/");
+        }
     } else {
-        define('BASE_URL', $protocol . "://$host/");
+        // Local development
+        if ($host === 'localhost' && in_array($port, ['8080', '80'])) {
+            define('BASE_URL', "http://localhost:8080/");
+        } else {
+            define('BASE_URL', $protocol . "://$host" . ($port !== '80' ? ":" . $port : "") . "/");
+        }
     }
 }
 

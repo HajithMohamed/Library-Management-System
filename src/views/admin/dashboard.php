@@ -4,456 +4,624 @@ include APP_ROOT . '/views/layouts/header.php';
 ?>
 
 <style>
-    .modern-card {
-        border: none;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        overflow: hidden;
-        background: white;
+    .dashboard-container {
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
     }
-    
-    .modern-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stat-card {
-        border: none;
+
+    .dashboard-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
         border-radius: 16px;
-        position: relative;
-        overflow: hidden;
-        padding: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
         color: white;
     }
-    
+
+    .dashboard-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .dashboard-subtitle {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+
+    /* Enhanced Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
     .stat-card::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
-        pointer-events: none;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
     }
-    
-    .stat-card.primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    .stat-card.blue {
+        --card-color-1: #667eea;
+        --card-color-2: #764ba2;
     }
-    
-    .stat-card.success {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+
+    .stat-card.green {
+        --card-color-1: #10b981;
+        --card-color-2: #059669;
     }
-    
-    .stat-card.warning {
-        background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+
+    .stat-card.orange {
+        --card-color-1: #f59e0b;
+        --card-color-2: #d97706;
     }
-    
-    .stat-card.danger {
-        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+
+    .stat-card.red {
+        --card-color-1: #ef4444;
+        --card-color-2: #dc2626;
     }
-    
-    .stat-icon {
-        font-size: 3rem;
-        opacity: 0.3;
-        position: absolute;
-        right: 20px;
-        top: 50%;
-        transform: translateY(-50%);
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
     }
-    
+
     .stat-content {
-        position: relative;
-        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    
+
     .stat-number {
         font-size: 2.5rem;
         font-weight: 700;
-        margin-bottom: 0.25rem;
-        line-height: 1;
+        background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
     }
-    
+
     .stat-label {
-        font-size: 0.875rem;
-        opacity: 0.9;
+        color: #6b7280;
+        font-size: 0.95rem;
         font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
-    
+
+    .stat-icon {
+        font-size: 3rem;
+        opacity: 0.15;
+        background: linear-gradient(135deg, var(--card-color-1), var(--card-color-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Quick Actions - Simplified */
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
     .action-card {
-        border: none;
-        border-radius: 16px;
         background: white;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .action-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
         height: 100%;
+        background: var(--action-color);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
     }
-    
+
     .action-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        transform: translateX(8px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
     }
-    
+
+    .action-card:hover::before {
+        transform: scaleY(1);
+    }
+
     .action-icon {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 1.5rem;
-        font-size: 2rem;
-        transition: all 0.3s ease;
-    }
-    
-    .action-card:hover .action-icon {
-        transform: scale(1.1) rotate(5deg);
-    }
-    
-    .action-icon.primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--action-color);
         color: white;
-    }
-    
-    .action-icon.success {
-        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-        color: white;
-    }
-    
-    .action-icon.info {
-        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        color: #333;
-    }
-    
-    .action-icon.warning {
-        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-        color: #333;
-    }
-    
-    .btn-modern {
-        border-radius: 25px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 600;
-        border: none;
-        transition: all 0.3s ease;
-        text-transform: uppercase;
-        font-size: 0.813rem;
-        letter-spacing: 0.5px;
-    }
-    
-    .btn-modern:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    .section-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #2d3748;
+        font-size: 1.75rem;
         margin-bottom: 1.5rem;
-        position: relative;
-        padding-left: 1rem;
     }
-    
-    .section-title::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 70%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 2px;
-    }
-    
-    .table-modern {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-    
-    .table-modern thead th {
-        background: #f7fafc;
-        border: none;
-        color: #4a5568;
+
+    .action-card.books { --action-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .action-card.users { --action-color: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .action-card.requests { --action-color: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .action-card.fines { --action-color: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .action-card.reports { --action-color: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+    .action-card.notifications { --action-color: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    .action-card.maintenance { --action-color: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+
+    .action-title {
+        font-size: 1.25rem;
         font-weight: 600;
-        font-size: 0.813rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 1rem;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
     }
-    
-    .table-modern tbody tr {
-        transition: background 0.2s ease;
-        border-bottom: 1px solid #e2e8f0;
+
+    .action-description {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
     }
-    
-    .table-modern tbody tr:hover {
-        background: #f7fafc;
-    }
-    
-    .table-modern tbody td {
-        padding: 1rem;
-        vertical-align: middle;
-        border: none;
-    }
-    
-    .badge-modern {
-        padding: 0.35rem 0.75rem;
+
+    .action-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
         border-radius: 20px;
+        font-size: 0.85rem;
         font-weight: 600;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+        background: var(--action-color);
+        color: white;
     }
-    
-    .card-header-modern {
+
+    /* System Health */
+    .health-card {
         background: white;
-        border-bottom: 2px solid #f7fafc;
-        padding: 1.25rem 1.5rem;
-        border-radius: 16px 16px 0 0;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
     }
-    
-    .card-header-modern h5 {
-        color: #2d3748;
-        font-weight: 700;
-        font-size: 1.125rem;
-        margin: 0;
+
+    .health-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f3f4f6;
     }
-    
-    .modern-card .card-body {
-        background: white;
+
+    .health-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
-    
-    .popular-book-item {
+
+    .health-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .health-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
         padding: 1rem;
         border-radius: 12px;
-        margin-bottom: 0.75rem;
-        background: #f7fafc;
-        transition: all 0.2s ease;
+        background: #f9fafb;
+        transition: all 0.3s ease;
     }
-    
-    .popular-book-item:hover {
-        background: #edf2f7;
-        transform: translateX(5px);
+
+    .health-item:hover {
+        background: #f3f4f6;
+        transform: scale(1.02);
     }
-    
-    .page-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
+
+    .health-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .health-icon.success { background: #d1fae5; color: #065f46; }
+    .health-icon.warning { background: #fef3c7; color: #92400e; }
+    .health-icon.danger { background: #fee2e2; color: #991b1b; }
+
+    .health-info h6 {
+        margin: 0 0 0.25rem 0;
+        font-size: 0.95rem;
+        color: #6b7280;
+    }
+
+    /* Recent Activity */
+    .activity-card {
+        background: white;
         border-radius: 16px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     }
-    
-    .page-header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 700;
+
+    .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f3f4f6;
     }
-    
-    .container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+
+    .activity-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .activity-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        transition: all 0.3s ease;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+
+        .stats-grid,
+        .actions-grid,
+        .health-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-title {
+            font-size: 1.75rem;
+        }
     }
 </style>
 
-<div class="container">
-    <!-- Page Header -->
-    <div class="page-header">
-        <h1>
-            <i class="fas fa-tachometer-alt me-2"></i> Admin Dashboard
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">
+            <i class="fas fa-tachometer-alt"></i>
+            Admin Dashboard
         </h1>
+        <p class="dashboard-subtitle">Welcome back! Here's what's happening in your library today.</p>
     </div>
 
     <!-- Stats Cards -->
-    <div class="row mb-5">
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="stat-card primary">
-                <i class="fas fa-users stat-icon"></i>
-                <div class="stat-content">
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <div class="stat-content">
+                <div>
                     <div class="stat-number"><?= $stats['users']['total_users'] ?? 0 ?></div>
                     <div class="stat-label">Total Users</div>
                 </div>
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="stat-card success">
-                <i class="fas fa-book stat-icon"></i>
-                <div class="stat-content">
+
+        <div class="stat-card green">
+            <div class="stat-content">
+                <div>
                     <div class="stat-number"><?= $stats['books']['total_books'] ?? 0 ?></div>
                     <div class="stat-label">Total Books</div>
                 </div>
+                <div class="stat-icon">
+                    <i class="fas fa-book"></i>
+                </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="stat-card warning">
-                <i class="fas fa-book-reader stat-icon"></i>
-                <div class="stat-content">
+
+        <div class="stat-card orange">
+            <div class="stat-content">
+                <div>
                     <div class="stat-number"><?= $stats['active_borrowings'] ?? 0 ?></div>
                     <div class="stat-label">Active Borrowings</div>
                 </div>
+                <div class="stat-icon">
+                    <i class="fas fa-book-reader"></i>
+                </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="stat-card danger">
-                <i class="fas fa-exclamation-triangle stat-icon"></i>
-                <div class="stat-content">
+
+        <div class="stat-card red">
+            <div class="stat-content">
+                <div>
                     <div class="stat-number"><?= $stats['overdue_books'] ?? 0 ?></div>
                     <div class="stat-label">Overdue Books</div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <h3 class="section-title">Quick Actions</h3>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="action-card">
-                <div class="card-body text-center p-4">
-                    <div class="action-icon primary">
-                        <i class="fas fa-book"></i>
-                    </div>
-                    <h5 class="card-title fw-bold mb-2">Manage Books</h5>
-                    <p class="card-text text-muted mb-3">Add, edit, or remove books</p>
-                    <a href="<?= BASE_URL ?>admin/books" class="btn btn-primary btn-modern">
-                        <i class="fas fa-arrow-right me-1"></i> Manage
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="action-card">
-                <div class="card-body text-center p-4">
-                    <div class="action-icon success">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h5 class="card-title fw-bold mb-2">Manage Users</h5>
-                    <p class="card-text text-muted mb-3">View and manage user accounts</p>
-                    <a href="<?= BASE_URL ?>admin/users" class="btn btn-success btn-modern">
-                        <i class="fas fa-arrow-right me-1"></i> Manage
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="action-card">
-                <div class="card-body text-center p-4">
-                    <div class="action-icon info">
-                        <i class="fas fa-chart-bar"></i>
-                    </div>
-                    <h5 class="card-title fw-bold mb-2">Reports</h5>
-                    <p class="card-text text-muted mb-3">Generate system reports</p>
-                    <a href="<?= BASE_URL ?>admin/reports" class="btn btn-info btn-modern">
-                        <i class="fas fa-arrow-right me-1"></i> Reports
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-4">
-            <div class="action-card">
-                <div class="card-body text-center p-4">
-                    <div class="action-icon warning">
-                        <i class="fas fa-cog"></i>
-                    </div>
-                    <h5 class="card-title fw-bold mb-2">Settings</h5>
-                    <p class="card-text text-muted mb-3">System configuration</p>
-                    <a href="<?= BASE_URL ?>admin/settings" class="btn btn-warning btn-modern">
-                        <i class="fas fa-arrow-right me-1"></i> Settings
-                    </a>
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Transactions & Popular Books -->
-    <div class="row mb-4">
+    <!-- Quick Actions - Streamlined -->
+    <div class="actions-grid">
+        <a href="<?= BASE_URL ?>admin/books" class="action-card books">
+            <div class="action-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="fas fa-book"></i>
+            </div>
+            <h3 class="action-title">Books</h3>
+            <p class="action-description">Manage your library collection</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="fas fa-arrow-right"></i> Manage
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/users" class="action-card users">
+            <div class="action-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3 class="action-title">Users</h3>
+            <p class="action-description">View and manage user accounts</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <i class="fas fa-arrow-right"></i> Manage
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/borrow-requests" class="action-card requests">
+            <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <i class="fas fa-envelope-open-text"></i>
+            </div>
+            <h3 class="action-title">Borrow Requests</h3>
+            <p class="action-description">Approve or reject book requests</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <i class="fas fa-arrow-right"></i> Manage
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/fines" class="action-card fines">
+            <div class="action-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <h3 class="action-title">Fines</h3>
+            <p class="action-description">Monitor and manage overdue fines</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <i class="fas fa-arrow-right"></i> Manage
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/reports" class="action-card reports">
+            <div class="action-icon" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <h3 class="action-title">Reports</h3>
+            <p class="action-description">View analytics and statistics</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                <i class="fas fa-arrow-right"></i> View
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/notifications" class="action-card notifications">
+            <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <i class="fas fa-bell"></i>
+            </div>
+            <h3 class="action-title">Notifications</h3>
+            <p class="action-description">View system notifications</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <?php if (!empty($notifications) && count(array_filter($notifications, fn($n) => !$n['isRead'])) > 0): ?>
+                    <i class="fas fa-bell"></i> <?= count(array_filter($notifications, fn($n) => !$n['isRead'])) ?> New
+                <?php else: ?>
+                    <i class="fas fa-arrow-right"></i> View
+                <?php endif; ?>
+            </span>
+        </a>
+
+        <a href="<?= BASE_URL ?>admin/maintenance" class="action-card maintenance">
+            <div class="action-icon" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
+                <i class="fas fa-tools"></i>
+            </div>
+            <h3 class="action-title">Maintenance</h3>
+            <p class="action-description">System health and backups</p>
+            <span class="action-badge" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
+                <?php if (isset($systemHealth['overall']) && $systemHealth['overall'] !== 'healthy'): ?>
+                    <i class="fas fa-exclamation-triangle"></i> Warning
+                <?php else: ?>
+                    <i class="fas fa-arrow-right"></i> View
+                <?php endif; ?>
+            </span>
+        </a>
+    </div>
+
+    <!-- System Health -->
+    <?php if (isset($systemHealth)): ?>
+    <div class="health-card">
+        <div class="health-header">
+            <h2 class="health-title">
+                <i class="fas fa-heartbeat"></i>
+                System Health
+            </h2>
+            <?php
+            $overallStatus = $systemHealth['overall'] ?? 'unknown';
+            $statusClass = $overallStatus === 'healthy' ? 'success' : ($overallStatus === 'warning' ? 'warning' : 'danger');
+            ?>
+            <span class="badge bg-<?= $statusClass ?> p-2"><?= ucfirst($overallStatus) ?></span>
+        </div>
+        
+        <div class="health-grid">
+            <?php
+            $dbStatus = $systemHealth['database'] ?? 'unknown';
+            $dbClass = $dbStatus === 'healthy' ? 'success' : 'danger';
+            ?>
+            <div class="health-item">
+                <div class="health-icon <?= $dbClass ?>">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="health-info">
+                    <h6>Database</h6>
+                    <span class="badge bg-<?= $dbClass ?>"><?= ucfirst($dbStatus) ?></span>
+                </div>
+            </div>
+
+            <?php
+            $diskStatus = $systemHealth['disk_space'] ?? 'unknown';
+            $diskClass = $diskStatus === 'healthy' ? 'success' : ($diskStatus === 'warning' ? 'warning' : 'danger');
+            ?>
+            <div class="health-item">
+                <div class="health-icon <?= $diskClass ?>">
+                    <i class="fas fa-hdd"></i>
+                </div>
+                <div class="health-info">
+                    <h6>Disk Space</h6>
+                    <span class="badge bg-<?= $diskClass ?>"><?= ucfirst($diskStatus) ?></span>
+                </div>
+            </div>
+
+            <?php
+            $overdueCount = $systemHealth['overdue_books'] ?? 0;
+            $overdueClass = $overdueCount > 50 ? 'danger' : ($overdueCount > 20 ? 'warning' : 'success');
+            ?>
+            <div class="health-item">
+                <div class="health-icon <?= $overdueClass ?>">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="health-info">
+                    <h6>Overdue Books</h6>
+                    <span class="badge bg-<?= $overdueClass ?>"><?= $overdueCount ?></span>
+                </div>
+            </div>
+
+            <?php
+            $lowStockCount = $systemHealth['low_stock_books'] ?? 0;
+            $stockClass = $lowStockCount > 20 ? 'danger' : ($lowStockCount > 10 ? 'warning' : 'success');
+            ?>
+            <div class="health-item">
+                <div class="health-icon <?= $stockClass ?>">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <div class="health-info">
+                    <h6>Low Stock</h6>
+                    <span class="badge bg-<?= $stockClass ?>"><?= $lowStockCount ?></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Recent Activity & Popular Books -->
+    <div class="row">
         <div class="col-lg-8 mb-4">
-            <div class="modern-card">
-                <div class="card-header-modern">
-                    <h5>
-                        <i class="fas fa-history me-2"></i> Recent Transactions
-                    </h5>
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h2 class="activity-title">
+                        <i class="fas fa-history"></i>
+                        Recent Transactions
+                    </h2>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-modern mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>User</th>
-                                    <th>Book</th>
-                                    <th>Action</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($recentTransactions)): ?>
-                                    <?php foreach ($recentTransactions as $transaction): ?>
-                                        <tr>
-                                            <td class="fw-semibold"><?= date('M j, Y', strtotime($transaction['borrowDate'])) ?></td>
-                                            <td><?= htmlspecialchars($transaction['emailId']) ?></td>
-                                            <td><?= htmlspecialchars($transaction['bookName']) ?></td>
-                                            <td>
-                                                <span class="badge-modern bg-primary">Borrow</span>
-                                            </td>
-                                            <td>
-                                                <?php if (empty($transaction['returnDate'])): ?>
-                                                    <span class="badge-modern bg-warning text-dark">Active</span>
-                                                <?php else: ?>
-                                                    <span class="badge-modern bg-success">Returned</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">
-                                            <i class="fas fa-info-circle me-2"></i> No recent transactions
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 mb-4">
-            <div class="modern-card">
-                <div class="card-header-modern">
-                    <h5>
-                        <i class="fas fa-star me-2"></i> Popular Books
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <?php if (!empty($popularBooks)): ?>
-                        <?php foreach ($popularBooks as $book): ?>
-                            <div class="popular-book-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1 fw-bold"><?= htmlspecialchars($book['bookName']) ?></h6>
-                                        <small class="text-muted">
-                                            <i class="fas fa-user me-1"></i><?= htmlspecialchars($book['authorName']) ?>
-                                        </small>
-                                    </div>
-                                    <span class="badge-modern bg-primary ms-3"><?= $book['borrow_count'] ?? 0 ?></span>
+                <?php if (!empty($recentTransactions)): ?>
+                    <?php foreach (array_slice($recentTransactions, 0, 5) as $transaction): ?>
+                        <div class="activity-item">
+                            <div>
+                                <strong><?= htmlspecialchars($transaction['emailId']) ?></strong>
+                                <span class="text-muted mx-2">borrowed</span>
+                                <strong><?= htmlspecialchars($transaction['bookName']) ?></strong>
+                                <div class="text-muted small mt-1">
+                                    <i class="fas fa-clock"></i> <?= date('M j, Y', strtotime($transaction['borrowDate'])) ?>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <p class="text-muted text-center py-4">
-                            <i class="fas fa-info-circle me-2"></i> No data available
-                        </p>
-                    <?php endif; ?>
+                            <div>
+                                <?php if (empty($transaction['returnDate'])): ?>
+                                    <span class="badge bg-warning">Active</span>
+                                <?php else: ?>
+                                    <span class="badge bg-success">Returned</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>No recent transactions</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="activity-card">
+                <div class="activity-header">
+                    <h2 class="activity-title">
+                        <i class="fas fa-star"></i>
+                        Popular Books
+                    </h2>
                 </div>
+                <?php if (!empty($popularBooks)): ?>
+                    <?php foreach (array_slice($popularBooks, 0, 5) as $book): ?>
+                        <div class="activity-item">
+                            <div>
+                                <strong><?= htmlspecialchars($book['bookName']) ?></strong>
+                                <div class="text-muted small"><?= htmlspecialchars($book['authorName']) ?></div>
+                            </div>
+                            <span class="badge bg-primary"><?= $book['borrow_count'] ?? 0 ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>No data available</p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
