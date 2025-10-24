@@ -2,79 +2,111 @@
 
 namespace App\Controllers;
 
-use App\Helpers\AuthHelper;
-
 class HomeController
 {
-    private $authHelper;
-
-    public function __construct()
-    {
-        $this->authHelper = new AuthHelper();
-    }
-
     /**
-     * Show home page - main landing page
+     * Display home page with real statistics
      */
     public function index()
     {
-        // Check if user is logged in
-        if ($this->authHelper->isLoggedIn()) {
-            // Redirect logged-in users to their appropriate dashboard
-            $this->authHelper->redirectByUserType();
-            return;
-        }
-
-        // Show home page for non-logged-in users
-        $this->render('home/index');
+        global $mysqli;
+        
+        // Fetch total books
+        $totalBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books");
+        $totalBooks = $totalBooksResult->fetch_assoc()['count'];
+        
+        // Fetch total active users (verified users)
+        $activeUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users WHERE isVerified = 1");
+        $activeUsers = $activeUsersResult->fetch_assoc()['count'];
+        
+        // Fetch unique categories/publishers
+        $categoriesResult = $mysqli->query("SELECT COUNT(DISTINCT publisherName) as count FROM books WHERE publisherName IS NOT NULL AND publisherName != ''");
+        $categories = $categoriesResult->fetch_assoc()['count'];
+        
+        // Fetch total transactions
+        $transactionsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions");
+        $totalTransactions = $transactionsResult->fetch_assoc()['count'];
+        
+        // Fetch available books count
+        $availableBooksResult = $mysqli->query("SELECT SUM(available) as count FROM books");
+        $availableBooks = $availableBooksResult->fetch_assoc()['count'] ?? 0;
+        
+        // Fetch borrowed books count
+        $borrowedBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+        $activeBorrowings = $borrowedBooksResult->fetch_assoc()['count'];
+        
+        // Pass data to view
+        $pageTitle = 'Home - Library Management System';
+        $stats = [
+            'totalBooks' => $totalBooks,
+            'activeUsers' => $activeUsers,
+            'categories' => $categories,
+            'totalTransactions' => $totalTransactions,
+            'availableBooks' => $availableBooks,
+            'activeBorrowings' => $activeBorrowings
+        ];
+        
+        include APP_ROOT . '/views/home/index.php';
     }
 
     /**
-     * Show about page
+     * Display about page
      */
     public function about()
     {
-        $this->render('home/about');
+        $pageTitle = 'About Us';
+        include APP_ROOT . '/views/home/about.php';
     }
 
     /**
-     * Show contact page
+     * Display contact page
      */
     public function contact()
     {
-        $this->render('home/contact');
+        $pageTitle = 'Contact Us';
+        include APP_ROOT . '/views/home/contact.php';
     }
 
     /**
-     * Show library information page
+     * Display library page
      */
     public function library()
     {
-        $this->render('home/library');
+        global $mysqli;
+        
+        // Fetch all books for public browsing
+        $sql = "SELECT 
+                    isbn,
+                    bookName,
+                    authorName,
+                    publisherName,
+                    available,
+                    totalCopies,
+                    bookImage
+                FROM books
+                WHERE available > 0
+                ORDER BY bookName ASC";
+        
+        $result = $mysqli->query($sql);
+        
+        $books = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
+            }
+        }
+        
+        $pageTitle = 'Browse Library';
+        include APP_ROOT . '/views/home/library.php';
     }
 
     /**
-     * Debug video background (remove in production)
+     * Video debug page
      */
     public function videoDebug()
     {
-        $this->render('debug/video');
-    }
-
-    /**
-     * Render a view with data
-     */
-    private function render($view, $data = [])
-    {
-        extract($data);
-        $viewFile = APP_ROOT . '/views/' . $view . '.php';
-        
-        if (file_exists($viewFile)) {
-            include $viewFile;
-        } else {
-            http_response_code(404);
-            include APP_ROOT . '/views/errors/404.php';
-        }
+        $pageTitle = 'Video Debug';
+        include APP_ROOT . '/views/home/video-debug.php';
     }
 }
 ?>

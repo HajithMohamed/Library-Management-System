@@ -21,21 +21,212 @@ class AdminController
      */
     public function dashboard()
     {
-        $this->authHelper->requireAdmin();
+        // Check if user is logged in and is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
+
+        global $mysqli;
         
-        $stats = $this->adminService->getDashboardStats();
-        $recentTransactions = $this->adminService->getRecentTransactions(10);
-        $popularBooks = $this->adminService->getPopularBooks(5);
-        $notifications = $this->adminService->getAllNotifications(null, null, true);
-        $systemHealth = $this->adminService->getSystemHealth();
+        // Fetch total books
+        $totalBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books");
+        $totalBooks = $totalBooksResult->fetch_assoc()['count'];
         
-        $this->render('admin/dashboard', [
-            'stats' => $stats,
-            'recentTransactions' => $recentTransactions,
-            'popularBooks' => $popularBooks,
-            'notifications' => $notifications,
-            'systemHealth' => $systemHealth
-        ]);
+        // Fetch available books (sum of available column)
+        $availableBooksResult = $mysqli->query("SELECT SUM(available) as count FROM books");
+        $availableBooks = $availableBooksResult->fetch_assoc()['count'] ?? 0;
+        
+        // Fetch borrowed books (sum of borrowed column)
+        $borrowedBooksResult = $mysqli->query("SELECT SUM(borrowed) as count FROM books");
+        $borrowedBooks = $borrowedBooksResult->fetch_assoc()['count'] ?? 0;
+        
+        // Fetch total users
+        $totalUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users");
+        $totalUsers = $totalUsersResult->fetch_assoc()['count'];
+        
+        // Fetch active users (verified users)
+        $activeUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users WHERE isVerified = 1");
+        $activeUsers = $activeUsersResult->fetch_assoc()['count'];
+        
+        // Fetch total transactions
+        $totalTransactionsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions");
+        $totalTransactions = $totalTransactionsResult->fetch_assoc()['count'];
+        
+        // Fetch active borrowings (not returned yet)
+        $activeBorrowingsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+        $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
+        
+        // Fetch overdue books
+        $overdueBooksResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM transactions 
+            WHERE returnDate IS NULL 
+            AND DATEDIFF(CURDATE(), borrowDate) > 14
+        ");
+        $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
+        
+        // Fetch pending fines
+        $pendingFinesResult = $mysqli->query("
+            SELECT COALESCE(SUM(fineAmount), 0) as total 
+            FROM transactions 
+            WHERE fineStatus = 'pending' AND fineAmount > 0
+        ");
+        $pendingFines = $pendingFinesResult->fetch_assoc()['total'];
+        
+        // Fetch total fines collected
+        $collectedFinesResult = $mysqli->query("
+            SELECT COALESCE(SUM(fineAmount), 0) as total 
+            FROM transactions 
+            WHERE fineStatus = 'paid'
+        ");
+        $collectedFines = $collectedFinesResult->fetch_assoc()['total'];
+        
+        // Fetch pending borrow requests
+        $pendingRequestsResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM borrow_requests 
+            WHERE status = 'Pending'
+        ");
+        $pendingRequests = $pendingRequestsResult->fetch_assoc()['count'];
+        
+        // Fetch unread notifications
+        $unreadNotificationsResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM notifications 
+            WHERE isRead = 0
+        ");
+        $unreadNotifications = $unreadNotificationsResult->fetch_assoc()['count'];
+        
+        // Fetch recent transactions (last 5) - UPDATED to use actual columns
+        $recentTransactionsQuery = "
+            SELECT 
+                t.tid,
+                t.userId,
+                u.emailId,
+                u.userType,
+                t.isbn,
+                b.bookName,
+                b.authorName,
+                t.borrowDate,
+                t.returnDate,
+                CASE 
+                    WHEN t.returnDate IS NOT NULL THEN 'Returned'
+                    WHEN DATEDIFF(CURDATE(), t.borrowDate) > 14 THEN 'Overdue'
+                    ELSE 'Active'
+                END as status
+            FROM transactions t
+            LEFT JOIN users u ON t.userId = u.userId
+            LEFT JOIN books b ON t.isbn = b.isbn
+            ORDER BY t.borrowDate DESC
+            LIMIT 5
+        ";
+        $recentTransactionsResult = $mysqli->query($recentTransactionsQuery);
+        $recentTransactions = [];
+        while ($row = $recentTransactionsResult->fetch_assoc()) {
+            $recentTransactions[] = $row;
+        }
+        
+        // Fetch popular books (top 5 most borrowed) - UPDATED
+        $popularBooksQuery = "
+            SELECT 
+                b.isbn,
+                b.bookName,
+                b.authorName,
+                b.publisherName,
+                b.isTrending,
+                b.isSpecial,
+                b.specialBadge,
+                COUNT(t.tid) as borrowCount
+            FROM books b
+            LEFT JOIN transactions t ON b.isbn = t.isbn
+            GROUP BY b.isbn, b.bookName, b.authorName, b.publisherName, 
+                     b.isTrending, b.isSpecial, b.specialBadge
+            ORDER BY borrowCount DESC
+            LIMIT 5
+        ";
+        $popularBooksResult = $mysqli->query($popularBooksQuery);
+        $popularBooks = [];
+        while ($row = $popularBooksResult->fetch_assoc()) {
+            $popularBooks[] = $row;
+        }
+        
+        // Fetch low stock books (available <= 2) - UPDATED
+        $lowStockBooksQuery = "
+            SELECT 
+                isbn,
+                bookName,
+                authorName,
+                available,
+                totalCopies,
+                isTrending,
+                isSpecial
+            FROM books
+            WHERE available <= 2
+            ORDER BY available ASC
+            LIMIT 5
+        ";
+        $lowStockBooksResult = $mysqli->query($lowStockBooksQuery);
+        $lowStockBooks = [];
+        while ($row = $lowStockBooksResult->fetch_assoc()) {
+            $lowStockBooks[] = $row;
+        }
+        
+        // Fetch recent notifications (last 5)
+        $recentNotificationsQuery = "
+            SELECT 
+                id,
+                userId,
+                title,
+                message,
+                type,
+                priority,
+                isRead,
+                createdAt
+            FROM notifications
+            ORDER BY createdAt DESC
+            LIMIT 5
+        ";
+        $recentNotificationsResult = $mysqli->query($recentNotificationsQuery);
+        $recentNotifications = [];
+        while ($row = $recentNotificationsResult->fetch_assoc()) {
+            $recentNotifications[] = $row;
+        }
+        
+        // Fetch user type breakdown
+        $userTypeQuery = "
+            SELECT 
+                userType,
+                COUNT(*) as count
+            FROM users
+            GROUP BY userType
+        ";
+        $userTypeResult = $mysqli->query($userTypeQuery);
+        $userTypeBreakdown = [];
+        while ($row = $userTypeResult->fetch_assoc()) {
+            $userTypeBreakdown[$row['userType']] = $row['count'];
+        }
+        
+        // Calculate monthly statistics (current month)
+        $monthlyBorrowingsResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM transactions 
+            WHERE MONTH(borrowDate) = MONTH(CURDATE()) 
+            AND YEAR(borrowDate) = YEAR(CURDATE())
+        ");
+        $monthlyBorrowings = $monthlyBorrowingsResult->fetch_assoc()['count'];
+        
+        $monthlyReturnsResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM transactions 
+            WHERE MONTH(returnDate) = MONTH(CURDATE()) 
+            AND YEAR(returnDate) = YEAR(CURDATE())
+        ");
+        $monthlyReturns = $monthlyReturnsResult->fetch_assoc()['count'];
+        
+        // Pass data to view
+        $pageTitle = 'Admin Dashboard';
+        include APP_ROOT . '/views/admin/dashboard.php';
     }
 
     /**
@@ -43,15 +234,38 @@ class AdminController
      */
     public function users()
     {
-        $this->authHelper->requireAdmin();
+        // Check if user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
+
+        global $mysqli;
         
-        $search = $_GET['search'] ?? '';
-        $users = $this->adminService->getAllUsers($search);
+        // Fetch all users with username
+        $sql = "SELECT userId, username, emailId, phoneNumber, userType, gender, dob, address, isVerified, createdAt 
+                FROM users 
+                ORDER BY createdAt DESC";
         
-        $this->render('admin/users', [
-            'users' => $users,
-            'search' => $search
-        ]);
+        $result = $mysqli->query($sql);
+        
+        $users = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $users[] = $row;
+            }
+        }
+        
+        // Get statistics
+        $totalUsers = count($users);
+        $verifiedUsers = count(array_filter($users, fn($u) => $u['isVerified'] == 1));
+        $adminCount = count(array_filter($users, fn($u) => $u['userType'] === 'Admin'));
+        $studentCount = count(array_filter($users, fn($u) => $u['userType'] === 'Student'));
+        $teacherCount = count(array_filter($users, fn($u) => $u['userType'] === 'Teacher'));
+        
+        // Pass data to view
+        $pageTitle = 'Users Management';
+        include APP_ROOT . '/views/admin/users.php';
     }
 
     /**

@@ -11,7 +11,7 @@ class Book
      */
     public function getBookStats()
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
         
         $stats = [
             'total_books' => 0,
@@ -28,7 +28,7 @@ class Book
                         SUM(borrowed) as borrowed_books
                      FROM books";
             
-            $result = $conn->query($query);
+            $result = $mysqli->query($query);  // Changed to use $mysqli
             
             if ($result && $result->num_rows > 0) {
                 $row = $result->fetch_assoc();
@@ -39,7 +39,7 @@ class Book
             
             // Get book count by category
             $query = "SELECT category, COUNT(*) as count FROM books GROUP BY category ORDER BY count DESC";
-            $result = $conn->query($query);
+            $result = $mysqli->query($query);  // Changed to use $mysqli
             
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
@@ -62,7 +62,7 @@ class Book
      */
     public function getPopularBooks($limit = 5)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
         
         try {
             $query = "SELECT b.*, COUNT(t.tid) as borrow_count 
@@ -72,7 +72,7 @@ class Book
                      ORDER BY borrow_count DESC 
                      LIMIT ?";
             
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("i", $limit);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -97,10 +97,10 @@ class Book
      */
     public function isBookAvailable($isbn)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
         
         try {
-            $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
+            $stmt = $mysqli->prepare("SELECT available FROM books WHERE isbn = ?");  // Changed to use $mysqli
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -123,10 +123,10 @@ class Book
      */
     public function getAllBooks()
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
         
         try {
-            $result = $conn->query("SELECT * FROM books ORDER BY bookName");
+            $result = $mysqli->query("SELECT * FROM books ORDER BY bookName");  // Changed to use $mysqli
             
             $books = [];
             while ($row = $result->fetch_assoc()) {
@@ -139,5 +139,81 @@ class Book
             return [];
         }
     }
+    
+    /**
+     * Get book by ISBN
+     */
+    public function getBookByIsbn($isbn)
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_assoc();
+    }
+    
+    /**
+     * Create a new book
+     */
+    public function createBook($data)
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("INSERT INTO books (isbn, barcode, bookName, authorName, publisherName, description, totalCopies, available, borrowed, bookImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param("ssssssiiis",
+            $data['isbn'],
+            $data['barcode'],
+            $data['bookName'],
+            $data['authorName'],
+            $data['publisherName'],
+            $data['description'],
+            $data['totalCopies'],
+            $data['available'],
+            $data['borrowed'],
+            $data['bookImage']
+        );
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Update book
+     */
+    public function updateBook($isbn, $data)
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("UPDATE books SET bookName = ?, authorName = ?, publisherName = ?, description = ?, totalCopies = ?, available = ?, borrowed = ?, bookImage = ? WHERE isbn = ?");
+        
+        $stmt->bind_param("ssssiiiis",
+            $data['bookName'],
+            $data['authorName'],
+            $data['publisherName'],
+            $data['description'],
+            $data['totalCopies'],
+            $data['available'],
+            $data['borrowed'],
+            $data['bookImage'],
+            $isbn
+        );
+        
+        return $stmt->execute();
+    }
+    
+    /**
+     * Delete book
+     */
+    public function deleteBook($isbn)
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("DELETE FROM books WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        
+        return $stmt->execute();
+    }
 }
-?>

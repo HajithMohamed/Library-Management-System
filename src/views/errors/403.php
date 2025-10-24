@@ -1,147 +1,114 @@
 <?php
-$pageTitle = 'Access Denied';
-include APP_ROOT . '/views/layouts/header.php';
+$pageTitle = '403 - Access Forbidden';
 ?>
-
-<style>
-    .error-container {
-        min-height: calc(100vh - 200px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-    }
-
-    .error-card {
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        overflow: hidden;
-        animation: slideInUp 0.6s ease-out;
-        width: 100%;
-        max-width: 600px;
-        text-align: center;
-        padding: 3rem;
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $pageTitle ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-    }
 
-    .error-icon {
-        font-size: 6rem;
-        margin-bottom: 1.5rem;
-        color: #ef4444;
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0% {
-            opacity: 0.6;
-            transform: scale(0.9);
+        .error-container {
+            text-align: center;
+            color: white;
+            max-width: 600px;
         }
-        50% {
-            opacity: 1;
-            transform: scale(1);
+
+        .error-icon {
+            font-size: 8rem;
+            margin-bottom: 2rem;
+            animation: shake 1s infinite;
         }
-        100% {
-            opacity: 0.6;
-            transform: scale(0.9);
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
         }
-    }
 
-    .error-title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 1rem;
-    }
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+        }
 
-    .error-code {
-        display: inline-block;
-        background: #fee2e2;
-        color: #b91c1c;
-        padding: 0.5rem 1.5rem;
-        border-radius: 2rem;
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-    }
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
 
-    .error-message {
-        color: #6b7280;
-        font-size: 1.1rem;
-        margin-bottom: 2rem;
-        line-height: 1.6;
-    }
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
 
-    .action-buttons {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
+        .btn-home {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: white;
+            color: #ef4444;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin: 0.5rem;
+        }
 
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        text-decoration: none;
-    }
+        .btn-home:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
 
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
 
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-        background: #6b7280;
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #4b5563;
-        transform: translateY(-2px);
-    }
-</style>
-
-<div class="error-container">
-    <div class="error-card">
-        <i class="fas fa-ban error-icon"></i>
-        <h1 class="error-title">Access Denied</h1>
-        <div class="error-code">403 Forbidden</div>
-        <p class="error-message">
-            Sorry, you don't have permission to access this page. 
-            Please make sure you're logged in with the appropriate account type.
-        </p>
-        <div class="action-buttons">
-            <?php if (!isset($_SESSION['userId'])): ?>
-                <a href="<?= BASE_URL ?>login" class="btn btn-primary">
-                    <i class="fas fa-sign-in-alt"></i> Log In
-                </a>
-            <?php endif; ?>
-            <a href="<?= BASE_URL ?>" class="btn btn-secondary">
-                <i class="fas fa-home"></i> Go to Homepage
+        .btn-secondary:hover {
+            background: white;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-ban"></i>
+        </div>
+        <h1>403</h1>
+        <h2>Access Forbidden</h2>
+        <p>You don't have permission to access this resource.</p>
+        <p>Please login with appropriate credentials.</p>
+        <div>
+            <a href="<?= BASE_URL ?>" class="btn-home">
+                <i class="fas fa-home"></i> Go Home
+            </a>
+            <a href="<?= BASE_URL ?>login" class="btn-home btn-secondary">
+                <i class="fas fa-sign-in-alt"></i> Login
             </a>
         </div>
     </div>
-</div>
-
-<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
+</body>
+</html>

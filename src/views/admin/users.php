@@ -1102,15 +1102,15 @@ $currentAdminId = $_SESSION['userId'] ?? '';
             <div class="control-bar">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search users by name, email, or phone...">
+                    <input type="text" id="searchInput" placeholder="Search users by ID, email, or phone...">
                 </div>
                 
                 <div class="filter-group">
                     <select id="userTypeFilter" class="filter-select">
                         <option value="">All User Types</option>
-                        <option value="Student">Student</option>
-                        <option value="Faculty">Faculty</option>
                         <option value="Admin">Admin</option>
+                        <option value="Student">Student</option>
+                        <option value="Teacher">Teacher</option>
                     </select>
                     
                     <select id="statusFilter" class="filter-select">
@@ -1132,10 +1132,12 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>User</th>
+                                <th>Avatar</th>
+                                <th>User ID</th>
+                                <th>Username</th>
                                 <th>Email</th>
                                 <th>Phone</th>
-                                <th>Type</th>
+                                <th>User Type</th>
                                 <th>Gender</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -1146,61 +1148,59 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                                 <?php foreach ($users as $user): ?>
                                     <tr>
                                         <td>
-                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                                <div class="table-user-avatar">
-                                                    <?= strtoupper(substr($user['username'], 0, 2)) ?>
-                                                </div>
-                                                <div>
-                                                    <div style="font-weight: 600; color: #1e293b;">
-                                                        <?= htmlspecialchars($user['username']) ?>
-                                                    </div>
-                                                    <div style="font-size: 0.85rem; color: #64748b;">
-                                                        ID: <?= htmlspecialchars($user['userId']) ?>
-                                                    </div>
-                                                </div>
+                                            <div class="table-user-avatar">
+                                                <?= strtoupper(substr($user['username'] ?? $user['userId'] ?? 'U', 0, 2)) ?>
                                             </div>
                                         </td>
-                                        <td><?= htmlspecialchars($user['emailId']) ?></td>
-                                        <td><?= htmlspecialchars($user['phoneNumber']) ?></td>
                                         <td>
-                                            <?php
-                                            $typeClass = match($user['userType']) {
-                                                'Student' => 'bg-primary',
-                                                'Faculty' => 'bg-success',
-                                                'Admin' => 'bg-warning',
-                                                default => 'bg-info'
-                                            };
-                                            ?>
-                                            <span class="badge <?= $typeClass ?>">
-                                                <?= htmlspecialchars($user['userType']) ?>
+                                            <strong><?= htmlspecialchars($user['userId'] ?? 'N/A') ?></strong>
+                                        </td>
+                                        <td>
+                                            <strong><?= htmlspecialchars($user['username'] ?? 'N/A') ?></strong>
+                                        </td>
+                                        <td>
+                                            <?= htmlspecialchars($user['emailId'] ?? 'No email') ?><br>
+                                            <small class="text-muted"><?= htmlspecialchars($user['userType'] ?? 'Unknown') ?></small>
+                                        </td>
+                                        <td><?= htmlspecialchars($user['phoneNumber'] ?? 'N/A') ?></td>
+                                        <td>
+                                            <span class="badge bg-<?= 
+                                                ($user['userType'] ?? '') === 'Admin' ? 'primary' : 
+                                                (($user['userType'] ?? '') === 'Teacher' ? 'info' : 'success') 
+                                            ?>">
+                                                <?= htmlspecialchars($user['userType'] ?? 'Unknown') ?>
                                             </span>
                                         </td>
-                                        <td><?= htmlspecialchars($user['gender']) ?></td>
+                                        <td><?= htmlspecialchars($user['gender'] ?? 'N/A') ?></td>
                                         <td>
-                                            <?php if ($user['isVerified']): ?>
-                                                <span class="status-badge verified">Verified</span>
+                                            <?php if (($user['isVerified'] ?? 0) == 1): ?>
+                                                <span class="status-badge verified">
+                                                    <i class="fas fa-check-circle"></i> Verified
+                                                </span>
                                             <?php else: ?>
-                                                <span class="status-badge unverified">Unverified</span>
+                                                <span class="status-badge unverified">
+                                                    <i class="fas fa-clock"></i> Unverified
+                                                </span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <div class="action-buttons">
                                                 <button class="btn-action btn-view" 
-                                                        onclick='viewUser(<?= json_encode($user) ?>)'
-                                                        title="View Details">
+                                                        onclick='viewUser(<?= json_encode($user, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
+                                                        title="View">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
                                                 <button class="btn-action btn-edit" 
-                                                        onclick='editUser(<?= json_encode($user) ?>)'
+                                                        onclick='editUser(<?= json_encode($user, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
                                                         title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
-                                                <?php if ($user['userId'] !== $currentAdminId): ?>
-                                                    <button class="btn-action btn-delete" 
-                                                            onclick="deleteUser('<?= htmlspecialchars($user['userId']) ?>', '<?= htmlspecialchars(addslashes($user['username'])) ?>')"
-                                                            title="Delete">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
+                                                <?php if (($user['userId'] ?? '') !== $currentAdminId): ?>
+                                                <button class="btn-action btn-delete" 
+                                                        onclick="deleteUser('<?= htmlspecialchars($user['userId'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($user['username'] ?? $user['emailId'] ?? 'this user', ENT_QUOTES) ?>')"
+                                                        title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -1208,11 +1208,11 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="9">
                                         <div class="empty-state">
                                             <i class="fas fa-users"></i>
                                             <h3>No Users Found</h3>
-                                            <p>Start by adding your first user</p>
+                                            <p>Start by adding your first user to the system</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -1223,8 +1223,8 @@ $currentAdminId = $_SESSION['userId'] ?? '';
             </div>
         </div>
             
-            <!-- Admin Footer -->
-            <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+        <!-- Admin Footer -->
+        <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
             
     </main>
 </div>
@@ -1508,20 +1508,29 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 
-// View User
+// View User - FIXED
 function viewUser(user) {
+    const userId = user.userId || 'N/A';
+    const username = user.username || 'N/A';
+    const emailId = user.emailId || 'N/A';
+    
     const content = `
         <div class="row">
             <div class="col-md-12 text-center" style="margin-bottom: 1.5rem;">
                 <div class="user-avatar" style="width: 80px; height: 80px; font-size: 2rem; margin: 0 auto;">
-                    ${(user.username || 'NA').substring(0, 2).toUpperCase()}
+                    ${username.substring(0, 2).toUpperCase()}
                 </div>
-                <h4 style="margin-top: 1rem; font-weight: 600;">${user.username || 'N/A'}</h4>
-                <p style="color: #64748b;">${user.userId || 'N/A'}</p>
+                <h4 style="margin-top: 1rem; font-weight: 600;">${username}</h4>
+                <p style="color: #64748b;">${emailId}</p>
+                <p style="color: #94a3b8; font-size: 0.9rem;">ID: ${userId}</p>
+            </div>
+            <div class="col-md-6">
+                <strong>Username:</strong><br>
+                ${username}
             </div>
             <div class="col-md-6">
                 <strong>Email:</strong><br>
-                ${user.emailId || 'N/A'}
+                ${emailId}
             </div>
             <div class="col-md-6">
                 <strong>Phone:</strong><br>
@@ -1553,7 +1562,7 @@ function viewUser(user) {
     new bootstrap.Modal(document.getElementById('viewUserModal')).show();
 }
 
-// Edit User
+// Edit User - FIXED
 function editUser(user) {
     document.getElementById('edit_userId').value = user.userId || '';
     document.getElementById('edit_username').value = user.username || '';
@@ -1568,14 +1577,14 @@ function editUser(user) {
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 
-// Delete User
-function deleteUser(userId, username) {
+// Delete User - FIXED
+function deleteUser(userId, displayName) {
     document.getElementById('delete_userId').value = userId || '';
-    document.getElementById('delete_username').textContent = username || 'this user';
+    document.getElementById('delete_username').textContent = displayName || 'this user';
     new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
 }
 
-// Search and Filter
+// Search and Filter - FIXED
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const userTypeFilter = document.getElementById('userTypeFilter').value;
@@ -1586,14 +1595,16 @@ function applyFilters() {
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
-        const username = row.cells[0].textContent.toLowerCase();
-        const email = row.cells[1].textContent.toLowerCase();
-        const phone = row.cells[2].textContent.toLowerCase();
-        const userType = row.cells[3].textContent.trim();
-        const statusText = row.cells[5].textContent.toLowerCase();
+        const userId = row.cells[1].textContent.toLowerCase();
+        const username = row.cells[2].textContent.toLowerCase();
+        const email = row.cells[3].textContent.toLowerCase();
+        const phone = row.cells[4].textContent.toLowerCase();
+        const userType = row.cells[5].textContent.trim();
+        const statusText = row.cells[7].textContent.toLowerCase();
         
         const matchesSearch = searchTerm === '' || 
-            username.includes(searchTerm) || 
+            userId.includes(searchTerm) || 
+            username.includes(searchTerm) ||
             email.includes(searchTerm) || 
             phone.includes(searchTerm);
         

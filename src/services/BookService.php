@@ -19,14 +19,14 @@ class BookService
      */
     public function getAllBooks($page = 1, $perPage = 12)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         $offset = ($page - 1) * $perPage;
 
         try {
             // Get total count
             $countQuery = "SELECT COUNT(*) as total FROM books";
-            $countResult = $conn->query($countQuery);
+            $countResult = $mysqli->query($countQuery);  // Changed to use $mysqli
             $total = $countResult->fetch_assoc()['total'];
 
             // Get paginated books - use actual column names from books table
@@ -38,7 +38,7 @@ class BookService
                       FROM books 
                       ORDER BY createdAt DESC 
                       LIMIT ? OFFSET ?";
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("ii", $perPage, $offset);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -72,12 +72,12 @@ class BookService
      */
     public function getCategories()
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             // Since there's no category column, return unique publishers
             $query = "SELECT DISTINCT publisherName FROM books WHERE publisherName IS NOT NULL AND publisherName != '' ORDER BY publisherName";
-            $result = $conn->query($query);
+            $result = $mysqli->query($query);  // Changed to use $mysqli
 
             $categories = [];
             while ($row = $result->fetch_assoc()) {
@@ -96,11 +96,11 @@ class BookService
      */
     public function getBookByIsbn($isbn)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "SELECT * FROM books WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -117,7 +117,7 @@ class BookService
      */
     public function searchBooks($query, $category = '', $status = '')
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $sql = "SELECT * FROM books WHERE 1=1";
@@ -149,7 +149,7 @@ class BookService
 
             $sql .= " ORDER BY createdAt DESC";
 
-            $stmt = $conn->prepare($sql);
+            $stmt = $mysqli->prepare($sql);  // Changed to use $mysqli
             if (!empty($params)) {
                 $stmt->bind_param($types, ...$params);
             }
@@ -173,13 +173,13 @@ class BookService
      */
     public function createBook($data)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "INSERT INTO books (isbn, bookName, authorName, publisherName, totalCopies, available, borrowed, bookImage, description, isTrending, isSpecial, specialBadge) 
                       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 0, 0, '')";
             
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("ssssiiiss", 
                 $data['isbn'],
                 $data['bookName'],
@@ -203,7 +203,7 @@ class BookService
      */
     public function updateBook($isbn, $data)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "UPDATE books SET 
@@ -216,7 +216,7 @@ class BookService
                       description = ?
                       WHERE isbn = ?";
             
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("sssiisss", 
                 $data['bookName'],
                 $data['authorName'],
@@ -240,12 +240,12 @@ class BookService
      */
     public function deleteBook($isbn)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             // Check if book has active transactions
             $checkQuery = "SELECT COUNT(*) as count FROM transactions WHERE isbn = ? AND returnDate IS NULL";
-            $checkStmt = $conn->prepare($checkQuery);
+            $checkStmt = $mysqli->prepare($checkQuery);  // Changed to use $mysqli
             $checkStmt->bind_param("s", $isbn);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
@@ -257,7 +257,7 @@ class BookService
 
             // Delete the book
             $query = "DELETE FROM books WHERE isbn = ?";
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("s", $isbn);
 
             return $stmt->execute();
@@ -272,7 +272,7 @@ class BookService
      */
     public function getPopularBooks($limit = 10)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "SELECT b.*, COUNT(t.tid) as borrow_count 
@@ -282,7 +282,7 @@ class BookService
                       ORDER BY borrow_count DESC 
                       LIMIT ?";
             
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("i", $limit);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -304,11 +304,11 @@ class BookService
      */
     public function getLowStockBooks($threshold = 5)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "SELECT * FROM books WHERE available <= ? ORDER BY available ASC";
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("i", $threshold);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -330,7 +330,7 @@ class BookService
      */
     public function updateAvailability($isbn, $changeAmount)
     {
-        global $conn;
+        global $mysqli;  // Changed from $conn to $mysqli
 
         try {
             $query = "UPDATE books SET 
@@ -338,7 +338,7 @@ class BookService
                       borrowed = borrowed - ? 
                       WHERE isbn = ?";
             
-            $stmt = $conn->prepare($query);
+            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
             $stmt->bind_param("iis", $changeAmount, $changeAmount, $isbn);
 
             return $stmt->execute();
@@ -348,4 +348,3 @@ class BookService
         }
     }
 }
-?>

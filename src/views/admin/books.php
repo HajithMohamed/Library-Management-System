@@ -1069,13 +1069,16 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         <thead>
                             <tr>
                                 <th>ISBN</th>
+                                <th>Barcode</th>
                                 <th>Cover</th>
                                 <th>Title</th>
                                 <th>Author</th>
                                 <th>Publisher</th>
+                                <th>Description</th>
                                 <th>Total Copies</th>
                                 <th>Available</th>
-                                <th>Status</th>
+                                <th>Borrowed</th>
+                                <th>Image</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1083,12 +1086,22 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <?php if (!empty($books)): ?>
                                 <?php foreach ($books as $book): ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($book['isbn']) ?></td>
+                                        <td><code><?= htmlspecialchars($book['isbn']) ?></code></td>
+                                        <td>
+                                            <?php if (!empty($book['barcode'])): ?>
+                                                <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">
+                                                    <?= htmlspecialchars($book['barcode']) ?>
+                                                </code>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php if (!empty($book['bookImage'])): ?>
                                                 <img src="<?= BASE_URL ?>public/uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
                                                      alt="Book Cover" 
-                                                     class="book-cover">
+                                                     class="book-cover"
+                                                     onerror="this.src='<?= BASE_URL ?>public/assets/images/default-book.jpg'">
                                             <?php else: ?>
                                                 <div class="book-cover" style="display: flex; align-items: center; justify-content: center; background: var(--gray-200); color: var(--gray-400);">
                                                     <i class="fas fa-book"></i>
@@ -1098,28 +1111,43 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         <td class="book-title"><?= htmlspecialchars($book['bookName']) ?></td>
                                         <td><?= htmlspecialchars($book['authorName']) ?></td>
                                         <td><?= htmlspecialchars($book['publisherName']) ?></td>
-                                        <td><?= htmlspecialchars($book['totalCopies']) ?></td>
-                                        <td><?= htmlspecialchars($book['available']) ?></td>
                                         <td>
-                                            <?php if ($book['available'] == 0): ?>
-                                                <span class="status-badge unavailable">Unavailable</span>
-                                            <?php elseif ($book['available'] <= 2): ?>
-                                                <span class="status-badge low-stock">Low Stock</span>
+                                            <?php if (!empty($book['description'])): ?>
+                                                <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                                     title="<?= htmlspecialchars($book['description']) ?>">
+                                                    <?= htmlspecialchars(substr($book['description'], 0, 50)) ?>...
+                                                </div>
                                             <?php else: ?>
-                                                <span class="status-badge available">Available</span>
+                                                <span class="text-muted">No description</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= htmlspecialchars($book['totalCopies']) ?></td>
+                                        <td>
+                                            <?php if ($book['available'] > 0): ?>
+                                                <span class="badge bg-success"><?= $book['available'] ?></span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">0</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning"><?= $book['borrowed'] ?? 0 ?></span>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($book['bookImage'])): ?>
+                                                <span class="badge bg-success"><i class="fas fa-check"></i> Yes</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary"><i class="fas fa-times"></i> No</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <div class="action-buttons">
-                                                <!-- Add Barcode View Button -->
                                                 <?php if (!empty($book['barcode'])): ?>
                                                 <button class="btn-action" style="background: #dbeafe; color: #1e40af;" 
-                                                        onclick="viewBarcode('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars($book['barcode']) ?>', '<?= htmlspecialchars($book['bookName']) ?>')"
+                                                        onclick="viewBarcode('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars($book['barcode']) ?>', '<?= htmlspecialchars(addslashes($book['bookName'])) ?>')"
                                                         title="View Barcode">
                                                     <i class="fas fa-barcode"></i>
                                                 </button>
                                                 <?php endif; ?>
-                                                
                                                 <button class="btn-action btn-edit" 
                                                         onclick='openEditModal(<?= json_encode($book) ?>)'
                                                         title="Edit">
@@ -1136,7 +1164,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="9">
+                                    <td colspan="12">
                                         <div class="empty-state">
                                             <i class="fas fa-book-open"></i>
                                             <h3>No Books Found</h3>
@@ -1156,7 +1184,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
 <!-- Add Book Modal -->
 <div class="modal" id="addBookModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -1167,86 +1195,92 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             </div>
             <form id="addBookForm" onsubmit="return handleAddBook(event)" enctype="multipart/form-data">
                 <div class="modal-body">
-                    <div class="form-grid">
-                        <div class="form-group">
+                    <div class="row">
+                        <div class="col-md-6">
                             <label for="add_isbn" class="form-label">
                                 <i class="fas fa-barcode"></i>
-                                ISBN
+                                ISBN <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_isbn" name="isbn" required>
+                            <input type="text" class="form-control" id="add_isbn" name="isbn" required 
+                                   placeholder="Enter ISBN (e.g., 9780134685991)">
+                            <small class="text-muted">Barcode will be auto-generated</small>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
                             <label for="add_bookName" class="form-label">
                                 <i class="fas fa-book"></i>
-                                Book Title
+                                Book Title <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_bookName" name="bookName" required>
+                            <input type="text" class="form-control" id="add_bookName" name="bookName" required
+                                   placeholder="Enter book title">
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
                             <label for="add_author" class="form-label">
                                 <i class="fas fa-user"></i>
-                                Author Name
+                                Author Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_author" name="authorName" required>
+                            <input type="text" class="form-control" id="add_author" name="authorName" required
+                                   placeholder="Enter author name">
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
                             <label for="add_publisher" class="form-label">
                                 <i class="fas fa-building"></i>
-                                Publisher
+                                Publisher <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_publisher" name="publisherName" required>
+                            <input type="text" class="form-control" id="add_publisher" name="publisherName" required
+                                   placeholder="Enter publisher name">
                         </div>
                         
-                        <div class="form-group">
-                            <label for="add_totalCopies" class="form-label">
-                                <i class="fas fa-copy"></i>
-                                Total Copies
-                            </label>
-                            <input type="number" class="form-control" id="add_totalCopies" name="totalCopies" min="1" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="add_available" class="form-label">
-                                <i class="fas fa-check-circle"></i>
-                                Available Copies
-                            </label>
-                            <input type="number" class="form-control" id="add_available" name="available" min="0" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-grid full-width">
-                        <div class="form-group">
+                        <div class="col-md-12">
                             <label for="add_description" class="form-label">
                                 <i class="fas fa-align-left"></i>
                                 Description
                             </label>
-                            <textarea class="form-control" id="add_description" name="description"></textarea>
+                            <textarea class="form-control" id="add_description" name="description" rows="3"
+                                      placeholder="Enter book description (optional)"></textarea>
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="add_coverImage" class="form-label">
-                            <i class="fas fa-image"></i>
-                            Book Cover Image
-                        </label>
-                        <div class="image-upload-container">
-                            <div class="image-preview">
-                                <div class="preview-box" id="add_imagePreview" style="display: none;">
-                                    <img id="add_previewImage" src="" alt="Preview">
-                                </div>
-                                <div class="preview-box" id="add_imagePlaceholder">
-                                    <div class="preview-placeholder">
-                                        <i class="fas fa-image"></i>
-                                        <p>Preview</p>
+                        
+                        <div class="col-md-6">
+                            <label for="add_totalCopies" class="form-label">
+                                <i class="fas fa-copy"></i>
+                                Total Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="add_totalCopies" name="totalCopies" 
+                                   min="1" value="1" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_available" class="form-label">
+                                <i class="fas fa-check-circle"></i>
+                                Available Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="add_available" name="available" 
+                                   min="0" value="1" required>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="add_coverImage" class="form-label">
+                                <i class="fas fa-image"></i>
+                                Book Cover Image
+                            </label>
+                            <div class="image-upload-container">
+                                <div class="image-preview">
+                                    <div class="preview-box" id="add_imagePreview" style="display: none;">
+                                        <img id="add_previewImage" src="" alt="Preview">
+                                    </div>
+                                    <div class="preview-box" id="add_imagePlaceholder">
+                                        <div class="preview-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <p>Preview</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div style="flex: 1;">
-                                <input type="file" class="form-control" id="add_coverImage" name="coverImage" accept="image/*">
-                                <small class="text-muted">Accepted formats: JPG, PNG, GIF, WebP. Max size: 5MB</small>
+                                <div style="flex: 1;">
+                                    <input type="file" class="form-control" id="add_coverImage" name="coverImage" accept="image/*">
+                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF, WebP. Max size: 5MB</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1268,9 +1302,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
 <!-- Edit Book Modal -->
 <div class="modal" id="editBookModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
                 <h5 class="modal-title">
                     <i class="fas fa-edit"></i>
                     Edit Book
@@ -1281,83 +1315,87 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 <div class="modal-body">
                     <input type="hidden" id="edit_isbn" name="isbn">
                     
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="edit_isbn_display" class="form-label">
-                                <i class="fas fa-barcode"></i>
-                                ISBN
-                            </label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="edit_isbn_display" class="form-label">ISBN</label>
                             <input type="text" class="form-control" id="edit_isbn_display" disabled>
+                            <small class="text-muted">ISBN cannot be changed</small>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
+                            <label for="edit_barcode_display" class="form-label">Barcode</label>
+                            <input type="text" class="form-control" id="edit_barcode_display" disabled>
+                            <small class="text-muted">Auto-generated</small>
+                        </div>
+                        
+                        <div class="col-md-12">
                             <label for="edit_bookName" class="form-label">
-                                <i class="fas fa-book"></i>
-                                Book Title
+                                Book Title <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" id="edit_bookName" name="bookName" required>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
                             <label for="edit_author" class="form-label">
-                                <i class="fas fa-user"></i>
-                                Author Name
+                                Author <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" id="edit_author" name="authorName" required>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-6">
                             <label for="edit_publisher" class="form-label">
-                                <i class="fas fa-building"></i>
-                                Publisher
+                                Publisher <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" id="edit_publisher" name="publisherName" required>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="edit_totalCopies" class="form-label">
-                                <i class="fas fa-copy"></i>
-                                Total Copies
-                            </label>
-                            <input type="number" class="form-control" id="edit_totalCopies" name="totalCopies" min="1" required>
+                        <div class="col-md-12">
+                            <label for="edit_description" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
                         </div>
                         
-                        <div class="form-group">
+                        <div class="col-md-4">
+                            <label for="edit_totalCopies" class="form-label">
+                                Total Copies <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" class="form-control" id="edit_totalCopies" name="totalCopies" required min="1">
+                        </div>
+                        
+                        <div class="col-md-4">
                             <label for="edit_available" class="form-label">
-                                <i class="fas fa-check-circle"></i>
-                                Available Copies
+                                Available Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" id="edit_available" name="available" min="0" required>
+                            <input type="number" class="form-control" id="edit_available" name="available" required min="0">
                         </div>
-                    </div>
-                    
-                    <div class="form-grid full-width">
-                        <div class="form-group">
-                            <label for="edit_description" class="form-label">
-                                <i class="fas fa-align-left"></i>
-                                Description
+                        
+                        <div class="col-md-4">
+                            <label for="edit_borrowed" class="form-label">
+                                Borrowed Copies
                             </label>
-                            <textarea class="form-control" id="edit_description" name="description"></textarea>
+                            <input type="number" class="form-control" id="edit_borrowed" name="borrowed" min="0" value="0">
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit_coverImage" class="form-label">
-                            <i class="fas fa-image"></i>
-                            Book Cover Image
-                        </label>
-                        <div class="image-upload-container">
-                            <div class="image-preview">
-                                <div class="preview-box" id="edit_currentImage" style="display: none;">
-                                    <img id="edit_currentImageDisplay" src="" alt="Current Cover">
-                                </div>
-                                <div class="preview-box" id="edit_imagePreview" style="display: none;">
-                                    <img id="edit_previewImage" src="" alt="New Preview">
+                        
+                        <div class="col-md-12">
+                            <label for="edit_coverImage" class="form-label">Cover Image</label>
+                            <input type="file" class="form-control" id="edit_coverImage" name="coverImage" accept="image/*">
+                            <small class="text-muted">Leave empty to keep current image. Max 5MB.</small>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div id="edit_currentImage" style="display: none;">
+                                <label class="form-label">Current Cover:</label>
+                                <div class="text-center">
+                                    <img id="edit_currentImageDisplay" src="" alt="Current Cover" class="img-thumbnail" 
+                                         style="max-width: 250px; max-height: 250px; object-fit: contain;">
                                 </div>
                             </div>
-                            <div style="flex: 1;">
-                                <input type="file" class="form-control" id="edit_coverImage" name="coverImage" accept="image/*">
-                                <small class="text-muted">Leave empty to keep current image. Accepted formats: JPG, PNG, GIF, WebP. Max size: 5MB</small>
+                            
+                            <div id="edit_imagePreview" style="display: none;">
+                                <label class="form-label">New Cover Preview:</label>
+                                <div class="text-center">
+                                    <img id="edit_previewImage" src="" alt="Preview" class="img-thumbnail" 
+                                         style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1377,46 +1415,26 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     </div>
 </div>
 
-<!-- Add Barcode Modal before closing </main> -->
+<!-- Barcode View Modal -->
 <div class="modal" id="barcodeModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-info text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-barcode"></i>
-                    Book Barcode
+                    <i class="fas fa-barcode"></i> Book Barcode
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
-            <div class="modal-body" style="text-align: center;">
-                <h4 id="barcodeBookTitle" style="margin-bottom: 1rem;"></h4>
-                
-                <div style="margin: 2rem 0;">
-                    <img id="barcodeLabelImage" src="" alt="Barcode Label" style="max-width: 100%; border: 2px solid #e5e7eb; border-radius: 8px;">
-                </div>
-                
-                <div style="margin: 1rem 0;">
-                    <strong>Barcode Value:</strong>
-                    <code id="barcodeValue" style="background: #f3f4f6; padding: 0.5rem 1rem; border-radius: 4px; font-size: 1.1rem;"></code>
-                </div>
-                
-                <div style="margin: 1rem 0;">
-                    <strong>ISBN:</strong>
-                    <span id="barcodeIsbn"></span>
-                </div>
+            <div class="modal-body text-center p-4" id="barcodeContent">
+                <!-- Barcode content loaded here -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i>
-                    Close
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" onclick="printBarcode()">
-                    <i class="fas fa-print"></i>
-                    Print Label
+                    <i class="fas fa-print"></i> Print Barcode
                 </button>
-                <button type="button" class="btn btn-primary" onclick="downloadBarcode()">
-                    <i class="fas fa-download"></i>
-                    Download
+                <button type="button" class="btn btn-success" onclick="downloadBarcode()">
+                    <i class="fas fa-download"></i> Download
                 </button>
             </div>
         </div>
@@ -1566,7 +1584,7 @@ function handleAddBook(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', 'Book added successfully!');
+            showAlert('success', 'Book added successfully with barcode: ' + (data.barcode || ''));
             bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
             setTimeout(() => window.location.reload(), 1500);
         } else {
@@ -1589,12 +1607,14 @@ function handleAddBook(e) {
 function openEditModal(book) {
     document.getElementById('edit_isbn').value = book.isbn;
     document.getElementById('edit_isbn_display').value = book.isbn;
+    document.getElementById('edit_barcode_display').value = book.barcode || 'Auto-generated';
     document.getElementById('edit_bookName').value = book.bookName;
     document.getElementById('edit_author').value = book.authorName;
     document.getElementById('edit_publisher').value = book.publisherName;
     document.getElementById('edit_description').value = book.description || '';
     document.getElementById('edit_totalCopies').value = book.totalCopies;
     document.getElementById('edit_available').value = book.available;
+    document.getElementById('edit_borrowed').value = book.borrowed || 0;
     
     if (book.bookImage) {
         document.getElementById('edit_currentImageDisplay').src = '<?= BASE_URL ?>public/uploads/books/' + book.bookImage;
@@ -1671,6 +1691,56 @@ function deleteBook(isbn, bookName) {
         console.error('Error:', error);
         showAlert('danger', 'An error occurred. Please try again.');
     });
+}
+
+// View Barcode
+function viewBarcode(isbn, barcodeValue, bookName) {
+    const cleanIsbn = isbn.replace(/-/g, '');
+    const labelPath = '<?= BASE_URL ?>public/uploads/barcodes/' + cleanIsbn + '_label.png';
+    
+    const content = `
+        <div class="barcode-display">
+            <h4 class="mb-4">${bookName}</h4>
+            <div class="mb-4">
+                <img src="${labelPath}" 
+                     alt="Barcode Label" 
+                     style="max-width: 100%; border: 2px solid #e5e7eb; border-radius: 8px;"
+                     onerror="this.src='<?= BASE_URL ?>api/generate-barcode?isbn=${isbn}'">
+            </div>
+            <div class="alert alert-info">
+                <strong>Barcode Value:</strong> <code style="font-size: 1.1rem;">${barcodeValue}</code><br>
+                <strong>ISBN:</strong> <code>${isbn}</code>
+            </div>
+            <div class="mt-3">
+                <p class="text-muted">Scan this barcode to quickly identify and manage this book</p>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('barcodeContent').innerHTML = content;
+    window.currentBarcodeLabel = labelPath;
+    new bootstrap.Modal(document.getElementById('barcodeModal')).show();
+}
+
+function printBarcode() {
+    const printContent = document.getElementById('barcodeContent').innerHTML;
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>Print Barcode</title>');
+    printWindow.document.write('<style>body{text-align:center;font-family:Arial;padding:20px;}</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(printContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function downloadBarcode() {
+    if (window.currentBarcodeLabel) {
+        const link = document.createElement('a');
+        link.href = window.currentBarcodeLabel;
+        link.download = 'barcode_label.png';
+        link.click();
+    }
 }
 
 // Show Alert
@@ -1779,50 +1849,7 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-// View Barcode Function
-function viewBarcode(isbn, barcodeValue, bookName) {
-    const cleanIsbn = isbn.replace(/-/g, '');
-    const labelPath = '<?= BASE_URL ?>public/uploads/barcodes/' + cleanIsbn + '_label.png';
-    
-    document.getElementById('barcodeBookTitle').textContent = bookName;
-    document.getElementById('barcodeLabelImage').src = labelPath;
-    document.getElementById('barcodeValue').textContent = barcodeValue;
-    document.getElementById('barcodeIsbn').textContent = isbn;
-    
-    // Store for download/print
-    window.currentBarcodeLabel = labelPath;
-    
-    new bootstrap.Modal(document.getElementById('barcodeModal')).show();
-}
-
-// Print Barcode
-function printBarcode() {
-    const printWindow = window.open('', '', 'height=600,width=800');
-    const img = document.getElementById('barcodeLabelImage').src;
-    const bookName = document.getElementById('barcodeBookTitle').textContent;
-    const isbn = document.getElementById('barcodeIsbn').textContent;
-    
-    printWindow.document.write('<html><head><title>Print Barcode</title>');
-    printWindow.document.write('<style>body{text-align:center;font-family:Arial;padding:20px;}</style>');
-    printWindow.document.write('</head><body>');
-    printWindow.document.write('<h2>' + bookName + '</h2>');
-    printWindow.document.write('<p>ISBN: ' + isbn + '</p>');
-    printWindow.document.write('<img src="' + img + '" style="max-width:100%;">');
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
-
-// Download Barcode
-function downloadBarcode() {
-    const link = document.createElement('a');
-    link.href = window.currentBarcodeLabel;
-    link.download = 'barcode_label.png';
-    link.click();
-}
 </script>
+
+<?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
 
