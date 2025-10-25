@@ -80,7 +80,7 @@ class BookController
                 }
                 $publisherResult->free();
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error fetching publishers: " . $e->getMessage());
             // Continue with empty publishers array
         }

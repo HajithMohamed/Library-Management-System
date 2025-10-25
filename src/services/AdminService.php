@@ -29,7 +29,7 @@ class AdminService
         try {
             $result = $conn->query("SHOW TABLES LIKE '$tableName'");
             return $result && $result->num_rows > 0;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return false;
         }
     }
@@ -322,7 +322,7 @@ class AdminService
             global $conn;
             $result = $conn->query("SELECT 1");
             return $result ? 'healthy' : 'unhealthy';
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return 'unhealthy';
         }
     }
@@ -406,7 +406,7 @@ class AdminService
             // Check if fineAmount column exists
             $result = $conn->query("SHOW COLUMNS FROM transactions LIKE 'fineAmount'");
             return $result && $result->num_rows > 0;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error checking transaction fine columns: " . $e->getMessage());
             return false;
         }
@@ -460,7 +460,7 @@ class AdminService
             }
             
             return $fines;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting fines: " . $e->getMessage());
             return [];
         }
@@ -559,7 +559,7 @@ class AdminService
             
             return $notifications;
             
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting notifications: " . $e->getMessage());
             return [];
         }
@@ -584,7 +584,7 @@ class AdminService
             $stmt->bind_param('ssssss', $userId, $type, $title, $message, $priority, $relatedId);
             
             return $stmt->execute();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error creating notification: " . $e->getMessage());
             return false;
         }
@@ -607,7 +607,7 @@ class AdminService
             $stmt->bind_param('i', $notificationId);
             
             return $stmt->execute();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error marking notification as read: " . $e->getMessage());
             return false;
         }
@@ -730,7 +730,7 @@ class AdminService
             $createdBy = $_SESSION['userId'] ?? 'system';
             $stmt->bind_param('ssisss', $filename, $filepath, $filesize, $backupType, $status, $createdBy);
             return $stmt->execute();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error logging backup: " . $e->getMessage());
             return false;
         }
@@ -762,7 +762,7 @@ class AdminService
             }
             
             return $backups;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting backup history: " . $e->getMessage());
             return [];
         }
@@ -878,7 +878,7 @@ class AdminService
             }
             
             return $settings;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting fine settings: " . $e->getMessage());
             
             // Return default settings on error
@@ -919,7 +919,7 @@ class AdminService
             }
             
             return $updated;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error updating fine settings: " . $e->getMessage());
             return 0;
         }
@@ -961,7 +961,7 @@ class AdminService
             }
             
             return $logs;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting maintenance log: " . $e->getMessage());
             return [];
         }
@@ -988,7 +988,7 @@ class AdminService
             $stmt->bind_param('sssss', $action, $description, $performedBy, $status, $detailsJson);
             
             return $stmt->execute();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error logging maintenance action: " . $e->getMessage());
             return false;
         }
@@ -1061,7 +1061,7 @@ class AdminService
             }
             
             return $requests;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting borrow requests: " . $e->getMessage());
             return [];
         }
@@ -1121,12 +1121,12 @@ class AdminService
                 ];
                 
                 if (!$this->transactionModel->createTransaction($transactionData)) {
-                    throw new Exception('Failed to create transaction');
+                    throw new \Exception('Failed to create transaction');
                 }
                 
                 // Decrease available count
                 if (!$this->bookModel->decreaseAvailable($request['isbn'])) {
-                    throw new Exception('Failed to update book availability');
+                    throw new \Exception('Failed to update book availability');
                 }
                 
                 // Create notification
@@ -1142,12 +1142,12 @@ class AdminService
                 $conn->commit();
                 return true;
                 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $conn->rollback();
                 error_log("Error approving borrow request: " . $e->getMessage());
                 return false;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting borrow request details: " . $e->getMessage());
             return false;
         }
@@ -1203,7 +1203,7 @@ class AdminService
             }
             
             return false;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error rejecting borrow request: " . $e->getMessage());
             return false;
         }
@@ -1260,7 +1260,7 @@ class AdminService
             $result = $stmt->get_result();
             
             return $result->fetch_assoc();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting notification by type and related ID: " . $e->getMessage());
             return null;
         }
@@ -1293,7 +1293,7 @@ class AdminService
             }
             
             return null;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log("Error getting notification by type and user ID: " . $e->getMessage());
             return null;
         }
