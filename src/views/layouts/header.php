@@ -134,7 +134,7 @@
             }
         }
         
-        /* Modern Navbar */
+        /* Modern Navbar - FIXED Z-INDEX */
         .navbar {
             background: rgba(255, 255, 255, 0.95) !important;
             backdrop-filter: blur(20px);
@@ -142,6 +142,8 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             padding: 1rem 0;
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 1000; /* FIXED: Increased z-index */
         }
         
         .navbar.scrolled {
@@ -194,104 +196,130 @@
             z-index: -1;
         }
         
-        .nav-link:hover::before {
-            opacity: 0.1;
-        }
-        
         .nav-link:hover {
-            color: #667eea !important;
+            color: white !important;
             transform: translateY(-2px);
         }
         
-        .nav-link.active {
+        .nav-link:hover::before {
+            opacity: 1;
+        }
+        
+        .nav-link i {
+            margin-right: 0.5rem;
+        }
+        
+        /* User Badge */
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem !important;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        
+        .user-badge:hover {
             background: var(--primary-gradient);
             color: white !important;
+            transform: translateY(-2px);
         }
         
-        .navbar-toggler {
-            border: none;
-            padding: 0.5rem;
-            border-radius: 10px;
-            background: rgba(102, 126, 234, 0.1);
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
         }
         
-        .navbar-toggler:focus {
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-        
-        .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(102, 126, 234, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-        }
-        
+        /* FIXED: Dropdown Menu Z-Index */
         .dropdown-menu {
             border: none;
             border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
             padding: 0.5rem;
+            margin-top: 0.5rem;
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(20px);
-            margin-top: 0.5rem;
+            animation: dropdownSlide 0.3s ease;
+            z-index: 1050; /* FIXED: Ensure dropdown appears above everything */
+        }
+        
+        /* FIXED: Ensure dropdown items are above other content */
+        .nav-item.dropdown {
+            position: relative;
+            z-index: 1050;
+        }
+        
+        @keyframes dropdownSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .dropdown-item {
-            border-radius: 10px;
-            padding: 0.6rem 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
             font-weight: 600;
             color: #4a5568;
-            transition: all 0.2s ease;
         }
         
         .dropdown-item:hover {
-            background: var(--primary-gradient);
-            color: white;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            color: #667eea;
             transform: translateX(5px);
         }
         
+        .dropdown-item i {
+            margin-right: 0.5rem;
+            width: 20px;
+        }
+        
         .dropdown-divider {
-            border-color: rgba(102, 126, 234, 0.2);
+            margin: 0.5rem 0;
+            opacity: 0.1;
         }
         
-        /* User Badge */
-        .user-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0.5rem 1rem;
-            background: var(--primary-gradient);
-            color: white;
+        /* Button Styles */
+        .btn-primary {
+            background: var(--primary-gradient) !important;
+            border: none;
             border-radius: 50px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .user-badge:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 0.5rem 1.5rem;
             font-weight: 700;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
         
-        /* Modern Alerts */
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Alert Styles */
         .alert {
             border: none;
             border-radius: 16px;
             padding: 1rem 1.5rem;
-            backdrop-filter: blur(20px);
-            border-left: 4px solid;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            animation: slideInDown 0.5s ease-out;
-            position: relative;
-            overflow: hidden;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            animation: slideInDown 0.3s ease;
         }
         
         @keyframes slideInDown {
@@ -305,194 +333,45 @@
             }
         }
         
-        .alert::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            animation: progressBar 5s linear;
-        }
-        
-        @keyframes progressBar {
-            from { height: 100%; }
-            to { height: 0%; }
+        .alert i {
+            font-size: 1.5rem;
         }
         
         .alert-success {
-            background: rgba(34, 197, 94, 0.95);
-            color: white;
-            border-left-color: #16a34a;
-        }
-        
-        .alert-success::before {
-            background: #16a34a;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+            color: #059669;
+            border-left: 4px solid #10b981;
         }
         
         .alert-danger {
-            background: rgba(239, 68, 68, 0.95);
-            color: white;
-            border-left-color: #dc2626;
-        }
-        
-        .alert-danger::before {
-            background: #dc2626;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+            color: #dc2626;
+            border-left: 4px solid #ef4444;
         }
         
         .alert-warning {
-            background: rgba(251, 191, 36, 0.95);
-            color: #78350f;
-            border-left-color: #f59e0b;
-        }
-        
-        .alert-warning::before {
-            background: #f59e0b;
-        }
-        
-        .alert-info {
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
-            border-left-color: #2563eb;
-        }
-        
-        .alert i {
-            font-size: 1.2rem;
-            margin-right: 0.5rem;
-        }
-        
-        .btn-close {
-            background: transparent;
-            opacity: 0.8;
-            filter: brightness(0) invert(1);
-        }
-        
-        .btn-close:hover {
-            opacity: 1;
-        }
-        
-        .alert-warning .btn-close {
-            filter: brightness(0);
-        }
-        
-        /* Enhanced Cards */
-        .card {
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-        }
-        
-        .card-header {
-            background: var(--primary-gradient);
-            color: white;
-            border: none;
-            padding: 1.25rem 1.5rem;
-            font-weight: 700;
-        }
-        
-        /* Content Positioning */
-        .navbar, main, footer, .alert {
-            position: relative;
-            z-index: 1;
-        }
-        
-        main {
-            min-height: calc(100vh - 200px);
-        }
-        
-        /* Enhanced Footer */
-        footer {
-            background: rgba(255, 255, 255, 0.95) !important;
-            backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.1);
-            padding: 2rem 0;
-            margin-top: 4rem;
-        }
-        
-        /* Modern Buttons */
-        .btn {
-            border-radius: 12px;
-            font-weight: 600;
-            padding: 0.6rem 1.5rem;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
-        .btn-primary {
-            background: var(--primary-gradient);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-outline-primary {
-            border: 2px solid #667eea;
-            color: #667eea;
-        }
-        
-        .btn-outline-primary:hover {
-            background: var(--primary-gradient);
-            border-color: transparent;
-            transform: translateY(-2px);
-        }
-        
-        /* Badge Styles */
-        .badge {
-            font-size: 0.8em;
-            padding: 0.4em 0.8em;
-            border-radius: 8px;
-            font-weight: 600;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+            color: #d97706;
+            border-left: 4px solid #f59e0b;
         }
         
         /* Responsive Design */
-        @media (max-width: 768px) {
-            .navbar-brand {
-                font-size: 1.2rem;
+        @media (max-width: 991px) {
+            .navbar-collapse {
+                background: white;
+                padding: 1rem;
+                border-radius: 16px;
+                margin-top: 1rem;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             }
             
             .nav-link {
-                padding: 0.7rem 1rem !important;
-                margin: 0.2rem 0;
+                margin: 0.25rem 0;
             }
             
-            .alert {
-                margin: 1rem !important;
+            .user-badge {
+                margin: 0.5rem 0;
             }
-            
-            .particles-container {
-                display: none;
-            }
-        }
-        
-        /* Smooth Scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-gradient);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a3d99 100%);
         }
     </style>
 </head>
