@@ -1,37 +1,25 @@
-# Use official PHP 8.2 FPM image with specific tag
+# Use official PHP 8.2 FPM
 FROM php:8.2-fpm-alpine
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Install system dependencies and PHP extensions
 RUN apk update && apk add --no-cache \
-  git \
-  unzip \
-  libzip-dev \
-  && docker-php-ext-install mysqli pdo pdo_mysql zip \
-  && rm -rf /var/cache/apk/*
+    git unzip libzip-dev \
+    && docker-php-ext-install mysqli pdo pdo_mysql zip
 
-# Install Composer manually to avoid timeout issues
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin --filename=composer
 
-# Copy custom PHP config
 COPY docker/php/php.ini /usr/local/etc/php/
 
-# Copy composer files first
-COPY composer.json composer.lock /var/www/html/
+COPY composer.json composer.lock ./
 
-# Install Composer dependencies
-RUN composer update --no-dev --optimize-autoloader
+# Verify PHP version before Composer
+RUN php -v && composer update --no-dev --optimize-autoloader
 
-# Copy project files
 COPY src /var/www/html
-
-# Set permissions for PHP
 RUN chown -R www-data:www-data /var/www/html
 
-# Expose PHP-FPM port
 EXPOSE 9000
-
-# Default command
 CMD ["php-fpm"]

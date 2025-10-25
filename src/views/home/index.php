@@ -1,6 +1,16 @@
 <?php
 $pageTitle = 'Home';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Default stats if not provided
+$stats = $stats ?? [
+    'totalBooks' => 0,
+    'activeUsers' => 0,
+    'categories' => 0,
+    'totalTransactions' => 0,
+    'availableBooks' => 0,
+    'activeBorrowings' => 0
+];
 ?>
 
 <style>
@@ -393,7 +403,7 @@ include APP_ROOT . '/views/layouts/header.php';
             </h1>
             <p class="hero-subtitle">
                 Your gateway to knowledge and learning. Discover, borrow, and manage 
-                thousands of books with our cutting-edge digital library platform.
+                <?= number_format($stats['totalBooks']) ?> books with our cutting-edge digital library platform.
             </p>
             
             <div class="hero-actions">
@@ -419,7 +429,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </div>
                 <div class="feature-title">Smart Search</div>
                 <div class="feature-desc">
-                    Find any book instantly with our intelligent search powered by advanced algorithms
+                    Find any book instantly from our collection of <?= number_format($stats['totalBooks']) ?> books
                 </div>
             </div>
             
@@ -429,7 +439,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </div>
                 <div class="feature-title">Digital Borrowing</div>
                 <div class="feature-desc">
-                    Seamless borrowing experience with real-time availability and instant notifications
+                    <?= number_format($stats['availableBooks']) ?> books ready for immediate borrowing
                 </div>
             </div>
             
@@ -439,7 +449,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </div>
                 <div class="feature-title">Personalized Profile</div>
                 <div class="feature-desc">
-                    Track your reading journey with detailed history and personalized recommendations
+                    Join <?= number_format($stats['activeUsers']) ?> active members in our community
                 </div>
             </div>
             
@@ -449,7 +459,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </div>
                 <div class="feature-title">Advanced Analytics</div>
                 <div class="feature-desc">
-                    Gain insights into reading patterns with comprehensive statistics and reports
+                    <?= number_format($stats['totalTransactions']) ?> successful transactions and counting
                 </div>
             </div>
         </div>
@@ -457,24 +467,63 @@ include APP_ROOT . '/views/layouts/header.php';
         <div class="stats-section">
             <div class="stats-grid">
                 <div class="stat-item">
-                    <span class="stat-number">10K+</span>
+                    <span class="stat-number" data-target="<?= $stats['totalBooks'] ?>">0</span>
                     <div class="stat-label">Books Available</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number">5K+</span>
+                    <span class="stat-number" data-target="<?= $stats['activeUsers'] ?>">0</span>
                     <div class="stat-label">Active Users</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number">50+</span>
+                    <span class="stat-number" data-target="<?= $stats['categories'] ?>">0</span>
                     <div class="stat-label">Categories</div>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number">24/7</span>
-                    <div class="stat-label">Online Access</div>
+                    <span class="stat-number" data-target="<?= $stats['activeBorrowings'] ?>">0</span>
+                    <div class="stat-label">Active Loans</div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Animated counter for statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const counters = document.querySelectorAll('.stat-number');
+    const speed = 200; // Animation speed
+    
+    const animateCounter = (counter) => {
+        const target = +counter.getAttribute('data-target');
+        const increment = target / speed;
+        let count = 0;
+        
+        const updateCount = () => {
+            count += increment;
+            if (count < target) {
+                counter.textContent = Math.ceil(count).toLocaleString();
+                setTimeout(updateCount, 10);
+            } else {
+                counter.textContent = target.toLocaleString();
+            }
+        };
+        
+        updateCount();
+    };
+    
+    // Intersection Observer for animation trigger
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const counter = entry.target;
+                animateCounter(counter);
+                observer.unobserve(counter);
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    counters.forEach(counter => observer.observe(counter));
+});
+</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

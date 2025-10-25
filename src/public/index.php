@@ -9,13 +9,33 @@ session_start();
 
 // Define application paths (needed before including config)
 define('APP_ROOT', dirname(__DIR__));
+define('PUBLIC_ROOT', __DIR__);
 
-// Include Composer autoloader
-//require_once APP_ROOT . '/vendor/autoload.php';
+// Include Composer autoloader (if exists)
+if (file_exists(APP_ROOT . '/../vendor/autoload.php')) {
+    require_once APP_ROOT . '/../vendor/autoload.php';
+}
 
-// Include configuration
+// Include configuration (this creates $mysqli)
 require_once APP_ROOT . '/config/config.php';
+
+// Error Reporting
+if (APP_DEBUG === "true") {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+// Include dbConnection for backwards compatibility (creates $conn alias)
 require_once APP_ROOT . '/config/dbConnection.php';
+
+// Verify connection
+if (!$mysqli || !($mysqli instanceof mysqli)) {
+    die("Database connection failed in index.php");
+}
 
 // Simple routing system
 class Router {
@@ -62,16 +82,14 @@ class Router {
         $controllerClass = "App\\Controllers\\{$controller}";
         
         if (!class_exists($controllerClass)) {
-            http_response_code(404);
-            include APP_ROOT . '/views/errors/404.php';
+            $this->show404();
             return;
         }
         
         $controllerInstance = new $controllerClass();
         
         if (!method_exists($controllerInstance, $action)) {
-            http_response_code(404);
-            include APP_ROOT . '/views/errors/404.php';
+            $this->show404();
             return;
         }
         
@@ -81,15 +99,41 @@ class Router {
         } catch (\Exception $e) {
             // Log the error
             error_log("Error in {$controller}::{$action} - " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
             
             // Show appropriate error page
             if ($e->getCode() == 403) {
-                http_response_code(403);
-                include APP_ROOT . '/views/errors/403.php';
+                $this->show403();
             } else {
-                http_response_code(500);
-                include APP_ROOT . '/views/errors/500.php';
+                $this->show500();
             }
+        }
+    }
+    
+    private function show404() {
+        http_response_code(404);
+        if (file_exists(APP_ROOT . '/views/errors/404.php')) {
+            include APP_ROOT . '/views/errors/404.php';
+        } else {
+            echo '<h1>404 - Page Not Found</h1><p>The requested page could not be found.</p>';
+        }
+    }
+    
+    private function show403() {
+        http_response_code(403);
+        if (file_exists(APP_ROOT . '/views/errors/403.php')) {
+            include APP_ROOT . '/views/errors/403.php';
+        } else {
+            echo '<h1>403 - Access Forbidden</h1><p>You do not have permission to access this resource.</p>';
+        }
+    }
+    
+    private function show500() {
+        http_response_code(500);
+        if (file_exists(APP_ROOT . '/views/errors/500.php')) {
+            include APP_ROOT . '/views/errors/500.php';
+        } else {
+            echo '<h1>500 - Internal Server Error</h1><p>An error occurred while processing your request.</p>';
         }
     }
 }
@@ -183,4 +227,3 @@ $router->addRoute('GET', '/debug/video', 'HomeController', 'videoDebug');
 
 // Dispatch the request
 $router->dispatch();
-?>

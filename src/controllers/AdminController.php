@@ -21,21 +21,146 @@ class AdminController
      */
     public function dashboard()
     {
-        $this->authHelper->requireAdmin();
+       if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
+
+        global $mysqli;
         
-        $stats = $this->adminService->getDashboardStats();
-        $recentTransactions = $this->adminService->getRecentTransactions(10);
-        $popularBooks = $this->adminService->getPopularBooks(5);
-        $notifications = $this->adminService->getAllNotifications(null, null, true);
-        $systemHealth = $this->adminService->getSystemHealth();
+        // Fetch total books
+        $totalBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books");
+        $totalBooks = $totalBooksResult->fetch_assoc()['count'];
         
-        $this->render('admin/dashboard', [
-            'stats' => $stats,
-            'recentTransactions' => $recentTransactions,
-            'popularBooks' => $popularBooks,
-            'notifications' => $notifications,
-            'systemHealth' => $systemHealth
-        ]);
+        // Fetch available books (sum of available column)
+        $availableBooksResult = $mysqli->query("SELECT SUM(available) as count FROM books");
+        $availableBooks = $availableBooksResult->fetch_assoc()['count'] ?? 0;
+        
+        // Fetch borrowed books (sum of borrowed column)
+        $borrowedBooksResult = $mysqli->query("SELECT SUM(borrowed) as count FROM books");
+        $borrowedBooks = $borrowedBooksResult->fetch_assoc()['count'] ?? 0;
+        
+        // Fetch total users
+        $totalUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users");
+        $totalUsers = $totalUsersResult->fetch_assoc()['count'];
+        
+        // Fetch active users (verified users)
+        $activeUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users WHERE isVerified = 1");
+        $activeUsers = $activeUsersResult->fetch_assoc()['count'];
+        
+        // Fetch total transactions
+        $totalTransactionsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions");
+        $totalTransactions = $totalTransactionsResult->fetch_assoc()['count'];
+        
+        // Fetch active borrowings (not returned yet)
+        $activeBorrowingsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+        $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
+        
+        // Fetch overdue books (borrowed more than 14 days ago, not returned)
+        $overdueBooksResult = $mysqli->query("
+            SELECT COUNT(*) as count 
+            FROM transactions 
+            WHERE returnDate IS NULL 
+            AND DATEDIFF(CURDATE(), borrowDate) > 14
+        ");
+        $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
+        
+        // Fetch low stock books (available <= 2)
+        $lowStockBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
+        $lowStockBooks = $lowStockBooksResult->fetch_assoc()['count'];
+        
+        // Prepare stats array for dashboard
+        $stats = [
+            'users' => [
+                'total_users' => $totalUsers,
+                'active_users' => $activeUsers
+            ],
+            'books' => [
+                'total_books' => $totalBooks,
+                'available_books' => $availableBooks,
+                'borrowed_books' => $borrowedBooks
+            ],
+            'active_borrowings' => $activeBorrowings,
+            'overdue_books' => $overdueBooks,
+            'total_transactions' => $totalTransactions
+        ];
+        
+        // Prepare system health array
+        $systemHealth = [
+            'database' => $mysqli->ping() ? 'healthy' : 'error',
+            'disk_space' => 'healthy', // Simplified for now
+            'overdue_books' => $overdueBooks,
+            'low_stock_books' => $lowStockBooks,
+            'overall' => ($overdueBooks > 50 || $lowStockBooks > 20) ? 'warning' : 'healthy'
+        ];
+        
+        // Fetch recent transactions (last 5)
+        $recentTransactionsQuery = "
+            SELECT 
+                t.tid,
+                t.userId,
+                u.emailId,
+                u.userType,
+                t.isbn,
+                b.bookName,
+                b.authorName,
+                t.borrowDate,
+                t.returnDate
+            FROM transactions t
+            LEFT JOIN users u ON t.userId = u.userId
+            LEFT JOIN books b ON t.isbn = b.isbn
+            ORDER BY t.borrowDate DESC
+            LIMIT 5
+        ";
+        $recentTransactionsResult = $mysqli->query($recentTransactionsQuery);
+        $recentTransactions = [];
+        if ($recentTransactionsResult) {
+            while ($row = $recentTransactionsResult->fetch_assoc()) {
+                $recentTransactions[] = $row;
+            }
+        }
+        
+        // Fetch popular books (top 5 most borrowed)
+        $popularBooksQuery = "
+            SELECT 
+                b.isbn,
+                b.bookName,
+                b.authorName,
+                b.publisherName,
+                COUNT(t.tid) as borrow_count
+            FROM books b
+            LEFT JOIN transactions t ON b.isbn = t.isbn
+            GROUP BY b.isbn, b.bookName, b.authorName, b.publisherName
+            ORDER BY borrow_count DESC
+            LIMIT 5
+        ";
+        $popularBooksResult = $mysqli->query($popularBooksQuery);
+        $popularBooks = [];
+        if ($popularBooksResult) {
+            while ($row = $popularBooksResult->fetch_assoc()) {
+                $popularBooks[] = $row;
+            }
+        }
+        
+        // Fetch recent notifications (last 5 unread)
+        $notificationsQuery = "
+            SELECT id, userId, title, message, type, priority, isRead, createdAt
+            FROM notifications
+            WHERE isRead = 0
+            ORDER BY createdAt DESC
+            LIMIT 5
+        ";
+        $notificationsResult = $mysqli->query($notificationsQuery);
+        $notifications = [];
+        if ($notificationsResult) {
+            while ($row = $notificationsResult->fetch_assoc()) {
+                $notifications[] = $row;
+            }
+        }
+        
+        // Pass all data to view
+        $pageTitle = 'Admin Dashboard';
+        include APP_ROOT . '/views/admin/dashboard.php';
     }
 
     /**
@@ -43,15 +168,38 @@ class AdminController
      */
     public function users()
     {
-        $this->authHelper->requireAdmin();
+        // Check if user is admin
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+            header('Location: ' . BASE_URL . '403');
+            exit();
+        }
+
+        global $mysqli;
         
-        $search = $_GET['search'] ?? '';
-        $users = $this->adminService->getAllUsers($search);
+        // Fetch all users with username
+        $sql = "SELECT userId, username, emailId, phoneNumber, userType, gender, dob, address, isVerified, createdAt 
+                FROM users 
+                ORDER BY createdAt DESC";
         
-        $this->render('admin/users', [
-            'users' => $users,
-            'search' => $search
-        ]);
+        $result = $mysqli->query($sql);
+        
+        $users = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $users[] = $row;
+            }
+        }
+        
+        // Get statistics
+        $totalUsers = count($users);
+        $verifiedUsers = count(array_filter($users, fn($u) => $u['isVerified'] == 1));
+        $adminCount = count(array_filter($users, fn($u) => $u['userType'] === 'Admin'));
+        $studentCount = count(array_filter($users, fn($u) => $u['userType'] === 'Student'));
+        $teacherCount = count(array_filter($users, fn($u) => $u['userType'] === 'Teacher'));
+        
+        // Pass data to view
+        $pageTitle = 'Users Management';
+        include APP_ROOT . '/views/admin/users.php';
     }
 
     /**

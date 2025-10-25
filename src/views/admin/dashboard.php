@@ -284,6 +284,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         gap: 0.5rem;
         transition: all 0.3s ease;
         color: #64748b;
+        text-decoration: none;
     }
 
     .header-btn:hover {
@@ -496,6 +497,21 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         color: #065f46;
     }
 
+    .status-badge.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-badge.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
     /* Popular Books List */
     .book-list {
         display: flex;
@@ -676,7 +692,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 <!-- Admin Layout -->
 <div class="admin-layout">
     <!-- Left Sidebar -->
-<?include APP_ROOT . '/views/admin/admin-navbar.php' ?>;
+    <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -696,8 +712,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             <div class="header-right">
                 <button class="header-btn notification-btn">
                     <i class="fas fa-bell"></i>
-                    <?php if (!empty($notifications) && count(array_filter($notifications, fn($n) => !$n['isRead'])) > 0): ?>
-                        <span class="notification-badge"><?= count(array_filter($notifications, fn($n) => !$n['isRead'])) ?></span>
+                    <?php if (!empty($unreadNotifications)): ?>
+                        <span class="notification-badge"><?= $unreadNotifications ?></span>
                     <?php endif; ?>
                 </button>
                 <button class="header-btn">
@@ -718,7 +734,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <div class="stat-header">
                         <div class="stat-info">
                             <h3>Total Books</h3>
-                            <div class="stat-number"><?= $stats['totalBooks'] ?? 0 ?></div>
+                            <div class="stat-number"><?= $totalBooks ?? 0 ?></div>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-book"></i>
@@ -726,7 +742,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     </div>
                     <div class="stat-footer">
                         <i class="fas fa-arrow-up"></i>
-                        <span>12% increase</span>
+                        <span><?= $availableBooks ?? 0 ?> available</span>
                     </div>
                 </div>
 
@@ -734,7 +750,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <div class="stat-header">
                         <div class="stat-info">
                             <h3>Active Users</h3>
-                            <div class="stat-number"><?= $stats['activeUsers'] ?? 0 ?></div>
+                            <div class="stat-number"><?= $activeUsers ?? 0 ?></div>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-users"></i>
@@ -742,23 +758,23 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     </div>
                     <div class="stat-footer">
                         <i class="fas fa-arrow-up"></i>
-                        <span>8% increase</span>
+                        <span>of <?= $totalUsers ?? 0 ?> total</span>
                     </div>
                 </div>
 
                 <div class="stat-card orange">
                     <div class="stat-header">
                         <div class="stat-info">
-                            <h3>Borrowed Books</h3>
-                            <div class="stat-number"><?= $stats['borrowedBooks'] ?? 0 ?></div>
+                            <h3>Active Borrowings</h3>
+                            <div class="stat-number"><?= $activeBorrowings ?? 0 ?></div>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-book-reader"></i>
                         </div>
                     </div>
                     <div class="stat-footer">
-                        <i class="fas fa-arrow-up"></i>
-                        <span>5% increase</span>
+                        <i class="fas fa-check"></i>
+                        <span><?= $totalTransactions ?? 0 ?> total transactions</span>
                     </div>
                 </div>
 
@@ -766,15 +782,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <div class="stat-header">
                         <div class="stat-info">
                             <h3>Overdue Books</h3>
-                            <div class="stat-number"><?= $stats['overdueBooks'] ?? 0 ?></div>
+                            <div class="stat-number"><?= $overdueBooks ?? 0 ?></div>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-exclamation-triangle"></i>
                         </div>
                     </div>
-                    <div class="stat-footer decrease">
-                        <i class="fas fa-arrow-down"></i>
-                        <span>3% decrease</span>
+                    <div class="stat-footer <?= ($overdueBooks ?? 0) > 0 ? 'decrease' : '' ?>">
+                        <i class="fas fa-<?= ($overdueBooks ?? 0) > 0 ? 'exclamation' : 'check' ?>-circle"></i>
+                        <span><?= ($overdueBooks ?? 0) > 0 ? 'Needs attention' : 'All clear' ?></span>
                     </div>
                 </div>
             </div>
@@ -922,6 +938,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             </div>
             <?php endif; ?>
         </div>
+        
         <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
     </main>
 </div>
@@ -971,3 +988,5 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         toggleMobileSidebar();
     });
 </script>
+
+<?php include APP_ROOT . '/views/layouts/footer.php'; ?>

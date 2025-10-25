@@ -990,18 +990,24 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php foreach ($requests as $request): ?>
                                     <tr>
                                         <td>
-                                            <span class="request-id">#<?= $request['id'] ?></span>
+                                            <span class="request-id">#<?= str_pad($request['id'], 4, '0', STR_PAD_LEFT) ?></span>
                                         </td>
                                         <td>
                                             <div class="user-info-cell">
-                                                <strong><?= htmlspecialchars($request['emailId']) ?></strong><br>
-                                                <small class="text-muted"><?= htmlspecialchars($request['userType']) ?></small>
+                                                <strong><?= htmlspecialchars($request['userId']) ?></strong><br>
+                                                <?php if (isset($request['userName'])): ?>
+                                                    <small class="text-muted"><?= htmlspecialchars($request['userName']) ?></small>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                         <td>
                                             <div class="book-info-cell">
-                                                <strong><?= htmlspecialchars($request['bookName']) ?></strong><br>
-                                                <small class="text-muted"><?= htmlspecialchars($request['authorName']) ?></small><br>
+                                                <?php if (isset($request['bookTitle'])): ?>
+                                                    <strong><?= htmlspecialchars($request['bookTitle']) ?></strong><br>
+                                                    <?php if (isset($request['authorName'])): ?>
+                                                        <small class="text-muted"><?= htmlspecialchars($request['authorName']) ?></small><br>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
                                                 <small class="text-info">ISBN: <?= htmlspecialchars($request['isbn']) ?></small>
                                             </div>
                                         </td>
@@ -1015,18 +1021,18 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                             ];
                                             ?>
                                             <span class="status-badge <?= $statusClass[$request['status']] ?? 'secondary' ?>">
-                                                <?= $request['status'] ?>
+                                                <?= htmlspecialchars($request['status']) ?>
                                             </span>
                                         </td>
                                         <td>
-                                            <?php if ($request['approvedBy']): ?>
+                                            <?php if (!empty($request['approvedBy'])): ?>
                                                 <?= htmlspecialchars($request['approvedBy']) ?>
                                             <?php else: ?>
                                                 <span class="text-muted">-</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if ($request['dueDate']): ?>
+                                            <?php if (!empty($request['dueDate'])): ?>
                                                 <?= date('M j, Y', strtotime($request['dueDate'])) ?>
                                             <?php else: ?>
                                                 <span class="text-muted">-</span>
@@ -1043,6 +1049,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                                     </button>
                                                     <button class="btn-action info" onclick="viewDetails(<?= $request['id'] ?>)">
                                                         <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </div>
+                                            <?php elseif ($request['status'] === 'Rejected' && !empty($request['rejectionReason'])): ?>
+                                                <div class="action-buttons">
+                                                    <button class="btn-action info" onclick="viewDetails(<?= $request['id'] ?>)">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                    <button class="btn-action danger" onclick="alert('Rejection Reason: <?= htmlspecialchars(addslashes($request['rejectionReason'])) ?>')">
+                                                        <i class="fas fa-info-circle"></i> Reason
                                                     </button>
                                                 </div>
                                             <?php else: ?>
@@ -1086,7 +1101,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 <h5 class="modal-title">Approve Borrow Request</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="closeModal('approveModal')">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests/handle">
+            <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle.php">
                 <div class="modal-body">
                     <input type="hidden" name="action" value="approve">
                     <input type="hidden" name="requestId" id="approveRequestId">
@@ -1119,7 +1134,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 <h5 class="modal-title">Reject Borrow Request</h5>
                 <button type="button" class="btn-close" onclick="closeModal('rejectModal')">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests/handle">
+            <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle.php">
                 <div class="modal-body">
                     <input type="hidden" name="action" value="reject">
                     <input type="hidden" name="requestId" id="rejectRequestId">
@@ -1205,7 +1220,7 @@ function rejectRequest(requestId) {
 
 function viewDetails(requestId) {
     // Load request details via AJAX
-    fetch(`<?= BASE_URL ?>admin/borrow-requests/details/${requestId}`)
+    fetch(`<?= BASE_URL ?>admin/borrow-requests-details.php?id=${requestId}`)
         .then(response => response.json())
         .then(data => {
             document.getElementById('requestDetails').innerHTML = data.html;

@@ -463,9 +463,7 @@ $userStats = [
     /* Responsive Design */
     @media (max-width: 768px) {
         .welcome-header {
-            padding: 1.5rem;
-            text-align: center;
-            justify-content: center;
+            display: none;
         }
         
         .stats-grid {
