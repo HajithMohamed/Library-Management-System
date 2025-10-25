@@ -21,8 +21,7 @@ class AdminController
      */
     public function dashboard()
     {
-        // Check if user is logged in and is admin
-        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
+       if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
             header('Location: ' . BASE_URL . '403');
             exit();
         }
