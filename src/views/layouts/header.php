@@ -143,7 +143,13 @@
             padding: 1rem 0;
             transition: all 0.3s ease;
             position: relative;
-            z-index: 1000; /* FIXED: Increased z-index */
+            z-index: 1000;
+        }
+        
+        .navbar > .container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
         }
         
         .navbar.scrolled {
@@ -209,21 +215,63 @@
             margin-right: 0.5rem;
         }
         
-        /* User Badge */
-        .user-badge {
+        /* Profile Dropdown */
+        .profile-dropdown {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 1rem !important;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border-radius: 50px;
+            padding: 0.25rem !important;
+            border-radius: 50%;
             transition: all 0.3s ease;
         }
         
-        .user-badge:hover {
-            background: var(--primary-gradient);
-            color: white !important;
-            transform: translateY(-2px);
+        .profile-dropdown::after {
+            display: none !important; /* Hide the dropdown arrow */
+        }
+        
+        .profile-dropdown:hover {
+            transform: none;
+            opacity: 0.9;
+        }
+        
+        .profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid transparent;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .profile-img:hover {
+            opacity: 0.9;
+        }
+        
+        .default-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        /* Mobile Profile Wrapper */
+        .mobile-profile-wrapper {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            margin-right: 0.5rem;
+        }
+        
+        .mobile-profile-wrapper .profile-dropdown {
+            padding: 0 !important;
+        }
+        
+        .mobile-profile-wrapper .dropdown-menu {
+            right: 0;
+            left: auto;
         }
         
         .user-avatar {
@@ -249,7 +297,11 @@
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(20px);
             animation: dropdownSlide 0.3s ease;
-            z-index: 1050; /* FIXED: Ensure dropdown appears above everything */
+            z-index: 1050;
+        }
+        
+        .profile-menu {
+            min-width: 200px;
         }
         
         /* FIXED: Ensure dropdown items are above other content */
@@ -281,6 +333,11 @@
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
             color: #667eea;
             transform: translateX(5px);
+        }
+        
+        .dropdown-item.logout-item:hover {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+            color: #ef4444;
         }
         
         .dropdown-item i {
@@ -363,14 +420,38 @@
                 border-radius: 16px;
                 margin-top: 1rem;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                flex-basis: 100%;
             }
             
             .nav-link {
                 margin: 0.25rem 0;
             }
             
-            .user-badge {
-                margin: 0.5rem 0;
+            .mobile-profile-wrapper {
+                z-index: 1050;
+            }
+            
+            .mobile-profile-wrapper .profile-img {
+                width: 38px;
+                height: 38px;
+            }
+            
+            .mobile-profile-wrapper .dropdown-menu {
+                position: absolute !important;
+                right: 0 !important;
+                left: auto !important;
+                margin-top: 0.5rem !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .mobile-profile-wrapper .profile-img {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .default-avatar {
+                font-size: 1rem;
             }
         }
     </style>
@@ -395,6 +476,47 @@
             <a class="navbar-brand" href="<?= BASE_URL ?>">
                 <i class="fas fa-book-open"></i> University Library
             </a>
+            
+            <!-- Profile Icon for Mobile (shown outside menu) -->
+            <?php if (isset($_SESSION['userId'])): ?>
+            <div class="mobile-profile-wrapper d-lg-none">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle profile-dropdown" href="#" id="mobileProfileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <?php 
+                            $profileImage = $_SESSION['profileImage'] ?? null;
+                            if ($profileImage && file_exists($profileImage)) {
+                                echo '<img src="' . BASE_URL . $profileImage . '" alt="Profile" class="profile-img">';
+                            } else {
+                                echo '<div class="profile-img default-avatar">' . strtoupper(substr($_SESSION['userId'], 0, 1)) . '</div>';
+                            }
+                        ?>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end profile-menu">
+                        <li>
+                            <a class="dropdown-item" href="<?= BASE_URL ?>user/profile">
+                                <i class="fas fa-user-circle"></i> Profile
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="<?= BASE_URL ?>user/dashboard">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="<?= BASE_URL ?>user/notifications">
+                                <i class="fas fa-bell"></i> Notifications
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item logout-item" href="<?= BASE_URL ?>logout">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <?php endif; ?>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -462,17 +584,24 @@
                 
                 <ul class="navbar-nav">
                     <?php if (isset($_SESSION['userId'])): ?>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle user-badge" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                <div class="user-avatar">
-                                    <?= strtoupper(substr($_SESSION['userId'], 0, 1)) ?>
-                                </div>
-                                <span><?= htmlspecialchars($_SESSION['userId']) ?></span>
+                        <!-- Profile dropdown for desktop only -->
+                        <li class="nav-item dropdown d-none d-lg-block">
+                            <a class="nav-link dropdown-toggle profile-dropdown" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <?php 
+                                    // Check if user has profile image, otherwise use default
+                                    $profileImage = $_SESSION['profileImage'] ?? null;
+                                    if ($profileImage && file_exists($profileImage)) {
+                                        echo '<img src="' . BASE_URL . $profileImage . '" alt="Profile" class="profile-img">';
+                                    } else {
+                                        // Default avatar with first letter
+                                        echo '<div class="profile-img default-avatar">' . strtoupper(substr($_SESSION['userId'], 0, 1)) . '</div>';
+                                    }
+                                ?>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end profile-menu">
                                 <li>
                                     <a class="dropdown-item" href="<?= BASE_URL ?>user/profile">
-                                        <i class="fas fa-user-circle"></i> My Profile
+                                        <i class="fas fa-user-circle"></i> Profile
                                     </a>
                                 </li>
                                 <li>
@@ -480,9 +609,14 @@
                                         <i class="fas fa-tachometer-alt"></i> Dashboard
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" href="<?= BASE_URL ?>user/notifications">
+                                        <i class="fas fa-bell"></i> Notifications
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item" href="<?= BASE_URL ?>logout">
+                                    <a class="dropdown-item logout-item" href="<?= BASE_URL ?>logout">
                                         <i class="fas fa-sign-out-alt"></i> Logout
                                     </a>
                                 </li>
