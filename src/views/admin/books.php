@@ -463,16 +463,23 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     }
 
     .book-cover {
-        width: 50px;
-        height: 70px;
+        width: 60px;
+        height: 80px;
         object-fit: cover;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .book-title {
-        font-weight: 600;
-        color: var(--dark-color);
+    .no-image {
+        width: 60px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--gray-200), var(--gray-300));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-500);
+        font-size: 1.5rem;
     }
 
     .status-badge {
@@ -1177,6 +1184,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <table class="table">
                         <thead>
                             <tr>
+                                <th>Cover</th>
                                 <th>ISBN</th>
                                 <th>Barcode</th>
                                 <th>Title</th>
@@ -1193,6 +1201,21 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <?php if (!empty($books)): ?>
                                 <?php foreach ($books as $book): ?>
                                     <tr>
+                                        <td>
+                                            <?php if (!empty($book['image'])): ?>
+                                                <img src="<?= BASE_URL ?>public/<?= htmlspecialchars($book['image']) ?>" 
+                                                     alt="<?= htmlspecialchars($book['bookName']) ?>" 
+                                                     class="book-cover"
+                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                <div class="no-image" style="display:none;">
+                                                    <i class="fas fa-book"></i>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="no-image">
+                                                    <i class="fas fa-book"></i>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><code><?= htmlspecialchars($book['isbn']) ?></code></td>
                                         <td>
                                             <?php if (!empty($book['barcode'])): ?>
@@ -1208,11 +1231,6 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                             <?php if ($book['isTrending']): ?>
                                                 <span class="badge" style="background: #fbbf24; color: #92400e; margin-left: 0.5rem;">
                                                     <i class="fas fa-fire"></i> Trending
-                                                </span>
-                                            <?php endif; ?>
-                                            <?php if ($book['isSpecial'] && !empty($book['specialBadge'])): ?>
-                                                <span class="badge" style="background: #8b5cf6; color: white; margin-left: 0.5rem;">
-                                                    <?= htmlspecialchars($book['specialBadge']) ?>
                                                 </span>
                                             <?php endif; ?>
                                         </td>
@@ -1273,7 +1291,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="10">
+                                    <td colspan="11">
                                         <div class="empty-state">
                                             <i class="fas fa-book-open"></i>
                                             <h3>No Books Found</h3>
@@ -1302,9 +1320,33 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/books/add">
+            <form method="POST" action="<?= BASE_URL ?>admin/books/add" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="row">
+                        <div class="col-md-12">
+                            <label class="form-label">
+                                <i class="fas fa-image"></i>
+                                Book Cover Image
+                            </label>
+                            <div class="image-upload-container">
+                                <div class="image-preview">
+                                    <div class="preview-box" id="add_imagePlaceholder">
+                                        <div class="preview-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <p style="font-size: 0.85rem; margin-top: 0.5rem;">No image</p>
+                                        </div>
+                                    </div>
+                                    <div class="preview-box" id="add_imagePreview" style="display:none;">
+                                        <img id="add_previewImage" src="" alt="Preview">
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <input type="file" class="form-control" name="image" id="add_coverImage" accept="image/*">
+                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF, WebP (Max 2MB)</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-6">
                             <label for="add_isbn" class="form-label">
                                 <i class="fas fa-barcode"></i>
@@ -1396,11 +1438,29 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/books/edit">
+            <form method="POST" action="<?= BASE_URL ?>admin/books/edit" enctype="multipart/form-data">
                 <div class="modal-body">
                     <input type="hidden" name="isbn" id="edit_isbn">
                     
                     <div class="row">
+                        <div class="col-md-12">
+                            <label class="form-label">
+                                <i class="fas fa-image"></i>
+                                Book Cover Image
+                            </label>
+                            <div class="image-upload-container">
+                                <div class="image-preview">
+                                    <div class="preview-box" id="edit_imagePreview">
+                                        <img id="edit_previewImage" src="" alt="Preview">
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <input type="file" class="form-control" name="image" id="edit_coverImage" accept="image/*">
+                                    <small class="text-muted">Leave empty to keep current image. Accepted formats: JPG, PNG, GIF, WebP</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-6">
                             <label class="form-label">ISBN</label>
                             <input type="text" class="form-control" id="edit_isbn_display" disabled>
@@ -1581,6 +1641,107 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 
+// Compress image before upload
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                }, 'image/jpeg', quality);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Modified Image Preview for Add Book with compression
+document.getElementById('add_coverImage').addEventListener('change', async function() {
+    if (this.files && this.files[0]) {
+        let file = this.files[0];
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const maxSize = 2 * 1024 * 1024;
+        
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
+            this.value = '';
+            document.getElementById('add_imagePreview').style.display = 'none';
+            document.getElementById('add_imagePlaceholder').style.display = 'flex';
+            return;
+        }
+        
+        // Compress if file is too large
+        if (file.size > maxSize) {
+            console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            file = await compressImage(file);
+            console.log(`Compressed size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            
+            // Update the file input with compressed file
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            this.files = dataTransfer.files;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('add_previewImage').src = event.target.result;
+            document.getElementById('add_imagePreview').style.display = 'block';
+            document.getElementById('add_imagePlaceholder').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// Modified Image Preview for Edit Book with compression
+document.getElementById('edit_coverImage').addEventListener('change', async function() {
+    if (this.files && this.files[0]) {
+        let file = this.files[0];
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const maxSize = 2 * 1024 * 1024;
+        
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
+            this.value = '';
+            return;
+        }
+        
+        // Compress if file is too large
+        if (file.size > maxSize) {
+            console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            file = await compressImage(file);
+            console.log(`Compressed size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            
+            // Update the file input with compressed file
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            this.files = dataTransfer.files;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('edit_previewImage').src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
 // Open Edit Modal with book data - UPDATED
 function openEditModal(book) {
     document.getElementById('edit_isbn').value = book.isbn;
@@ -1593,6 +1754,13 @@ function openEditModal(book) {
     document.getElementById('edit_available').value = book.available;
     document.getElementById('edit_borrowed').value = book.borrowed || 0;
     document.getElementById('edit_isTrending').checked = book.isTrending == 1;
+    
+    // Set image preview
+    if (book.image) {
+        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>public/' + book.image;
+    } else {
+        document.getElementById('edit_previewImage').src = '';
+    }
     
     new bootstrap.Modal(document.getElementById('editBookModal')).show();
 }
@@ -1679,11 +1847,11 @@ function applyFilters() {
     rows.forEach(row => {
         if (row.cells.length === 1) return;
         
-        const isbn = row.cells[0].textContent.toLowerCase();
-        const bookName = row.cells[2].textContent.toLowerCase();
-        const author = row.cells[3].textContent.toLowerCase();
-        const publisher = row.cells[4].textContent.toLowerCase();
-        const availableText = row.cells[6].textContent.trim();
+        const isbn = row.cells[1].textContent.toLowerCase();
+        const bookName = row.cells[3].textContent.toLowerCase();
+        const author = row.cells[4].textContent.toLowerCase();
+        const publisher = row.cells[5].textContent.toLowerCase();
+        const availableText = row.cells[7].textContent.trim();
         const available = parseInt(availableText);
         
         const matchesSearch = searchTerm === '' || 

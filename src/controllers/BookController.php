@@ -33,6 +33,7 @@ class BookController
                     authorName,
                     publisherName,
                     totalCopies,
+                    image,
                     available,
                     borrowed,
                     isTrending
@@ -156,25 +157,51 @@ class BookController
             }
             $checkStmt->close();
             
+            // Handle image upload
+            $imagePath = null;
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = APP_ROOT . '/public/uploads/books/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                
+                $fileExtension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                
+                if (!in_array($fileExtension, $allowedExtensions)) {
+                    $_SESSION['error'] = 'Invalid image format. Only JPG, PNG, GIF, and WebP are allowed.';
+                    header('Location: ' . BASE_URL . 'admin/books');
+                    exit();
+                }
+                
+                $fileName = uniqid('book_') . '.' . $fileExtension;
+                $targetPath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
+                    $imagePath = 'uploads/books/' . $fileName;
+                }
+            }
+            
             $barcodeValue = null;
             $borrowed = $totalCopies - $available;
             
             // Insert book
             $stmt = $mysqli->prepare("INSERT INTO books 
-                (isbn, barcode, bookName, authorName, publisherName, totalCopies, available, borrowed, isTrending) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                (isbn, barcode, bookName, authorName, publisherName, totalCopies, image, available, borrowed, isTrending) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssssiii", 
+            $stmt->bind_param("sssssissii", 
                 $isbn, 
                 $barcodeValue,
                 $bookName, 
                 $authorName, 
                 $publisherName, 
-                $totalCopies, 
+                $totalCopies,
+                $imagePath,
                 $available,
                 $borrowed,
                 $isTrending
@@ -246,12 +273,51 @@ class BookController
                 exit();
             }
             
+            // Get current book data to retrieve old image
+            $currentStmt = $mysqli->prepare("SELECT image FROM books WHERE isbn = ?");
+            $currentStmt->bind_param("s", $isbn);
+            $currentStmt->execute();
+            $currentResult = $currentStmt->get_result();
+            $currentBook = $currentResult->fetch_assoc();
+            $currentStmt->close();
+            
+            $imagePath = $currentBook['image'] ?? null;
+            
+            // Handle image upload
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = APP_ROOT . '/public/uploads/books/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                
+                $fileExtension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                
+                if (!in_array($fileExtension, $allowedExtensions)) {
+                    $_SESSION['error'] = 'Invalid image format. Only JPG, PNG, GIF, and WebP are allowed.';
+                    header('Location: ' . BASE_URL . 'admin/books');
+                    exit();
+                }
+                
+                $fileName = uniqid('book_') . '.' . $fileExtension;
+                $targetPath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
+                    // Delete old image if exists
+                    if ($imagePath && file_exists(APP_ROOT . '/public/' . $imagePath)) {
+                        unlink(APP_ROOT . '/public/' . $imagePath);
+                    }
+                    $imagePath = 'uploads/books/' . $fileName;
+                }
+            }
+            
             // Update book
             $stmt = $mysqli->prepare("UPDATE books SET 
                 bookName = ?, 
                 authorName = ?, 
                 publisherName = ?, 
-                totalCopies = ?, 
+                totalCopies = ?,
+                image = ?,
                 available = ?, 
                 borrowed = ?,
                 isTrending = ?
@@ -261,11 +327,12 @@ class BookController
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssiiiis", 
+            $stmt->bind_param("sssisiiis", 
                 $bookName, 
                 $authorName, 
                 $publisherName, 
-                $totalCopies, 
+                $totalCopies,
+                $imagePath,
                 $available, 
                 $borrowed,
                 $isTrending,
@@ -378,13 +445,14 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all available books
+        // Fetch all available books - ADDED image column
         $sql = "SELECT 
                     isbn,
                     bookName,
                     authorName,
                     publisherName,
                     totalCopies,
+                    image,
                     available,
                     borrowed,
                     isTrending
@@ -436,11 +504,13 @@ class BookController
         }
         
         $searchTerm = '%' . $query . '%';
+        // ADDED image column to SELECT
         $stmt = $mysqli->prepare("SELECT 
                 isbn, 
                 bookName, 
                 authorName, 
-                publisherName, 
+                publisherName,
+                image,
                 available,
                 isTrending
             FROM books 
