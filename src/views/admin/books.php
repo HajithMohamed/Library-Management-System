@@ -644,6 +644,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         padding: 2rem;
         overflow-y: auto;
         overflow-x: hidden;
+        max-height: calc(90vh - 200px); /* Ensure footer is always visible */
     }
 
     .modal-footer {
@@ -654,6 +655,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         border-top: 1px solid var(--gray-200);
         background: var(--gray-50);
         gap: 1rem;
+        flex-shrink: 0; /* Prevent footer from being hidden */
     }
 
     /* Modern Scrollbar */
@@ -1000,6 +1002,89 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     .alert .btn-close:hover {
         opacity: 1;
     }
+
+    .text-muted {
+        color: var(--gray-500);
+    }
+
+    /* Grid Layout - MISSING CSS */
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -0.75rem;
+    }
+
+    .col-md-4 {
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+        padding: 0 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+        padding: 0 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .col-md-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 0 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: var(--gray-50);
+        border-radius: 12px;
+        border: 2px solid var(--gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .form-check:hover {
+        border-color: var(--primary-color);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        cursor: pointer;
+        border: 2px solid var(--gray-400);
+        border-radius: 4px;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--gray-700);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-check-label i {
+        color: var(--warning-color);
+    }
+
+    @media (max-width: 768px) {
+        .col-md-4,
+        .col-md-6 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
 </style>
 
 <!-- Mobile Overlay -->
@@ -1035,6 +1120,25 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
         <!-- Page Content -->
         <div class="page-content">
+            <!-- Session Messages -->
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <?= htmlspecialchars($_SESSION['success']) ?>
+                    <button type="button" class="btn-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+                <?php unset($_SESSION['success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?= htmlspecialchars($_SESSION['error']) ?>
+                    <button type="button" class="btn-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
+
             <!-- Control Bar -->
             <div class="control-bar">
                 <div class="search-box">
@@ -1198,7 +1302,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form id="addBookForm" onsubmit="return handleAddBook(event)" enctype="multipart/form-data">
+            <form method="POST" action="<?= BASE_URL ?>admin/books/add">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
@@ -1206,9 +1310,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-barcode"></i>
                                 ISBN <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_isbn" name="isbn" required 
+                            <input type="text" class="form-control" name="isbn" required 
                                    placeholder="Enter ISBN (e.g., 9780134685991)">
-                            <small class="text-muted">Barcode will be auto-generated</small>
                         </div>
                         
                         <div class="col-md-6">
@@ -1216,7 +1319,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-book"></i>
                                 Book Title <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_bookName" name="bookName" required
+                            <input type="text" class="form-control" name="bookName" required
                                    placeholder="Enter book title">
                         </div>
                         
@@ -1225,7 +1328,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-user"></i>
                                 Author Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_author" name="authorName" required
+                            <input type="text" class="form-control" name="authorName" required
                                    placeholder="Enter author name">
                         </div>
                         
@@ -1234,17 +1337,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-building"></i>
                                 Publisher <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="add_publisher" name="publisherName" required
+                            <input type="text" class="form-control" name="publisherName" required
                                    placeholder="Enter publisher name">
-                        </div>
-                        
-                        <div class="col-md-12">
-                            <label for="add_description" class="form-label">
-                                <i class="fas fa-align-left"></i>
-                                Description
-                            </label>
-                            <textarea class="form-control" id="add_description" name="description" rows="3"
-                                      placeholder="Enter book description (optional)"></textarea>
                         </div>
                         
                         <div class="col-md-6">
@@ -1252,7 +1346,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-copy"></i>
                                 Total Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" id="add_totalCopies" name="totalCopies" 
+                            <input type="number" class="form-control" name="totalCopies" 
                                    min="1" value="1" required>
                         </div>
                         
@@ -1261,31 +1355,17 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-check-circle"></i>
                                 Available Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" id="add_available" name="available" 
+                            <input type="number" class="form-control" name="available" 
                                    min="0" value="1" required>
                         </div>
-                        
+
                         <div class="col-md-12">
-                            <label for="add_coverImage" class="form-label">
-                                <i class="fas fa-image"></i>
-                                Book Cover Image
-                            </label>
-                            <div class="image-upload-container">
-                                <div class="image-preview">
-                                    <div class="preview-box" id="add_imagePreview" style="display: none;">
-                                        <img id="add_previewImage" src="" alt="Preview">
-                                    </div>
-                                    <div class="preview-box" id="add_imagePlaceholder">
-                                        <div class="preview-placeholder">
-                                            <i class="fas fa-image"></i>
-                                            <p>Preview</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style="flex: 1;">
-                                    <input type="file" class="form-control" id="add_coverImage" name="coverImage" accept="image/*">
-                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF, WebP. Max size: 5MB</small>
-                                </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="isTrending" value="1" id="add_isTrending">
+                                <label class="form-check-label" for="add_isTrending">
+                                    <i class="fas fa-fire"></i>
+                                    Mark as Trending Book
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1295,7 +1375,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
-                    <button type="submit" class="btn btn-primary" id="addBookBtn">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i>
                         Add Book
                     </button>
@@ -1316,19 +1396,19 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form id="editBookForm" enctype="multipart/form-data">
+            <form method="POST" action="<?= BASE_URL ?>admin/books/edit">
                 <div class="modal-body">
-                    <input type="hidden" id="edit_isbn" name="isbn">
+                    <input type="hidden" name="isbn" id="edit_isbn">
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <label for="edit_isbn_display" class="form-label">ISBN</label>
+                            <label class="form-label">ISBN</label>
                             <input type="text" class="form-control" id="edit_isbn_display" disabled>
                             <small class="text-muted">ISBN cannot be changed</small>
                         </div>
                         
                         <div class="col-md-6">
-                            <label for="edit_barcode_display" class="form-label">Barcode</label>
+                            <label class="form-label">Barcode</label>
                             <input type="text" class="form-control" id="edit_barcode_display" disabled>
                             <small class="text-muted">Auto-generated</small>
                         </div>
@@ -1337,70 +1417,51 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <label for="edit_bookName" class="form-label">
                                 Book Title <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="edit_bookName" name="bookName" required>
+                            <input type="text" class="form-control" name="bookName" id="edit_bookName" required>
                         </div>
                         
                         <div class="col-md-6">
                             <label for="edit_author" class="form-label">
                                 Author <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="edit_author" name="authorName" required>
+                            <input type="text" class="form-control" name="authorName" id="edit_author" required>
                         </div>
                         
                         <div class="col-md-6">
                             <label for="edit_publisher" class="form-label">
                                 Publisher <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" id="edit_publisher" name="publisherName" required>
-                        </div>
-                        
-                        <div class="col-md-12">
-                            <label for="edit_description" class="form-label">Description</label>
-                            <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                            <input type="text" class="form-control" name="publisherName" id="edit_publisher" required>
                         </div>
                         
                         <div class="col-md-4">
                             <label for="edit_totalCopies" class="form-label">
                                 Total Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" id="edit_totalCopies" name="totalCopies" required min="1">
+                            <input type="number" class="form-control" name="totalCopies" id="edit_totalCopies" required min="1">
                         </div>
                         
                         <div class="col-md-4">
                             <label for="edit_available" class="form-label">
                                 Available Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" id="edit_available" name="available" required min="0">
+                            <input type="number" class="form-control" name="available" id="edit_available" required min="0">
                         </div>
                         
                         <div class="col-md-4">
                             <label for="edit_borrowed" class="form-label">
                                 Borrowed Copies
                             </label>
-                            <input type="number" class="form-control" id="edit_borrowed" name="borrowed" min="0" value="0">
+                            <input type="number" class="form-control" name="borrowed" id="edit_borrowed" min="0" value="0">
                         </div>
-                        
+
                         <div class="col-md-12">
-                            <label for="edit_coverImage" class="form-label">Cover Image</label>
-                            <input type="file" class="form-control" id="edit_coverImage" name="coverImage" accept="image/*">
-                            <small class="text-muted">Leave empty to keep current image. Max 5MB.</small>
-                        </div>
-                        
-                        <div class="col-md-12">
-                            <div id="edit_currentImage" style="display: none;">
-                                <label class="form-label">Current Cover:</label>
-                                <div class="text-center">
-                                    <img id="edit_currentImageDisplay" src="" alt="Current Cover" class="img-thumbnail" 
-                                         style="max-width: 250px; max-height: 250px; object-fit: contain;">
-                                </div>
-                            </div>
-                            
-                            <div id="edit_imagePreview" style="display: none;">
-                                <label class="form-label">New Cover Preview:</label>
-                                <div class="text-center">
-                                    <img id="edit_previewImage" src="" alt="Preview" class="img-thumbnail" 
-                                         style="max-width: 250px; max-height: 250px; object-fit: contain;">
-                                </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="isTrending" value="1" id="edit_isTrending">
+                                <label class="form-check-label" for="edit_isTrending">
+                                    <i class="fas fa-fire"></i>
+                                    Mark as Trending Book
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1520,95 +1581,7 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 
-// Image Preview for Add Book
-document.getElementById('add_coverImage').addEventListener('change', function() {
-    if (this.files && this.files[0]) {
-        const file = this.files[0];
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        
-        if (!allowedTypes.includes(file.type)) {
-            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
-            this.value = '';
-            document.getElementById('add_imagePreview').style.display = 'none';
-            document.getElementById('add_imagePlaceholder').style.display = 'flex';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('add_previewImage').src = event.target.result;
-            document.getElementById('add_imagePreview').style.display = 'block';
-            document.getElementById('add_imagePlaceholder').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-    } else {
-        document.getElementById('add_imagePreview').style.display = 'none';
-        document.getElementById('add_imagePlaceholder').style.display = 'flex';
-    }
-});
-
-// Image Preview for Edit Book
-document.getElementById('edit_coverImage').addEventListener('change', function() {
-    if (this.files && this.files[0]) {
-        const file = this.files[0];
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        
-        if (!allowedTypes.includes(file.type)) {
-            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
-            this.value = '';
-            document.getElementById('edit_imagePreview').style.display = 'none';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('edit_previewImage').src = event.target.result;
-            document.getElementById('edit_imagePreview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    } else {
-        document.getElementById('edit_imagePreview').style.display = 'none';
-    }
-});
-
-// Handle Add Book Form Submission
-function handleAddBook(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const submitBtn = document.getElementById('addBookBtn');
-    const originalBtnText = submitBtn.innerHTML;
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Adding...';
-    
-    fetch('<?= BASE_URL ?>admin/books/add', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', 'Book added successfully with barcode: ' + (data.barcode || ''));
-            bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message || 'Failed to add book');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred. Please try again.');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
-    });
-    
-    return false;
-}
-
-// Open Edit Modal with book data
+// Open Edit Modal with book data - UPDATED
 function openEditModal(book) {
     document.getElementById('edit_isbn').value = book.isbn;
     document.getElementById('edit_isbn_display').value = book.isbn;
@@ -1616,86 +1589,33 @@ function openEditModal(book) {
     document.getElementById('edit_bookName').value = book.bookName;
     document.getElementById('edit_author').value = book.authorName;
     document.getElementById('edit_publisher').value = book.publisherName;
-    document.getElementById('edit_description').value = book.description || '';
     document.getElementById('edit_totalCopies').value = book.totalCopies;
     document.getElementById('edit_available').value = book.available;
     document.getElementById('edit_borrowed').value = book.borrowed || 0;
+    document.getElementById('edit_isTrending').checked = book.isTrending == 1;
     
-    if (book.bookImage) {
-        document.getElementById('edit_currentImageDisplay').src = '<?= BASE_URL ?>public/uploads/books/' + book.bookImage;
-        document.getElementById('edit_currentImage').style.display = 'block';
-    } else {
-        document.getElementById('edit_currentImage').style.display = 'none';
-    }
-    
-    document.getElementById('edit_imagePreview').style.display = 'none';
-    document.getElementById('edit_coverImage').value = '';
-    
-    const modal = new bootstrap.Modal(document.getElementById('editBookModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('editBookModal')).show();
 }
 
-// Handle Edit Book Form Submission
-document.getElementById('editBookForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
-    
-    fetch('<?= BASE_URL ?>admin/books/edit', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            bootstrap.Modal.getInstance(document.getElementById('editBookModal')).hide();
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnText;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred. Please try again.');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
-    });
-});
-
-// Delete Book
+// Delete Book - UPDATED (simpler confirmation)
 function deleteBook(isbn, bookName) {
-    if (!confirm(`Are you sure you want to delete "${bookName}"? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete "${bookName}"?\n\nThis action cannot be undone.`)) {
         return;
     }
     
-    const formData = new FormData();
-    formData.append('isbn', isbn);
+    // Create a form and submit it
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '<?= BASE_URL ?>admin/books/delete';
     
-    fetch('<?= BASE_URL ?>admin/books/delete', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred. Please try again.');
-    });
+    const isbnInput = document.createElement('input');
+    isbnInput.type = 'hidden';
+    isbnInput.name = 'isbn';
+    isbnInput.value = isbn;
+    
+    form.appendChild(isbnInput);
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // View Barcode
@@ -1748,43 +1668,6 @@ function downloadBarcode() {
     }
 }
 
-// Show Alert
-function showAlert(type, message) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.style.position = 'fixed';
-    alertDiv.style.top = '20px';
-    alertDiv.style.right = '20px';
-    alertDiv.style.zIndex = '9999';
-    alertDiv.style.minWidth = '300px';
-    alertDiv.style.animation = 'slideIn 0.3s ease-out';
-    alertDiv.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-        ${message}
-        <button type="button" class="btn-close" onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        alertDiv.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => alertDiv.remove(), 300);
-    }, 5000);
-}
-
-// Reset forms when modal is closed
-document.getElementById('addBookModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('addBookForm').reset();
-    document.getElementById('add_imagePreview').style.display = 'none';
-    document.getElementById('add_imagePlaceholder').style.display = 'flex';
-});
-
-document.getElementById('editBookModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('editBookForm').reset();
-    document.getElementById('edit_imagePreview').style.display = 'none';
-    document.getElementById('edit_currentImage').style.display = 'none';
-});
-
 // Search and Filter Functionality
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
@@ -1828,32 +1711,6 @@ function applyFilters() {
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 document.getElementById('publisherFilter').addEventListener('change', applyFilters);
 document.getElementById('statusFilter').addEventListener('change', applyFilters);
-
-// Add slide animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
 </script>
 
 <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>

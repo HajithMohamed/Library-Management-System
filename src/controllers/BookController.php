@@ -95,8 +95,8 @@ class BookController
     {
         // Check if user is admin
         if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+            $_SESSION['error'] = 'Unauthorized access';
+            header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
 
@@ -104,13 +104,10 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-
-        header('Content-Type: application/json');
         
         try {
             global $mysqli;
             
-            // Validate connection
             if (!$mysqli) {
                 throw new \Exception("Database connection failed");
             }
@@ -125,18 +122,21 @@ class BookController
             
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
-                echo json_encode(['success' => false, 'message' => 'All required fields must be filled']);
+                $_SESSION['error'] = 'All required fields must be filled';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
             // Validate totalCopies and available
             if ($totalCopies < 1) {
-                echo json_encode(['success' => false, 'message' => 'Total copies must be at least 1']);
+                $_SESSION['error'] = 'Total copies must be at least 1';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
             if ($available > $totalCopies) {
-                echo json_encode(['success' => false, 'message' => 'Available copies cannot exceed total copies']);
+                $_SESSION['error'] = 'Available copies cannot exceed total copies';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
@@ -149,19 +149,17 @@ class BookController
             $checkStmt->bind_param("s", $isbn);
             $checkStmt->execute();
             if ($checkStmt->get_result()->num_rows > 0) {
-                echo json_encode(['success' => false, 'message' => 'Book with this ISBN already exists']);
+                $_SESSION['error'] = 'Book with this ISBN already exists';
+                $checkStmt->close();
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             $checkStmt->close();
             
-            // Generate barcode (barcode column exists but set to NULL in your data)
-            $cleanIsbn = str_replace('-', '', $isbn);
-            $barcodeValue = null; // Set to NULL as per your table structure
-            
-            // Calculate borrowed (totalCopies - available)
+            $barcodeValue = null;
             $borrowed = $totalCopies - $available;
             
-            // Insert book - matching exact table structure
+            // Insert book
             $stmt = $mysqli->prepare("INSERT INTO books 
                 (isbn, barcode, bookName, authorName, publisherName, totalCopies, available, borrowed, isTrending) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -184,12 +182,9 @@ class BookController
             
             if ($stmt->execute()) {
                 $stmt->close();
-                
-                echo json_encode([
-                    'success' => true, 
-                    'message' => 'Book added successfully!',
-                    'isbn' => $isbn
-                ]);
+                $_SESSION['success'] = 'Book added successfully!';
+                header('Location: ' . BASE_URL . 'admin/books');
+                exit();
             } else {
                 $error = $stmt->error;
                 $stmt->close();
@@ -198,10 +193,10 @@ class BookController
             
         } catch (\Exception $e) {
             error_log("Error adding book: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+            $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-        
-        exit();
     }
 
     /**
@@ -211,8 +206,8 @@ class BookController
     {
         // Check if user is admin
         if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+            $_SESSION['error'] = 'Unauthorized access';
+            header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
 
@@ -220,8 +215,6 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-
-        header('Content-Type: application/json');
         
         try {
             global $mysqli;
@@ -241,17 +234,19 @@ class BookController
             
             // Validate
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
-                echo json_encode(['success' => false, 'message' => 'All required fields must be filled']);
+                $_SESSION['error'] = 'All required fields must be filled';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
             // Validate copies
             if ($totalCopies < ($available + $borrowed)) {
-                echo json_encode(['success' => false, 'message' => 'Total copies must be at least ' . ($available + $borrowed)]);
+                $_SESSION['error'] = 'Total copies must be at least ' . ($available + $borrowed);
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
-            // Update book - matching exact table structure
+            // Update book
             $stmt = $mysqli->prepare("UPDATE books SET 
                 bookName = ?, 
                 authorName = ?, 
@@ -279,10 +274,9 @@ class BookController
             
             if ($stmt->execute()) {
                 $stmt->close();
-                echo json_encode([
-                    'success' => true, 
-                    'message' => 'Book updated successfully!'
-                ]);
+                $_SESSION['success'] = 'Book updated successfully!';
+                header('Location: ' . BASE_URL . 'admin/books');
+                exit();
             } else {
                 $error = $stmt->error;
                 $stmt->close();
@@ -291,10 +285,10 @@ class BookController
             
         } catch (\Exception $e) {
             error_log("Error updating book: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+            $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-        
-        exit();
     }
 
     /**
@@ -304,8 +298,8 @@ class BookController
     {
         // Check if user is admin
         if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+            $_SESSION['error'] = 'Unauthorized access';
+            header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
 
@@ -313,8 +307,6 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-
-        header('Content-Type: application/json');
         
         try {
             global $mysqli;
@@ -326,7 +318,8 @@ class BookController
             $isbn = trim($_POST['isbn'] ?? '');
             
             if (empty($isbn)) {
-                echo json_encode(['success' => false, 'message' => 'ISBN is required']);
+                $_SESSION['error'] = 'ISBN is required';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
@@ -342,7 +335,8 @@ class BookController
             $checkStmt->close();
             
             if ($result['count'] > 0) {
-                echo json_encode(['success' => false, 'message' => 'Cannot delete book with active borrowings']);
+                $_SESSION['error'] = 'Cannot delete book with active borrowings';
+                header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
@@ -356,10 +350,9 @@ class BookController
             
             if ($stmt->execute()) {
                 $stmt->close();
-                echo json_encode([
-                    'success' => true, 
-                    'message' => 'Book deleted successfully!'
-                ]);
+                $_SESSION['success'] = 'Book deleted successfully!';
+                header('Location: ' . BASE_URL . 'admin/books');
+                exit();
             } else {
                 $error = $stmt->error;
                 $stmt->close();
@@ -368,10 +361,10 @@ class BookController
             
         } catch (\Exception $e) {
             error_log("Error deleting book: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+            $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
+            header('Location: ' . BASE_URL . 'admin/books');
+            exit();
         }
-        
-        exit();
     }
 
     /**
