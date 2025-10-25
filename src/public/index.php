@@ -18,14 +18,27 @@ if (file_exists(APP_ROOT . '/../vendor/autoload.php')) {
 
 // Include configuration (this creates $mysqli)
 require_once APP_ROOT . '/config/config.php';
-
-// Include dbConnection for backwards compatibility (creates $conn alias)
 require_once APP_ROOT . '/config/dbConnection.php';
+
+define('DEBUG_MODE', true);  // Set to false in production
+
+// Error Reporting
+if (DEBUG_MODE) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+// Include dbConnection for backwards compatibility (creates $conn alias)
 
 // Verify connection
 if (!$mysqli || !($mysqli instanceof mysqli)) {
     die("Database connection failed in index.php");
 }
+
+
 
 // Simple routing system
 class Router {

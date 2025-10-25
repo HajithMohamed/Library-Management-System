@@ -206,6 +206,10 @@ if (!defined('SMTP_PORT')) {
     define('SMTP_PORT', getEnvVar('SMTP_PORT', '587'));
 }
 
+if(!defined("APP_DEBUG")){
+    define("APP_DEBUG" , getEnvVar("APP_DEBUG" , "true"));
+}
+
 if (!defined('SMTP_USERNAME')) {
     define('SMTP_USERNAME', getEnvVar('SMTP_USERNAME', 'youremail@gmail.com'));
 }
