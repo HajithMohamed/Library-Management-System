@@ -35,9 +35,7 @@ class BookController
                     totalCopies,
                     available,
                     borrowed,
-                    isTrending,
-                    isSpecial,
-                    specialBadge
+                    isTrending
                 FROM books 
                 ORDER BY bookName ASC";
         
@@ -52,9 +50,6 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Add empty description and bookImage since they don't exist in DB
-                $row['description'] = '';
-                $row['bookImage'] = '';
                 $books[] = $row;
             }
             $result->free();
@@ -124,8 +119,6 @@ class BookController
             $totalCopies = (int)($_POST['totalCopies'] ?? 1);
             $available = (int)($_POST['available'] ?? $totalCopies);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
-            $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
-            $specialBadge = trim($_POST['specialBadge'] ?? '');
             
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
@@ -167,14 +160,14 @@ class BookController
             
             // Insert book - matching exact table structure
             $stmt = $mysqli->prepare("INSERT INTO books 
-                (isbn, barcode, bookName, authorName, publisherName, totalCopies, available, borrowed, isTrending, isSpecial, specialBadge) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                (isbn, barcode, bookName, authorName, publisherName, totalCopies, available, borrowed, isTrending) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssssiiiiis", 
+            $stmt->bind_param("sssssiii", 
                 $isbn, 
                 $barcodeValue,
                 $bookName, 
@@ -183,9 +176,7 @@ class BookController
                 $totalCopies, 
                 $available,
                 $borrowed,
-                $isTrending,
-                $isSpecial,
-                $specialBadge
+                $isTrending
             );
             
             if ($stmt->execute()) {
@@ -244,8 +235,6 @@ class BookController
             $available = (int)($_POST['available'] ?? 0);
             $borrowed = (int)($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
-            $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
-            $specialBadge = trim($_POST['specialBadge'] ?? '');
             
             // Validate
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
@@ -267,16 +256,14 @@ class BookController
                 totalCopies = ?, 
                 available = ?, 
                 borrowed = ?,
-                isTrending = ?,
-                isSpecial = ?,
-                specialBadge = ?
+                isTrending = ?
                 WHERE isbn = ?");
             
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssiiiiiis", 
+            $stmt->bind_param("sssiiiis", 
                 $bookName, 
                 $authorName, 
                 $publisherName, 
@@ -284,8 +271,6 @@ class BookController
                 $available, 
                 $borrowed,
                 $isTrending,
-                $isSpecial,
-                $specialBadge,
                 $isbn
             );
             
@@ -406,9 +391,7 @@ class BookController
                     totalCopies,
                     available,
                     borrowed,
-                    isTrending,
-                    isSpecial,
-                    specialBadge
+                    isTrending
                 FROM books
                 WHERE available > 0
                 ORDER BY bookName ASC";
@@ -423,7 +406,6 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $row['bookImage'] = ''; // Default empty
                 $books[] = $row;
             }
             $result->free();
@@ -461,8 +443,7 @@ class BookController
                 authorName, 
                 publisherName, 
                 available,
-                isTrending,
-                isSpecial
+                isTrending
             FROM books 
             WHERE bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?
             ORDER BY bookName ASC
