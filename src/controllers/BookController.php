@@ -50,6 +50,9 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                // Add missing columns with default values for view compatibility
+                $row['isSpecial'] = 0;
+                $row['specialBadge'] = null;
                 $books[] = $row;
             }
             $result->free();
@@ -406,6 +409,9 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                // Add missing columns with default values for view compatibility
+                $row['isSpecial'] = 0;
+                $row['specialBadge'] = null;
                 $books[] = $row;
             }
             $result->free();
@@ -461,6 +467,9 @@ class BookController
         
         $books = [];
         while ($row = $result->fetch_assoc()) {
+            // Add missing columns with default values for view compatibility
+            $row['isSpecial'] = 0;
+            $row['specialBadge'] = null;
             $books[] = $row;
         }
         
