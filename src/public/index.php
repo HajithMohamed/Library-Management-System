@@ -26,10 +26,13 @@ error_log("=== Application Starting ===");
 error_log("APP_ROOT: " . APP_ROOT);
 error_log("PUBLIC_ROOT: " . PUBLIC_ROOT);
 
-// Include Composer autoloader (if exists)
-if (file_exists(APP_ROOT . '/../vendor/autoload.php')) {
-  require_once APP_ROOT . '/../vendor/autoload.php';
+// Include Composer autoloader (if exists) - FIXED PATH
+if (file_exists(APP_ROOT . '/vendor/autoload.php')) {
+  require_once APP_ROOT . '/vendor/autoload.php';
   error_log("Composer autoloader loaded");
+} else {
+  error_log("WARNING: Composer autoloader not found at " . APP_ROOT . '/vendor/autoload.php');
+  error_log("Please run 'composer install' in the project root to install dependencies.");
 }
 
 // Include configuration (this creates $mysqli)
