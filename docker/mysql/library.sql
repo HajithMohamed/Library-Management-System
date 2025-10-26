@@ -404,122 +404,121 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- ====================================================================
 -- Insert default fine settings (only if table is empty)
--- FIXED: Added column aliases to prevent duplicate column name '0' error
 -- ====================================================================
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
-SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system'
+SELECT * FROM (SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system') AS tmp
 WHERE NOT EXISTS (
-    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_per_day'
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'fine_per_day'
 );
 
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
-SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system'
+SELECT * FROM (SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system') AS tmp
 WHERE NOT EXISTS (
-    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
 );
 
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
-SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system'
+SELECT * FROM (SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system') AS tmp
 WHERE NOT EXISTS (
-    SELECT 1 FROM `fine_settings` WHERE setting_name = 'grace_period_days'
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'grace_period_days'
 );
 
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
-SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system'
+SELECT * FROM (SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system') AS tmp
 WHERE NOT EXISTS (
-    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
 );
 
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
-SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system'
+SELECT * FROM (SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system') AS tmp
 WHERE NOT EXISTS (
-    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
 );
 
 -- ====================================================================
 -- Insert default system settings
 -- ====================================================================
 INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
-SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system'
-WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_name');
+SELECT * FROM (SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_name');
 
 INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
-SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system'
-WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_email');
+SELECT * FROM (SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_email');
 
 INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
-SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system'
-WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_phone');
+SELECT * FROM (SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_phone');
 
 INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
-SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system'
-WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'max_books_per_user');
+SELECT * FROM (SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'max_books_per_user');
 
 INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
-SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system'
-WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'enable_notifications');
+SELECT * FROM (SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'enable_notifications');
 
 -- ====================================================================
 -- Insert default role permissions
 -- ====================================================================
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
+SELECT * FROM (SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
+SELECT * FROM (SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
+SELECT * FROM (SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
+SELECT * FROM (SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
+SELECT * FROM (SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
+SELECT * FROM (SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
 
 INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
-SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings'
-WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
+SELECT * FROM (SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
 
 -- ====================================================================
 -- Insert default library hours
 -- ====================================================================
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Monday', '08:00:00', '20:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Monday');
+SELECT * FROM (SELECT 'Monday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Monday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Tuesday', '08:00:00', '20:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
+SELECT * FROM (SELECT 'Tuesday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Wednesday', '08:00:00', '20:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
+SELECT * FROM (SELECT 'Wednesday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Thursday', '08:00:00', '20:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Thursday');
+SELECT * FROM (SELECT 'Thursday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Thursday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Friday', '08:00:00', '18:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Friday');
+SELECT * FROM (SELECT 'Friday', '08:00:00', '18:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Friday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Saturday', '10:00:00', '16:00:00', 0
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Saturday');
+SELECT * FROM (SELECT 'Saturday', '10:00:00', '16:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Saturday');
 
 INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
-SELECT 'Sunday', '00:00:00', '00:00:00', 1
-WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
+SELECT * FROM (SELECT 'Sunday', '00:00:00', '00:00:00', 1) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Sunday');
 
 -- ====================================================================
 -- DUMMY DATA: Users (20 users - mix of Students, Faculty, Librarian, Admin)
