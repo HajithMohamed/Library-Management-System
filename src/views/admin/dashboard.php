@@ -1001,5 +1001,3 @@ $currentAdminId = $_SESSION['userId'] ?? '';
     toggleMobileSidebar();
   });
 </script>
-
-<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
