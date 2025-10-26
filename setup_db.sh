@@ -26,38 +26,45 @@ print_success "Containers stopped"
 # Step 2: Create/Update .env file with correct settings
 print_status "Creating correct .env file..."
 cat > .env << 'EOF'
-# Environment Configuration for Library Management System
-
-# Application Settings
-APP_NAME="University Library Management System"
-APP_ENV=production
-APP_DEBUG=true
-
-# Web Server
+# Application Configuration
+TZ=Asia/Kolkata
 WEB_PORT=8080
+PHPMYADMIN_PORT=8081
 
 # Database Configuration
-MYSQL_HOST=db
-MYSQL_PORT=3306
+MYSQL_ROOT_PASSWORD=root
 MYSQL_DATABASE=integrated_library_system
 MYSQL_USER=library_user
 MYSQL_PASSWORD=library_password
-MYSQL_ROOT_PASSWORD=root_password
 
-# phpMyAdmin
-PHPMYADMIN_PORT=8081
+# Application Database Settings (for PHP)
+DB_HOST=db
+DB_PORT=3306
+DB_USER=library_user
+DB_PASSWORD=library_password
+DB_NAME=integrated_library_system
 
-# PHP Configuration
-PHP_VERSION=8.2
-UPLOAD_MAX_FILESIZE=10M
-POST_MAX_SIZE=10M
-MEMORY_LIMIT=256M
 
-# Session Configuration
-SESSION_LIFETIME=120
+# Admin Configuration
+ADMIN_CODE=hello_world
+APP_DEBUG=true
 
-# Timezone
-TIMEZONE=Asia/Colombo
+# Admin Configuration
+ADMIN_CODE=hello_world
+
+# Email Configuration (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=exampe@gmail.com
+SMTP_PASSWORD=app_password
+SMTP_ENCRYPTION=tls
+SMTP_FROM_EMAIL=example@gmail.com
+SMTP_FROM_NAME="Library Management System University of Ruhuna"
+
+# SMS Gateway Configuration (optional - leave blank to disable)
+SMS_API_URL=
+SMS_API_KEY=
+SMS_SENDER_ID=
 EOF
 print_success ".env file created"
 

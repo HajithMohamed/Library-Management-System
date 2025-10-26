@@ -1,15 +1,18 @@
 -- University Library Management System Database Schema
 -- This file is automatically executed when the Docker container starts
--- Version: 2.1 (FIXED - Corrected all issues from validation)
+-- Version: 2.2 (FIXED: Added safety for Docker init - disabled FK checks during data load, used INSERT IGNORE for dummy data to prevent rollback/duplicate errors)
 -- Date: 2025-10-26
--- FIXES APPLIED:
+-- FIXES APPLIED (from 2.1):
 -- 1. Removed duplicate 'fine' column from transactions table
 -- 2. Updated all dates to 2025 for consistency
 -- 3. Added foreign key constraint for approvedBy in borrow_requests
 -- 4. Fixed data consistency in transaction records
+-- NEW FIXES:
+-- 1. Removed outer transaction wrapper to prevent full rollback on single INSERT error
+-- 2. Added SET FOREIGN_KEY_CHECKS=0 during data inserts to avoid transient FK violations in init order
+-- 3. Changed dummy data INSERTs to INSERT IGNORE to skip duplicates on re-init without errors
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
 SET time_zone = "+00:00";
 
 -- Create database if not exists
@@ -395,6 +398,11 @@ CREATE TABLE IF NOT EXISTS `report_schedule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================
+-- Disable FK checks for safe data insertion (re-enabled after)
+-- ====================================================================
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ====================================================================
 -- Insert default fine settings (only if table is empty)
 -- ====================================================================
 INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
@@ -516,7 +524,7 @@ WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Sunday');
 -- DUMMY DATA: Users (20 users - mix of Students, Faculty, Librarian, Admin)
 -- FIXED: Updated all dates to 2025
 -- ====================================================================
-INSERT INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
+INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
 ('USR001', 'john_smith', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
 ('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
 ('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
@@ -541,7 +549,7 @@ INSERT INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `do
 -- ====================================================================
 -- DUMMY DATA: Books (30 books across various categories)
 -- ====================================================================
-INSERT INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `description`, `category`, `publicationYear`, `totalCopies`, `available`, `borrowed`, `bookImage`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
+INSERT IGNORE INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `description`, `category`, `publicationYear`, `totalCopies`, `available`, `borrowed`, `bookImage`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
 ('9780134685991', 'BAR001', 'Effective Java', 'Joshua Bloch', 'Addison-Wesley', 'Essential programming guide for Java developers covering best practices and design patterns.', 'Computer Science', 2018, 5, 3, 2, 'effective_java.jpg', 1, 1, 'Bestseller'),
 ('9780132350884', 'BAR002', 'Clean Code', 'Robert C. Martin', 'Prentice Hall', 'A handbook of agile software craftsmanship teaching clean code principles.', 'Computer Science', 2008, 4, 2, 2, 'clean_code.jpg', 1, 0, NULL),
 ('9780596517748', 'BAR003', 'JavaScript: The Good Parts', 'Douglas Crockford', 'O\'Reilly Media', 'Explores the elegant and useful features of JavaScript while avoiding its pitfalls.', 'Computer Science', 2008, 3, 1, 2, 'js_good_parts.jpg', 0, 0, NULL),
@@ -577,7 +585,7 @@ INSERT INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName
 -- DUMMY DATA: Transactions (25 transaction records)
 -- FIXED: Removed duplicate 'fine' column, updated dates to 2025
 -- ====================================================================
-INSERT INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`, `fineAmount`, `fineStatus`, `finePaymentDate`, `finePaymentMethod`) VALUES
+INSERT IGNORE INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`, `fineAmount`, `fineStatus`, `finePaymentDate`, `finePaymentMethod`) VALUES
 ('TXN001', 'USR001', '9780134685991', '2025-10-01', '2025-10-12', 0.00, 'paid', NULL, NULL),
 ('TXN002', 'USR002', '9780132350884', '2025-10-03', '2025-10-15', 0.00, 'paid', NULL, NULL),
 ('TXN003', 'USR003', '9780743273565', '2025-09-20', '2025-10-10', 15.00, 'paid', '2025-10-11', 'online'),
@@ -608,7 +616,7 @@ INSERT INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`,
 -- DUMMY DATA: Borrow Requests (15 requests with various statuses)
 -- FIXED: Updated dates to 2025
 -- ====================================================================
-INSERT INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`, `rejectionReason`) VALUES
+INSERT IGNORE INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`, `rejectionReason`) VALUES
 ('USR003', '9780134685991', '2025-10-25 09:30:00', 'Pending', NULL, NULL, NULL),
 ('USR004', '9780132350884', '2025-10-25 10:15:00', 'Pending', NULL, NULL, NULL),
 ('USR005', '9780201633610', '2025-10-24 14:20:00', 'Approved', 'LIB001', '2025-11-07', NULL),
@@ -629,7 +637,7 @@ INSERT INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `appro
 -- DUMMY DATA: Notifications (20 notifications)
 -- FIXED: Updated dates to 2025
 -- ====================================================================
-INSERT INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`, `relatedId`, `createdAt`) VALUES
+INSERT IGNORE INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`, `relatedId`, `createdAt`) VALUES
 ('USR001', 'Book Due Soon', 'Your borrowed book "The Signal and the Noise" is due in 2 days.', 'reminder', 'medium', 0, 'TXN024', '2025-10-24 09:00:00'),
 ('USR002', 'Book Due Soon', 'Your borrowed book "The Power of Habit" is due in 2 days.', 'reminder', 'medium', 0, 'TXN025', '2025-10-24 09:00:00'),
 ('USR003', 'Borrow Request Approved', 'Your request to borrow "Design Patterns" has been approved.', 'approval', 'high', 1, '3', '2025-10-24 14:30:00'),
@@ -654,7 +662,7 @@ INSERT INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `
 -- ====================================================================
 -- DUMMY DATA: Book Reviews (15 reviews)
 -- ====================================================================
-INSERT INTO `book_reviews` (`userId`, `isbn`, `rating`, `reviewText`, `isApproved`) VALUES
+INSERT IGNORE INTO `book_reviews` (`userId`, `isbn`, `rating`, `reviewText`, `isApproved`) VALUES
 ('USR001', '9780134685991', 5, 'Excellent book for Java developers! The best practices and patterns are clearly explained with great examples.', 1),
 ('USR002', '9780132350884', 5, 'Must-read for every programmer. Changed the way I write code.', 1),
 ('USR003', '9780743273565', 4, 'Beautiful prose and a captivating story about the American Dream. A true classic.', 1),
@@ -674,7 +682,7 @@ INSERT INTO `book_reviews` (`userId`, `isbn`, `rating`, `reviewText`, `isApprove
 -- ====================================================================
 -- DUMMY DATA: Favorites (20 favorites)
 -- ====================================================================
-INSERT INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
+INSERT IGNORE INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
 ('USR001', '9780134685991', 'Great Java reference'),
 ('USR001', '9780132350884', 'Must re-read annually'),
 ('USR002', '9780743273565', 'Favorite classic novel'),
@@ -700,7 +708,7 @@ INSERT INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
 -- DUMMY DATA: Book Reservations (10 reservations)
 -- FIXED: Updated dates to 2025
 -- ====================================================================
-INSERT INTO `book_reservations` (`userId`, `isbn`, `reservationStatus`, `notifiedDate`, `expiryDate`) VALUES
+INSERT IGNORE INTO `book_reservations` (`userId`, `isbn`, `reservationStatus`, `notifiedDate`, `expiryDate`) VALUES
 ('USR003', '9780393979503', 'Active', NULL, '2025-11-02'),
 ('USR004', '9780134685991', 'Active', NULL, '2025-11-03'),
 ('USR005', '9780132350884', 'Notified', '2025-10-24', '2025-10-27'),
@@ -716,7 +724,7 @@ INSERT INTO `book_reservations` (`userId`, `isbn`, `reservationStatus`, `notifie
 -- DUMMY DATA: Audit Logs (20 audit entries)
 -- FIXED: Updated dates to 2025
 -- ====================================================================
-INSERT INTO `audit_logs` (`userId`, `action`, `entityType`, `entityId`, `changes`, `ipAddress`, `userAgent`) VALUES
+INSERT IGNORE INTO `audit_logs` (`userId`, `action`, `entityType`, `entityId`, `changes`, `ipAddress`, `userAgent`) VALUES
 ('LIB001', 'APPROVE_BORROW', 'borrow_requests', '3', '{"status":"Approved","dueDate":"2025-11-07"}', '192.168.1.101', 'Mozilla/5.0'),
 ('LIB002', 'APPROVE_BORROW', 'borrow_requests', '4', '{"status":"Approved","dueDate":"2025-11-06"}', '192.168.1.102', 'Mozilla/5.0'),
 ('LIB001', 'REJECT_BORROW', 'borrow_requests', '6', '{"status":"Rejected","reason":"All copies currently borrowed"}', '192.168.1.101', 'Mozilla/5.0'),
@@ -741,7 +749,7 @@ INSERT INTO `audit_logs` (`userId`, `action`, `entityType`, `entityId`, `changes
 -- ====================================================================
 -- DUMMY DATA: API Logs (15 API call logs)
 -- ====================================================================
-INSERT INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `responseTime`, `ipAddress`, `userAgent`) VALUES
+INSERT IGNORE INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `responseTime`, `ipAddress`, `userAgent`) VALUES
 ('USR001', '/api/books/search', 'GET', 200, 125, '192.168.1.50', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
 ('USR002', '/api/auth/login', 'POST', 200, 342, '192.168.1.51', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
 ('USR003', '/api/books/9780134685991', 'GET', 200, 89, '192.168.1.52', 'Mozilla/5.0 (X11; Linux x86_64)'),
@@ -762,7 +770,7 @@ INSERT INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `responseT
 -- DUMMY DATA: Report Schedule (5 scheduled reports)
 -- FIXED: Updated dates to 2025
 -- ====================================================================
-INSERT INTO `report_schedule` (`reportName`, `reportType`, `frequency`, `recipients`, `isActive`, `lastGenerated`, `nextScheduled`, `createdBy`) VALUES
+INSERT IGNORE INTO `report_schedule` (`reportName`, `reportType`, `frequency`, `recipients`, `isActive`, `lastGenerated`, `nextScheduled`, `createdBy`) VALUES
 ('Monthly Circulation Report', 'Monthly', 'First day of month', '["richard.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM001'),
 ('Weekly Overdue Books', 'Weekly', 'Every Monday', '["susan.librarian@university.edu", "mark.librarian@university.edu", "nancy.librarian@university.edu"]', 1, '2025-10-21 08:00:00', '2025-10-28 08:00:00', 'ADM001'),
 ('Daily New Registrations', 'Daily', 'Every day at 9 AM', '["richard.admin@university.edu", "jennifer.admin@university.edu"]', 1, '2025-10-25 09:00:00', '2025-10-26 09:00:00', 'ADM002'),
@@ -770,7 +778,10 @@ INSERT INTO `report_schedule` (`reportName`, `reportType`, `frequency`, `recipie
 ('Monthly Fine Collection', 'Monthly', 'First day of month', '["jennifer.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM002');
 
 -- ====================================================================
+-- Re-enable FK checks after all inserts
+-- ====================================================================
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ====================================================================
 -- End of database schema and dummy data
 -- ====================================================================
-
-COMMIT;
