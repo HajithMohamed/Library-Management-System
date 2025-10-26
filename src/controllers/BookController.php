@@ -4,6 +4,8 @@
 namespace App\Controllers;
 
 use App\Helpers\BarcodeHelper;
+use Picqer\Barcode\BarcodeGeneratorPNG;
+use Picqer\Barcode\Types\TypeCode128;
 
 class BookController
 {
@@ -184,7 +186,40 @@ class BookController
                 }
             }
             
-            $barcodeValue = null;
+            // GENERATE BARCODE - ENHANCED VERSION
+            $cleanIsbn = str_replace(['-', ' '], '', $isbn);
+            $barcodeValue = 'BK' . strtoupper(substr(md5($cleanIsbn . time()), 0, 10));
+            
+            // Generate barcode image using Picqer library
+            try {
+                $barcodeDir = APP_ROOT . '/public/uploads/barcodes/';
+                if (!is_dir($barcodeDir)) {
+                    mkdir($barcodeDir, 0755, true);
+                }
+                
+                // Create barcode using TypeCode128
+                $barcodeObj = (new TypeCode128())->getBarcode($barcodeValue);
+                
+                // Render as PNG
+                $generator = new BarcodeGeneratorPNG();
+                $barcodeImage = $generator->render($barcodeObj, 2, 50);
+                
+                // Save barcode image
+                $barcodePath = $barcodeDir . $cleanIsbn . '_barcode.png';
+                file_put_contents($barcodePath, $barcodeImage);
+                
+                // Create barcode label with text and book info
+                $this->createBarcodeLabel($cleanIsbn, $barcodeValue, $bookName, $barcodeImage);
+                
+                error_log("✓ Barcode generated successfully: {$barcodeValue}");
+                
+            } catch (\Exception $e) {
+                error_log('Barcode generation failed: ' . $e->getMessage());
+                error_log('Stack trace: ' . $e->getTraceAsString());
+                // Continue even if barcode generation fails
+            }
+            // END BARCODE GENERATION
+            
             $borrowed = $totalCopies - $available;
             
             // Insert book - FIXED: Changed 'image' to 'bookImage'
@@ -225,6 +260,74 @@ class BookController
             $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
+        }
+    }
+
+    /**
+     * Create barcode label with text and book information
+     */
+    private function createBarcodeLabel($cleanIsbn, $barcodeValue, $bookName, $barcodeImage)
+    {
+        try {
+            $barcodeDir = APP_ROOT . '/public/uploads/barcodes/';
+            $labelPath = $barcodeDir . $cleanIsbn . '_label.png';
+            
+            // Create label image (500x250 - larger for better quality)
+            $label = imagecreatetruecolor(500, 250);
+            $white = imagecolorallocate($label, 255, 255, 255);
+            $black = imagecolorallocate($label, 0, 0, 0);
+            $gray = imagecolorallocate($label, 100, 100, 100);
+            $blue = imagecolorallocate($label, 37, 99, 235); // Modern blue color
+            
+            // Fill background
+            imagefilledrectangle($label, 0, 0, 500, 250, $white);
+            
+            // Add border
+            imagerectangle($label, 0, 0, 499, 249, $gray);
+            imagerectangle($label, 1, 1, 498, 248, $gray);
+            
+            // Load barcode image
+            $barcode = imagecreatefromstring($barcodeImage);
+            $barcodeWidth = imagesx($barcode);
+            $barcodeHeight = imagesy($barcode);
+            
+            // Center barcode on label
+            $x = (500 - $barcodeWidth) / 2;
+            $y = 60;
+            imagecopy($label, $barcode, $x, $y, 0, 0, $barcodeWidth, $barcodeHeight);
+            
+            // Add book title at top (truncate if too long)
+            $maxTitleLength = 45;
+            $displayTitle = strlen($bookName) > $maxTitleLength 
+                ? substr($bookName, 0, $maxTitleLength) . '...' 
+                : $bookName;
+            
+            $font = 5; // Built-in font
+            $titleWidth = strlen($displayTitle) * imagefontwidth($font);
+            $titleX = (500 - $titleWidth) / 2;
+            imagestring($label, $font, $titleX, 20, $displayTitle, $blue);
+            
+            // Add barcode value below barcode
+            $textWidth = strlen($barcodeValue) * imagefontwidth($font);
+            $textX = (500 - $textWidth) / 2;
+            $textY = $y + $barcodeHeight + 15;
+            imagestring($label, $font, $textX, $textY, $barcodeValue, $black);
+            
+            // Add "Scan to Identify" text at bottom
+            $footerText = "Library Management System";
+            $footerWidth = strlen($footerText) * imagefontwidth(3);
+            $footerX = (500 - $footerWidth) / 2;
+            imagestring($label, 3, $footerX, 220, $footerText, $gray);
+            
+            // Save label
+            imagepng($label, $labelPath);
+            imagedestroy($label);
+            imagedestroy($barcode);
+            
+            error_log("✓ Barcode label created: {$labelPath}");
+            
+        } catch (\Exception $e) {
+            error_log('Label creation failed: ' . $e->getMessage());
         }
     }
 
