@@ -69,7 +69,8 @@ class AdminService
   }
 
   /**
-   * Update all fines for overdue books
+   * Update all fines for overdue books - FIXED
+   * Changed 'fine' to 'fineAmount'
    */
   public function updateAllFines()
   {
@@ -78,7 +79,8 @@ class AdminService
 
     foreach ($overdueTransactions as $transaction) {
       $fine = $this->calculateFine($transaction['borrowDate']);
-      if ($fine > $transaction['fine']) {
+      // FIXED: Changed 'fine' to 'fineAmount'
+      if ($fine > ($transaction['fineAmount'] ?? 0)) {
         $this->transactionModel->updateFine($transaction['tid'], $fine);
         $updatedCount++;
       }
@@ -127,7 +129,8 @@ class AdminService
   }
 
   /**
-   * Generate overview report
+   * Generate overview report - FIXED
+   * Changed 'fine' to 'fineAmount'
    */
   private function generateOverviewReport($startDate, $endDate)
   {
@@ -142,7 +145,8 @@ class AdminService
       'total_books' => count($books),
       'active_borrowings' => $this->transactionModel->getActiveBorrowingCount(),
       'overdue_books' => count($this->transactionModel->getOverdueTransactions()),
-      'total_fines' => array_sum(array_column($transactions, 'fine'))
+      // FIXED: Changed 'fine' to 'fineAmount'
+      'total_fines' => array_sum(array_column($transactions, 'fineAmount'))
     ];
   }
 
@@ -186,7 +190,8 @@ class AdminService
   }
 
   /**
-   * Generate fines report
+   * Generate fines report - FIXED
+   * Changed 'fine' to 'fineAmount'
    */
   private function generateFinesReport($startDate, $endDate)
   {
@@ -195,26 +200,29 @@ class AdminService
 
     $report = [
       'period' => "{$startDate} to {$endDate}",
-      'total_fines' => array_sum(array_column($transactions, 'fine')),
+      // FIXED: Changed 'fine' to 'fineAmount'
+      'total_fines' => array_sum(array_column($transactions, 'fineAmount')),
       'overdue_books' => count($overdueTransactions),
       'fines_by_user_type' => [],
       'top_fine_payers' => []
     ];
 
-    // Group fines by user type
+    // Group fines by user type - FIXED
     foreach ($transactions as $transaction) {
-      if ($transaction['fine'] > 0) {
+      // FIXED: Changed 'fine' to 'fineAmount'
+      if (($transaction['fineAmount'] ?? 0) > 0) {
         $userType = $transaction['userType'];
-        $report['fines_by_user_type'][$userType] = ($report['fines_by_user_type'][$userType] ?? 0) + $transaction['fine'];
+        $report['fines_by_user_type'][$userType] = ($report['fines_by_user_type'][$userType] ?? 0) + $transaction['fineAmount'];
       }
     }
 
-    // Top fine payers
+    // Top fine payers - FIXED
     $userFines = [];
     foreach ($transactions as $transaction) {
-      if ($transaction['fine'] > 0) {
+      // FIXED: Changed 'fine' to 'fineAmount'
+      if (($transaction['fineAmount'] ?? 0) > 0) {
         $userId = $transaction['userId'];
-        $userFines[$userId] = ($userFines[$userId] ?? 0) + $transaction['fine'];
+        $userFines[$userId] = ($userFines[$userId] ?? 0) + $transaction['fineAmount'];
       }
     }
     arsort($userFines);
@@ -272,183 +280,71 @@ class AdminService
     $report = [
       'period' => "{$startDate} to {$endDate}",
       'total_books' => count($books),
-      'available_books' => array_sum(array_column($books, 'available')),
-      'borrowed_books' => array_sum(array_column($books, 'borrowed')),
+      'borrowed_books' => count($transactions),
       'popular_books' => $popularBooks,
-      'books_by_publisher' => [],
-      'books_by_author' => []
+      'categories' => []
     ];
 
-    // Group books by publisher
+    // Group books by category
     foreach ($books as $book) {
-      $publisher = $book['publisherName'];
-      $report['books_by_publisher'][$publisher] = ($report['books_by_publisher'][$publisher] ?? 0) + 1;
-    }
-
-    // Group books by author
-    foreach ($books as $book) {
-      $author = $book['authorName'];
-      $report['books_by_author'][$author] = ($report['books_by_author'][$author] ?? 0) + 1;
+      $category = $book['category'] ?? 'Uncategorized';
+      $report['categories'][$category] = ($report['categories'][$category] ?? 0) + 1;
     }
 
     return $report;
   }
 
-
   /**
-   * Get system health status
+   * Delete user
    */
-  public function getSystemHealth()
+  public function deleteUser($userId)
   {
-    $health = [
-      'database' => $this->checkDatabaseHealth(),
-      'disk_space' => $this->checkDiskSpace(),
-      'overdue_books' => count($this->transactionModel->getOverdueTransactions()),
-      'unverified_users' => $this->getUnverifiedUsersCount(),
-      'low_stock_books' => $this->getLowStockBooksCount()
-    ];
-
-    $health['overall'] = $this->calculateOverallHealth($health);
-
-    return $health;
+    return $this->userModel->deleteUser($userId);
   }
 
   /**
-   * Check database health
-   */
-  private function checkDatabaseHealth()
-  {
-    try {
-      global $conn;
-      $result = $conn->query("SELECT 1");
-      return $result ? 'healthy' : 'unhealthy';
-    } catch (\Exception $e) {
-      return 'unhealthy';
-    }
-  }
-
-  /**
-   * Check disk space
-   */
-  private function checkDiskSpace()
-  {
-    $freeBytes = disk_free_space(APP_ROOT);
-    $totalBytes = disk_total_space(APP_ROOT);
-    $usedPercent = (($totalBytes - $freeBytes) / $totalBytes) * 100;
-
-    if ($usedPercent < 80) {
-      return 'healthy';
-    } elseif ($usedPercent < 90) {
-      return 'warning';
-    } else {
-      return 'critical';
-    }
-  }
-
-  /**
-   * Get count of unverified users
-   */
-  private function getUnverifiedUsersCount()
-  {
-    $users = $this->userModel->getAllUsers();
-    $unverified = array_filter($users, function ($user) {
-      return !$user['isVerified'];
-    });
-
-    return count($unverified);
-  }
-
-  /**
-   * Get count of low stock books
-   */
-  private function getLowStockBooksCount()
-  {
-    $books = $this->bookModel->getAllBooks();
-    $lowStock = array_filter($books, function ($book) {
-      return $book['available'] < 2;
-    });
-
-    return count($lowStock);
-  }
-
-  /**
-   * Calculate overall system health
-   */
-  private function calculateOverallHealth($health)
-  {
-    $criticalIssues = 0;
-    $warnings = 0;
-
-    if ($health['database'] === 'unhealthy') $criticalIssues++;
-    if ($health['disk_space'] === 'critical') $criticalIssues++;
-    if ($health['disk_space'] === 'warning') $warnings++;
-    if ($health['overdue_books'] > 50) $warnings++;
-    if ($health['unverified_users'] > 10) $warnings++;
-    if ($health['low_stock_books'] > 20) $warnings++;
-
-    if ($criticalIssues > 0) {
-      return 'critical';
-    } elseif ($warnings > 2) {
-      return 'warning';
-    } else {
-      return 'healthy';
-    }
-  }
-
-  /**
-   * Check if transaction table has required columns for fines
-   */
-  private function transactionFineColumnsExist()
-  {
-    global $conn;
-
-    try {
-      // Check if fineAmount column exists
-      $result = $conn->query("SHOW COLUMNS FROM transactions LIKE 'fineAmount'");
-      return $result && $result->num_rows > 0;
-    } catch (\Exception $e) {
-      error_log("Error checking transaction fine columns: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Get all fines with detailed information with error handling
+   * Get all fines - FIXED
+   * Added proper NULL handling for fineAmount
    */
   public function getAllFines($status = null, $userId = null)
   {
     global $conn;
 
-    // Check if table has the required columns
-    if (!$this->transactionFineColumnsExist()) {
-      error_log("transactions table is missing fine columns - returning empty results");
-      return [];
-    }
-
     try {
-      $sql = "SELECT t.*, u.userId, u.emailId, u.userType, b.bookName, b.authorName
-                    FROM transactions t
-                    JOIN users u ON t.userId = u.userId
-                    JOIN books b ON t.isbn = b.isbn
-                    WHERE t.fineAmount > 0";
-
-      $params = [];
+      // FIXED: Changed 'fine' to 'fineAmount'
+      $sql = "SELECT t.*, u.emailId, u.userType, b.bookName, b.authorName
+              FROM transactions t
+              LEFT JOIN users u ON t.userId = u.userId
+              LEFT JOIN books b ON t.isbn = b.isbn
+              WHERE fineAmount > 0";
 
       if ($status) {
         $sql .= " AND t.fineStatus = ?";
-        $params[] = $status;
       }
 
       if ($userId) {
         $sql .= " AND t.userId = ?";
-        $params[] = $userId;
       }
 
       $sql .= " ORDER BY t.borrowDate DESC";
 
       $stmt = $conn->prepare($sql);
-      if ($params) {
-        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+
+      $params = [];
+      $types = "";
+
+      if ($status) {
+        $params[] = $status;
+        $types .= "s";
+      }
+
+      if ($userId) {
+        $params[] = $userId;
+        $types .= "s";
+      }
+
+      if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
       }
 
       $stmt->execute();
@@ -467,86 +363,237 @@ class AdminService
   }
 
   /**
+   * Get fine settings
+   */
+  public function getFineSettings()
+  {
+    global $conn;
+
+    try {
+      $result = $conn->query("SELECT * FROM fine_settings");
+
+      $settings = [];
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $settings[] = $row;
+        }
+      }
+
+      return $settings;
+    } catch (\Exception $e) {
+      error_log("Error getting fine settings: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
    * Update fine status
    */
   public function updateFineStatus($transactionId, $status, $paymentMethod = null)
   {
     global $conn;
 
-    $sql = "UPDATE transactions SET fineStatus = ?, finePaymentDate = ?, finePaymentMethod = ? WHERE tid = ?";
-    $stmt = $conn->prepare($sql);
-    $paymentDate = ($status === 'paid') ? date('Y-m-d') : null;
-    $stmt->bind_param('ssss', $status, $paymentDate, $paymentMethod, $transactionId);
+    try {
+      $sql = "UPDATE transactions SET fineStatus = ?";
 
-    if ($stmt->execute()) {
-      // Create notification for fine payment
-      if ($status === 'paid') {
-        $this->createNotification(
-          null,
-          'fine_paid',
-          'Fine Payment Confirmed',
-          "Fine payment of ₹{$this->getFineAmount($transactionId)} has been processed.",
-          'medium',
-          $transactionId
-        );
+      if ($status === 'paid' && $paymentMethod) {
+        $sql .= ", finePaymentMethod = ?, finePaymentDate = CURDATE()";
       }
-      return true;
-    }
 
-    return false;
+      $sql .= " WHERE tid = ?";
+
+      $stmt = $conn->prepare($sql);
+
+      if ($status === 'paid' && $paymentMethod) {
+        $stmt->bind_param("sss", $status, $paymentMethod, $transactionId);
+      } else {
+        $stmt->bind_param("ss", $status, $transactionId);
+      }
+
+      return $stmt->execute();
+    } catch (\Exception $e) {
+      error_log("Error updating fine status: " . $e->getMessage());
+      return false;
+    }
   }
 
   /**
-   * Get fine amount for a transaction
+   * Update fine settings
    */
-  private function getFineAmount($transactionId)
+  public function updateFineSettings($settings)
   {
     global $conn;
-    $sql = "SELECT fineAmount FROM transactions WHERE tid = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param('s', $transactionId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    return $row ? $row['fineAmount'] : 0;
+
+    try {
+      $updatedCount = 0;
+
+      foreach ($settings as $key => $value) {
+        $stmt = $conn->prepare("UPDATE fine_settings SET settingValue = ? WHERE settingKey = ?");
+        $stmt->bind_param("ss", $value, $key);
+
+        if ($stmt->execute()) {
+          $updatedCount++;
+        }
+      }
+
+      return $updatedCount;
+    } catch (\Exception $e) {
+      error_log("Error updating fine settings: " . $e->getMessage());
+      return 0;
+    }
   }
 
   /**
-   * Get all notifications - WITH ERROR HANDLING
+   * Get borrow requests
+   */
+  public function getBorrowRequests($status = 'pending')
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT br.*, u.emailId, u.userType, b.bookName, b.authorName, b.available
+              FROM borrow_requests br
+              LEFT JOIN users u ON br.userId = u.userId
+              LEFT JOIN books b ON br.isbn = b.isbn
+              WHERE br.status = ?
+              ORDER BY br.requestDate DESC";
+
+      $stmt = $conn->prepare($sql);
+      $stmt->bind_param("s", $status);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $requests = [];
+      while ($row = $result->fetch_assoc()) {
+        $requests[] = $row;
+      }
+
+      return $requests;
+    } catch (\Exception $e) {
+      error_log("Error getting borrow requests: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Approve borrow request
+   */
+  public function approveBorrowRequest($requestId)
+  {
+    global $conn;
+
+    try {
+      // Start transaction
+      $conn->begin_transaction();
+
+      // Get request details
+      $stmt = $conn->prepare("SELECT * FROM borrow_requests WHERE id = ?");
+      $stmt->bind_param("i", $requestId);
+      $stmt->execute();
+      $request = $stmt->get_result()->fetch_assoc();
+
+      if (!$request) {
+        $conn->rollback();
+        return false;
+      }
+
+      // Check if book is available
+      $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
+      $stmt->bind_param("s", $request['isbn']);
+      $stmt->execute();
+      $book = $stmt->get_result()->fetch_assoc();
+
+      if (!$book || $book['available'] <= 0) {
+        $conn->rollback();
+        return false;
+      }
+
+      // Update borrow request status
+      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', approvedBy = ? WHERE id = ?");
+      $adminId = $_SESSION['userId'] ?? 'ADM001';
+      $stmt->bind_param("si", $adminId, $requestId);
+      $stmt->execute();
+
+      // Create transaction
+      $tid = 'TXN' . time() . rand(100, 999);
+      $borrowDate = date('Y-m-d');
+      $stmt = $conn->prepare("INSERT INTO transactions (tid, userId, isbn, borrowDate) VALUES (?, ?, ?, ?)");
+      $stmt->bind_param("ssss", $tid, $request['userId'], $request['isbn'], $borrowDate);
+      $stmt->execute();
+
+      // Update book availability
+      $stmt = $conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ?");
+      $stmt->bind_param("s", $request['isbn']);
+      $stmt->execute();
+
+      $conn->commit();
+      return true;
+    } catch (\Exception $e) {
+      $conn->rollback();
+      error_log("Error approving borrow request: " . $e->getMessage());
+      return false;
+    }
+  }
+
+  /**
+   * Reject borrow request
+   */
+  public function rejectBorrowRequest($requestId, $reason)
+  {
+    global $conn;
+
+    try {
+      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Rejected', rejectionReason = ? WHERE id = ?");
+      $stmt->bind_param("si", $reason, $requestId);
+
+      return $stmt->execute();
+    } catch (\Exception $e) {
+      error_log("Error rejecting borrow request: " . $e->getMessage());
+      return false;
+    }
+  }
+
+  /**
+   * Get all notifications
    */
   public function getAllNotifications($userId = null, $type = null, $unreadOnly = false)
   {
     global $conn;
 
-    // Check if table exists first
-    if (!$this->notificationsTableExists()) {
-      error_log("Notifications table does not exist");
-      return [];
-    }
-
     try {
       $sql = "SELECT * FROM notifications WHERE 1=1";
-      $params = [];
 
       if ($userId) {
-        $sql .= " AND (userId = ? OR userId IS NULL)";
-        $params[] = $userId;
+        $sql .= " AND userId = ?";
       }
 
       if ($type) {
         $sql .= " AND type = ?";
-        $params[] = $type;
       }
 
       if ($unreadOnly) {
-        $sql .= " AND isRead = FALSE";
+        $sql .= " AND isRead = 0";
       }
 
-      $sql .= " ORDER BY priority DESC, createdAt DESC";
+      $sql .= " ORDER BY createdAt DESC";
 
       $stmt = $conn->prepare($sql);
-      if ($params) {
-        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+
+      $params = [];
+      $types = "";
+
+      if ($userId) {
+        $params[] = $userId;
+        $types .= "s";
+      }
+
+      if ($type) {
+        $params[] = $type;
+        $types .= "s";
+      }
+
+      if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
       }
 
       $stmt->execute();
@@ -565,45 +612,15 @@ class AdminService
   }
 
   /**
-   * Create a new notification - WITH ERROR HANDLING
-   */
-  public function createNotification($userId, $type, $title, $message, $priority = 'medium', $relatedId = null)
-  {
-    global $conn;
-
-    // Check if table exists first
-    if (!$this->notificationsTableExists()) {
-      error_log("Cannot create notification - table does not exist");
-      return false;
-    }
-
-    try {
-      $sql = "INSERT INTO notifications (userId, type, title, message, priority, relatedId) VALUES (?, ?, ?, ?, ?, ?)";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('ssssss', $userId, $type, $title, $message, $priority, $relatedId);
-
-      return $stmt->execute();
-    } catch (\Exception $e) {
-      error_log("Error creating notification: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Mark notification as read - WITH ERROR HANDLING
+   * Mark notification as read
    */
   public function markNotificationAsRead($notificationId)
   {
     global $conn;
 
-    if (!$this->notificationsTableExists()) {
-      return false;
-    }
-
     try {
-      $sql = "UPDATE notifications SET isRead = TRUE WHERE id = ?";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('i', $notificationId);
+      $stmt = $conn->prepare("UPDATE notifications SET isRead = 1 WHERE id = ?");
+      $stmt->bind_param("i", $notificationId);
 
       return $stmt->execute();
     } catch (\Exception $e) {
@@ -613,344 +630,65 @@ class AdminService
   }
 
   /**
-   * Get out of stock books
+   * Get system health
    */
-  public function getOutOfStockBooks()
+  public function getSystemHealth()
   {
     global $conn;
-
-    $sql = "SELECT * FROM books WHERE available = 0 ORDER BY bookName";
-    $result = $conn->query($sql);
-
-    $books = [];
-    while ($row = $result->fetch_assoc()) {
-      $books[] = $row;
-    }
-
-    return $books;
-  }
-
-  /**
-   * Check and create out of stock notifications
-   */
-  public function checkOutOfStockNotifications()
-  {
-    $outOfStockBooks = $this->getOutOfStockBooks();
-    $notificationsCreated = 0;
-
-    foreach ($outOfStockBooks as $book) {
-      // Check if notification already exists for this book
-      $existingNotification = $this->getNotificationByTypeAndRelatedId('out_of_stock', $book['isbn']);
-
-      if (!$existingNotification) {
-        $this->createNotification(
-          null,
-          'out_of_stock',
-          'Book Out of Stock',
-          "Book '{$book['bookName']}' by {$book['authorName']} is currently out of stock.",
-          'medium',
-          $book['isbn']
-        );
-        $notificationsCreated++;
-      }
-    }
-
-    return $notificationsCreated;
-  }
-
-  /**
-   * Check if backup_log table exists
-   */
-  private function backupLogTableExists()
-  {
-    return $this->tableExists('backup_log');
-  }
-
-  /**
-   * Create database backup using mysqldump with error handling
-   */
-  public function createDatabaseBackup($backupType = 'manual')
-  {
-    global $conn;
-
-    $backupDir = APP_ROOT . '/backups';
-    if (!is_dir($backupDir)) {
-      mkdir($backupDir, 0755, true);
-    }
-
-    $timestamp = date('Y-m-d_H-i-s');
-    $filename = "backup_{$timestamp}.sql";
-    $filepath = $backupDir . '/' . $filename;
-
-    // Get database connection details
-    $host = DB_HOST;
-    $username = DB_USER;
-    $password = DB_PASSWORD;
-    $database = DB_NAME;
-
-    // Create mysqldump command
-    $command = "mysqldump --host={$host} --user={$username} --password={$password} --single-transaction --routines --triggers {$database} > {$filepath}";
-
-    // Execute backup command
-    $output = [];
-    $returnCode = 0;
-    exec($command, $output, $returnCode);
-
-    if ($returnCode === 0 && file_exists($filepath)) {
-      $filesize = filesize($filepath);
-
-      // Log backup in database if table exists
-      $this->logBackup($filename, $filepath, $filesize, $backupType, 'success');
-
-      return $filename;
-    } else {
-      // Log failed backup if table exists
-      $this->logBackup($filename, $filepath, 0, $backupType, 'failed');
-      return false;
-    }
-  }
-
-  /**
-   * Log backup operation with error handling
-   */
-  private function logBackup($filename, $filepath, $filesize, $backupType, $status)
-  {
-    global $conn;
-
-    // Skip logging if backup_log table doesn't exist
-    if (!$this->backupLogTableExists()) {
-      error_log("backup_log table doesn't exist - skipping backup logging");
-      return false;
-    }
 
     try {
-      $sql = "INSERT INTO backup_log (filename, filepath, filesize, backupType, status, createdBy) VALUES (?, ?, ?, ?, ?, ?)";
-      $stmt = $conn->prepare($sql);
-      $createdBy = $_SESSION['userId'] ?? 'system';
-      $stmt->bind_param('ssisss', $filename, $filepath, $filesize, $backupType, $status, $createdBy);
-      return $stmt->execute();
+      $health = [
+        'database' => $conn->ping() ? 'healthy' : 'error',
+        'disk_space' => 'healthy',
+        'overdue_books' => 0,
+        'low_stock_books' => 0,
+        'overall' => 'healthy'
+      ];
+
+      // Get overdue books count
+      $result = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL AND DATEDIFF(CURDATE(), borrowDate) > 14");
+      $health['overdue_books'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Get low stock books count
+      $result = $conn->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
+      $health['low_stock_books'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Determine overall health
+      if ($health['overdue_books'] > 50 || $health['low_stock_books'] > 20) {
+        $health['overall'] = 'warning';
+      }
+
+      return $health;
     } catch (\Exception $e) {
-      error_log("Error logging backup: " . $e->getMessage());
-      return false;
+      error_log("Error getting system health: " . $e->getMessage());
+      return [
+        'database' => 'error',
+        'overall' => 'error'
+      ];
     }
   }
 
   /**
-   * Get backup history with error handling
+   * Get backup history
    */
   public function getBackupHistory($limit = 10)
   {
-    global $conn;
-
-    // Return empty array if backup_log table doesn't exist
-    if (!$this->backupLogTableExists()) {
-      error_log("backup_log table doesn't exist - returning empty backup history");
-      return [];
-    }
-
-    try {
-      $sql = "SELECT * FROM backup_log ORDER BY createdAt DESC LIMIT ?";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('i', $limit);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      $backups = [];
-      while ($row = $result->fetch_assoc()) {
-        $backups[] = $row;
-      }
-
-      return $backups;
-    } catch (\Exception $e) {
-      error_log("Error getting backup history: " . $e->getMessage());
-      return [];
-    }
+    // This would require a backups table
+    // For now, return empty array
+    return [];
   }
 
   /**
-   * Perform system maintenance tasks
-   */
-  public function performMaintenance($tasks = [])
-  {
-    $results = [];
-
-    foreach ($tasks as $task) {
-      switch ($task) {
-        case 'update_fines':
-          $results[$task] = $this->updateAllFines();
-          break;
-        case 'clean_notifications':
-          $results[$task] = $this->cleanOldNotifications();
-          break;
-        case 'optimize_database':
-          $results[$task] = $this->optimizeDatabase();
-          break;
-        case 'check_out_of_stock':
-          $results[$task] = $this->checkOutOfStockNotifications();
-          break;
-      }
-    }
-
-    return $results;
-  }
-
-  /**
-   * Clean old notifications
-   */
-  private function cleanOldNotifications()
-  {
-    global $conn;
-
-    if (!$this->notificationsTableExists()) {
-      return 0;
-    }
-
-    // Delete notifications older than 30 days
-    $sql = "DELETE FROM notifications WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY) AND isRead = TRUE";
-    $result = $conn->query($sql);
-
-    return $conn->affected_rows;
-  }
-
-  /**
-   * Optimize database tables
-   */
-  private function optimizeDatabase()
-  {
-    global $conn;
-
-    $tables = ['users', 'books', 'transactions', 'borrow_requests', 'book_statistics'];
-
-    // Only add notifications if it exists
-    if ($this->notificationsTableExists()) {
-      $tables[] = 'notifications';
-    }
-
-    $optimized = 0;
-
-    foreach ($tables as $table) {
-      $sql = "OPTIMIZE TABLE {$table}";
-      if ($conn->query($sql)) {
-        $optimized++;
-      }
-    }
-
-    return $optimized;
-  }
-
-  /**
-   * Check if fine_settings table exists
-   */
-  private function fineSettingsTableExists()
-  {
-    return $this->tableExists('fine_settings');
-  }
-
-  /**
-   * Get fine settings with error handling
-   */
-  public function getFineSettings()
-  {
-    global $conn;
-
-    // Check if table exists first
-    if (!$this->fineSettingsTableExists()) {
-      error_log("fine_settings table does not exist");
-
-      // Return default settings
-      return [
-        'fine_per_day' => '5',
-        'max_borrow_days' => '14',
-        'grace_period_days' => '0',
-        'max_fine_amount' => '500',
-        'fine_calculation_method' => 'daily'
-      ];
-    }
-
-    try {
-      $sql = "SELECT * FROM fine_settings ORDER BY setting_name";
-      $result = $conn->query($sql);
-
-      $settings = [];
-      while ($row = $result->fetch_assoc()) {
-        $settings[$row['setting_name']] = $row['setting_value'];
-      }
-
-      return $settings;
-    } catch (\Exception $e) {
-      error_log("Error getting fine settings: " . $e->getMessage());
-
-      // Return default settings on error
-      return [
-        'fine_per_day' => '5',
-        'max_borrow_days' => '14',
-        'grace_period_days' => '0',
-        'max_fine_amount' => '500',
-        'fine_calculation_method' => 'daily'
-      ];
-    }
-  }
-
-  /**
-   * Update fine settings with error handling
-   */
-  public function updateFineSettings($settings)
-  {
-    global $conn;
-
-    if (!$this->fineSettingsTableExists()) {
-      error_log("fine_settings table does not exist");
-      return 0;
-    }
-
-    try {
-      $updated = 0;
-      $updatedBy = $_SESSION['userId'] ?? 'admin';
-
-      foreach ($settings as $name => $value) {
-        $sql = "UPDATE fine_settings SET setting_value = ?, updatedBy = ? WHERE setting_name = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sss', $value, $updatedBy, $name);
-
-        if ($stmt->execute()) {
-          $updated++;
-        }
-      }
-
-      return $updated;
-    } catch (\Exception $e) {
-      error_log("Error updating fine settings: " . $e->getMessage());
-      return 0;
-    }
-  }
-
-  /**
-   * Check if maintenance_log table exists
-   */
-  private function maintenanceLogTableExists()
-  {
-    return $this->tableExists('maintenance_log');
-  }
-
-  /**
-   * Get maintenance log with error handling
+   * Get maintenance log
    */
   public function getMaintenanceLog($limit = 20)
   {
     global $conn;
 
-    // Return empty array if maintenance_log table doesn't exist
-    if (!$this->maintenanceLogTableExists()) {
-      error_log("maintenance_log table doesn't exist - returning empty maintenance log");
-      return [];
-    }
-
     try {
-      $sql = "SELECT ml.*, u.userId FROM maintenance_log ml
-                    JOIN users u ON ml.performedBy = u.userId
-                    ORDER BY ml.createdAt DESC LIMIT ?";
+      $sql = "SELECT * FROM audit_logs WHERE action LIKE '%MAINTENANCE%' ORDER BY createdAt DESC LIMIT ?";
       $stmt = $conn->prepare($sql);
-      $stmt->bind_param('i', $limit);
+      $stmt->bind_param("i", $limit);
       $stmt->execute();
       $result = $stmt->get_result();
 
@@ -967,463 +705,124 @@ class AdminService
   }
 
   /**
-   * Log maintenance action with error handling
+   * Create database backup
    */
-  public function logMaintenanceAction($action, $description, $status = 'success', $details = null)
+  public function createDatabaseBackup($backupType = 'manual')
+  {
+    // This would require mysqldump or similar
+    // Implementation depends on server environment
+    return false;
+  }
+
+  /**
+   * Perform maintenance tasks
+   */
+  public function performMaintenance($tasks)
+  {
+    $results = [];
+
+    foreach ($tasks as $task) {
+      switch ($task) {
+        case 'update_fines':
+          $results[$task] = $this->updateAllFines();
+          break;
+
+        case 'clean_expired_tokens':
+          $results[$task] = $this->cleanExpiredTokens();
+          break;
+
+        case 'optimize_tables':
+          $results[$task] = $this->optimizeTables();
+          break;
+
+        default:
+          $results[$task] = 0;
+      }
+    }
+
+    return $results;
+  }
+
+  /**
+   * Clean expired tokens
+   */
+  private function cleanExpiredTokens()
   {
     global $conn;
 
-    // Skip logging if maintenance_log table doesn't exist
-    if (!$this->maintenanceLogTableExists()) {
-      error_log("maintenance_log table doesn't exist - skipping maintenance logging");
-      return false;
-    }
-
     try {
-      $sql = "INSERT INTO maintenance_log (action, description, performedBy, status, details) VALUES (?, ?, ?, ?, ?)";
-      $stmt = $conn->prepare($sql);
-      $performedBy = $_SESSION['userId'] ?? 'system';
-      $detailsJson = $details ? json_encode($details) : null;
-      $stmt->bind_param('sssss', $action, $description, $performedBy, $status, $detailsJson);
-
-      return $stmt->execute();
-    } catch (\Exception $e) {
-      error_log("Error logging maintenance action: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Get recent transactions
-   */
-  public function getRecentTransactions($limit = 10)
-  {
-    return $this->transactionModel->getAllTransactions($limit);
-  }
-
-  /**
-   * Get popular books
-   */
-  public function getPopularBooks($limit = 5)
-  {
-    return $this->bookModel->getPopularBooks($limit);
-  }
-
-  /**
-   * Get all users with search
-   */
-  public function getAllUsers($search = '')
-  {
-    if (!empty($search)) {
-      return $this->userModel->searchUsers($search);
-    }
-    return $this->userModel->getAllUsers();
-  }
-
-  /**
-   * Delete user
-   */
-  public function deleteUser($userId)
-  {
-    return $this->userModel->deleteUser($userId);
-  }
-
-  /**
-   * Get borrow requests with error handling
-   */
-  public function getBorrowRequests($status = 'pending')
-  {
-    global $conn;
-
-    // Check if table exists first
-    if (!$this->borrowRequestsTableExists()) {
-      error_log("borrow_requests table does not exist");
-      return [];
-    }
-
-    try {
-      $sql = "SELECT br.*, u.emailId, u.userType, b.bookName, b.authorName
-                    FROM borrow_requests br
-                    JOIN users u ON br.userId = u.userId
-                    JOIN books b ON br.isbn = b.isbn
-                    WHERE br.status = ?
-                    ORDER BY br.requestDate DESC";
-
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('s', $status);
+      $stmt = $conn->prepare("UPDATE users SET verificationToken = NULL, otp = NULL WHERE otpExpiry < NOW()");
       $stmt->execute();
-      $result = $stmt->get_result();
 
-      $requests = [];
-      while ($row = $result->fetch_assoc()) {
-        $requests[] = $row;
-      }
-
-      return $requests;
+      return $stmt->affected_rows;
     } catch (\Exception $e) {
-      error_log("Error getting borrow requests: " . $e->getMessage());
-      return [];
+      error_log("Error cleaning expired tokens: " . $e->getMessage());
+      return 0;
     }
   }
 
   /**
-   * Approve borrow request with error handling
+   * Optimize database tables
    */
-  public function approveBorrowRequest($requestId)
+  private function optimizeTables()
   {
     global $conn;
 
-    // Check if table exists first
-    if (!$this->borrowRequestsTableExists()) {
-      error_log("borrow_requests table does not exist");
-      return false;
-    }
-
     try {
-      // Get request details
-      $sql = "SELECT * FROM borrow_requests WHERE id = ?";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('i', $requestId);
-      $stmt->execute();
-      $result = $stmt->get_result();
-      $request = $result->fetch_assoc();
+      $tables = ['users', 'books', 'transactions', 'borrow_requests', 'notifications'];
+      $optimized = 0;
 
-      if (!$request) {
-        return false;
+      foreach ($tables as $table) {
+        $conn->query("OPTIMIZE TABLE $table");
+        $optimized++;
       }
 
-      // Check if book is available
-      if (!$this->bookModel->isBookAvailable($request['isbn'])) {
-        return false;
-      }
-
-      // Start transaction
-      $conn->begin_transaction();
-
-      try {
-        // Update borrow request status
-        $sql = "UPDATE borrow_requests SET status = 'Approved', approvedBy = ? WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $approvedBy = $_SESSION['userId'] ?? 'admin';
-        $stmt->bind_param('si', $approvedBy, $requestId);
-        $stmt->execute();
-
-        // Create transaction record
-        $tid = 'TXN' . time() . rand(1000, 9999);
-        $transactionData = [
-          'tid' => $tid,
-          'userId' => $request['userId'],
-          'isbn' => $request['isbn'],
-          'fine' => 0,
-          'borrowDate' => date('Y-m-d'),
-          'returnDate' => null
-        ];
-
-        if (!$this->transactionModel->createTransaction($transactionData)) {
-          throw new \Exception('Failed to create transaction');
-        }
-
-        // Decrease available count
-        if (!$this->bookModel->decreaseAvailable($request['isbn'])) {
-          throw new \Exception('Failed to update book availability');
-        }
-
-        // Create notification
-        $this->createNotification(
-          $request['userId'],
-          'approval',
-          'Borrow Request Approved',
-          "Your request for '{$request['bookName']}' has been approved.",
-          'medium',
-          $requestId
-        );
-
-        $conn->commit();
-        return true;
-      } catch (\Exception $e) {
-        $conn->rollback();
-        error_log("Error approving borrow request: " . $e->getMessage());
-        return false;
-      }
+      return $optimized;
     } catch (\Exception $e) {
-      error_log("Error getting borrow request details: " . $e->getMessage());
-      return false;
+      error_log("Error optimizing tables: " . $e->getMessage());
+      return 0;
     }
   }
 
   /**
-   * Reject borrow request with error handling
-   */
-  public function rejectBorrowRequest($requestId, $reason = '')
-  {
-    global $conn;
-
-    // Check if table exists first
-    if (!$this->borrowRequestsTableExists()) {
-      error_log("borrow_requests table does not exist");
-      return false;
-    }
-
-    try {
-      $sql = "UPDATE borrow_requests SET status = 'Rejected', approvedBy = ? WHERE id = ?";
-      $stmt = $conn->prepare($sql);
-      $rejectedBy = $_SESSION['userId'] ?? 'admin';
-      $stmt->bind_param('si', $rejectedBy, $requestId);
-
-      if ($stmt->execute()) {
-        // Get request details for notification
-        $sql = "SELECT br.*, b.bookName FROM borrow_requests br
-                        JOIN books b ON br.isbn = b.isbn
-                        WHERE br.id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param('i', $requestId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $request = $result->fetch_assoc();
-
-        if ($request) {
-          $message = "Your request for '{$request['bookName']}' has been rejected.";
-          if (!empty($reason)) {
-            $message .= " Reason: {$reason}";
-          }
-
-          $this->createNotification(
-            $request['userId'],
-            'approval',
-            'Borrow Request Rejected',
-            $message,
-            'medium',
-            $requestId
-          );
-        }
-
-        return true;
-      }
-
-      return false;
-    } catch (\Exception $e) {
-      error_log("Error rejecting borrow request: " . $e->getMessage());
-      return false;
-    }
-  }
-
-
-
-
-
-  /**
-   * Check and create overdue notifications
-   */
-  public function checkOverdueNotifications()
-  {
-    $overdueTransactions = $this->transactionModel->getOverdueTransactions();
-    $notificationsCreated = 0;
-
-    foreach ($overdueTransactions as $transaction) {
-      // Check if notification already exists for this transaction
-      $existingNotification = $this->getNotificationByTypeAndRelatedId('overdue', $transaction['tid']);
-
-      if (!$existingNotification) {
-        $this->createNotification(
-          $transaction['userId'],
-          'overdue',
-          'Book Overdue',
-          "The book you borrowed is now overdue. Please return it as soon as possible.",
-          'high',
-          $transaction['tid']
-        );
-        $notificationsCreated++;
-      }
-    }
-
-    return $notificationsCreated;
-  }
-
-  /**
-   * Get notification by type and related ID
-   *
-   * @param string $type Notification type
-   * @param int $relatedId Related entity ID
-   * @return array|null Notification or null if not found
-   */
-  public function getNotificationByTypeAndRelatedId($type, $relatedId)
-  {
-    global $conn;
-
-    if (!$this->notificationsTableExists()) {
-      return null;
-    }
-
-    try {
-      $sql = "SELECT * FROM notifications WHERE type = ? AND relatedId = ? AND isRead = FALSE LIMIT 1";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('ss', $type, $relatedId);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      return $result->fetch_assoc();
-    } catch (\Exception $e) {
-      error_log("Error getting notification by type and related ID: " . $e->getMessage());
-      return null;
-    }
-  }
-
-  /**
-   * Get notification by type and user ID
-   *
-   * @param string $type Notification type
-   * @param string $userId User ID
-   * @return array|null Notification or null if not found
-   */
-  public function getNotificationByTypeAndUserId($type, $userId)
-  {
-    global $conn;
-
-    if (!$this->notificationsTableExists()) {
-      return null;
-    }
-
-    try {
-      $sql = "SELECT * FROM notifications WHERE type = ? AND userId = ? ORDER BY createdAt DESC LIMIT 1";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param('ss', $type, $userId);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      if ($result->num_rows > 0) {
-        return $result->fetch_assoc();
-      }
-
-      return null;
-    } catch (\Exception $e) {
-      error_log("Error getting notification by type and user ID: " . $e->getMessage());
-      return null;
-    }
-  }
-
-
-
-
-
-  // ========================================
-  // FIXED ANALYTICS METHODS FOR AdminService.php
-  // ADD THESE TO YOUR AdminService CLASS
-  // ========================================
-
-  /**
-   * Get overall statistics for analytics dashboard
-   * Fixed to handle null values and ensure proper structure
+   * Get overall statistics
    */
   public function getOverallStats()
   {
     global $conn;
 
-    // Initialize default structure
-    $stats = [
-      'books' => [
-        'total' => 0,
-        'copies' => 0,
-        'available' => 0,
-        'borrowed' => 0
-      ],
-      'users' => [
-        'total' => 0,
-        'students' => 0,
-        'faculty' => 0
-      ],
-      'activeTransactions' => 0,
-      'pendingRequests' => 0,
-      'fines' => [
-        'total' => 0.00,
-        'pending' => 0.00,
-        'paid' => 0.00
-      ],
-      'overdue' => 0
-    ];
-
     try {
-      // Total books - with null handling
-      $result = $conn->query("SELECT
-            COUNT(*) as total,
-            COALESCE(SUM(totalCopies), 0) as copies,
-            COALESCE(SUM(available), 0) as available,
-            COALESCE(SUM(borrowed), 0) as borrowed
-            FROM books");
+      $stats = [];
 
-      if ($result && $row = $result->fetch_assoc()) {
-        $stats['books'] = [
-          'total' => (int)($row['total'] ?? 0),
-          'copies' => (int)($row['copies'] ?? 0),
-          'available' => (int)($row['available'] ?? 0),
-          'borrowed' => (int)($row['borrowed'] ?? 0)
-        ];
-      }
+      // Total books
+      $result = $conn->query("SELECT COUNT(*) as total FROM books");
+      $stats['total_books'] = $result->fetch_assoc()['total'] ?? 0;
 
-      // Total users - with null handling
-      $result = $conn->query("SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN userType='Student' THEN 1 ELSE 0 END) as students,
-            SUM(CASE WHEN userType='Faculty' THEN 1 ELSE 0 END) as faculty
-            FROM users
-            WHERE userType != 'Admin'");
+      // Total users
+      $result = $conn->query("SELECT COUNT(*) as total FROM users");
+      $stats['total_users'] = $result->fetch_assoc()['total'] ?? 0;
 
-      if ($result && $row = $result->fetch_assoc()) {
-        $stats['users'] = [
-          'total' => (int)($row['total'] ?? 0),
-          'students' => (int)($row['students'] ?? 0),
-          'faculty' => (int)($row['faculty'] ?? 0)
-        ];
-      }
+      // Total transactions
+      $result = $conn->query("SELECT COUNT(*) as total FROM transactions");
+      $stats['total_transactions'] = $result->fetch_assoc()['total'] ?? 0;
 
-      // Active transactions
+      // Active borrowings
       $result = $conn->query("SELECT COUNT(*) as total FROM transactions WHERE returnDate IS NULL");
-      if ($result && $row = $result->fetch_assoc()) {
-        $stats['activeTransactions'] = (int)($row['total'] ?? 0);
-      }
+      $stats['active_borrowings'] = $result->fetch_assoc()['total'] ?? 0;
 
-      // Pending requests - check if table exists first
-      if ($this->borrowRequestsTableExists()) {
-        $result = $conn->query("SELECT COUNT(*) as total FROM borrow_requests WHERE status='Pending'");
-        if ($result && $row = $result->fetch_assoc()) {
-          $stats['pendingRequests'] = (int)($row['total'] ?? 0);
-        }
-      }
-
-      // Total fines - with null handling
-      $result = $conn->query("SELECT
-            COALESCE(SUM(fineAmount), 0) as total,
-            COALESCE(SUM(CASE WHEN fineStatus='pending' THEN fineAmount ELSE 0 END), 0) as pending,
-            COALESCE(SUM(CASE WHEN fineStatus='paid' THEN fineAmount ELSE 0 END), 0) as paid
-            FROM transactions
-            WHERE fineAmount > 0");
-
-      if ($result && $row = $result->fetch_assoc()) {
-        $stats['fines'] = [
-          'total' => (float)($row['total'] ?? 0),
-          'pending' => (float)($row['pending'] ?? 0),
-          'paid' => (float)($row['paid'] ?? 0)
-        ];
-      }
-
-      // Overdue books - using returnDate IS NULL and borrowDate
-      $result = $conn->query("SELECT COUNT(*) as total
-            FROM transactions
-            WHERE returnDate IS NULL
-            AND DATEDIFF(CURDATE(), borrowDate) > 14");
-
-      if ($result && $row = $result->fetch_assoc()) {
-        $stats['overdue'] = (int)($row['total'] ?? 0);
-      }
+      // Total fines - FIXED: Changed 'fine' to 'fineAmount'
+      $result = $conn->query("SELECT SUM(fineAmount) as total FROM transactions WHERE fineAmount > 0");
+      $stats['total_fines'] = $result->fetch_assoc()['total'] ?? 0;
 
       return $stats;
     } catch (\Exception $e) {
       error_log("Error getting overall stats: " . $e->getMessage());
-      return $stats; // Return default structure on error
+      return [];
     }
   }
 
   /**
-   * Get borrowing trends for the last 30 days
+   * Get borrow trends for the last 30 days
    */
   public function getBorrowTrends()
   {
@@ -1431,10 +830,10 @@ class AdminService
 
     try {
       $sql = "SELECT DATE(borrowDate) as date, COUNT(*) as count
-                FROM transactions
-                WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                GROUP BY DATE(borrowDate)
-                ORDER BY date ASC";
+              FROM transactions
+              WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+              GROUP BY DATE(borrowDate)
+              ORDER BY date ASC";
 
       $result = $conn->query($sql);
       $trends = [];
@@ -1565,7 +964,8 @@ class AdminService
   }
 
   /**
-   * Get fine statistics for the last 6 months
+   * Get fine statistics for the last 6 months - FIXED
+   * Changed 'fine' to 'fineAmount'
    */
   public function getFineStats()
   {

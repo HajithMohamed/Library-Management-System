@@ -1202,8 +1202,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php foreach ($books as $book): ?>
                                     <tr>
                                         <td>
-                                            <?php if (!empty($book['image'])): ?>
-                                                <img src="<?= BASE_URL ?>public/<?= htmlspecialchars($book['image']) ?>" 
+                                            <?php if (!empty($book['bookImage'])): ?>
+                                                <img src="<?= BASE_URL ?>public/<?= htmlspecialchars($book['bookImage']) ?>" 
                                                      alt="<?= htmlspecialchars($book['bookName']) ?>" 
                                                      class="book-cover"
                                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -1756,8 +1756,8 @@ function openEditModal(book) {
     document.getElementById('edit_isTrending').checked = book.isTrending == 1;
     
     // Set image preview
-    if (book.image) {
-        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>public/' + book.image;
+    if (book.bookImage) {
+        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>public/' + book.bookImage;
     } else {
         document.getElementById('edit_previewImage').src = '';
     }
@@ -1882,4 +1882,3 @@ document.getElementById('statusFilter').addEventListener('change', applyFilters)
 </script>
 
 <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
-

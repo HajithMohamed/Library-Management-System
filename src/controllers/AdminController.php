@@ -26,38 +26,38 @@ class AdminController
       exit();
     }
 
-    global $mysqli;
+    global $conn;
 
     // Fetch total books
-    $totalBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books");
+    $totalBooksResult = $conn->query("SELECT COUNT(*) as count FROM books");
     $totalBooks = $totalBooksResult->fetch_assoc()['count'];
 
     // Fetch available books (sum of available column)
-    $availableBooksResult = $mysqli->query("SELECT SUM(available) as count FROM books");
+    $availableBooksResult = $conn->query("SELECT SUM(available) as count FROM books");
     $availableBooks = $availableBooksResult->fetch_assoc()['count'] ?? 0;
 
     // Fetch borrowed books (sum of borrowed column)
-    $borrowedBooksResult = $mysqli->query("SELECT SUM(borrowed) as count FROM books");
+    $borrowedBooksResult = $conn->query("SELECT SUM(borrowed) as count FROM books");
     $borrowedBooks = $borrowedBooksResult->fetch_assoc()['count'] ?? 0;
 
     // Fetch total users
-    $totalUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users");
+    $totalUsersResult = $conn->query("SELECT COUNT(*) as count FROM users");
     $totalUsers = $totalUsersResult->fetch_assoc()['count'];
 
     // Fetch active users (verified users)
-    $activeUsersResult = $mysqli->query("SELECT COUNT(*) as count FROM users WHERE isVerified = 1");
+    $activeUsersResult = $conn->query("SELECT COUNT(*) as count FROM users WHERE isVerified = 1");
     $activeUsers = $activeUsersResult->fetch_assoc()['count'];
 
     // Fetch total transactions
-    $totalTransactionsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions");
+    $totalTransactionsResult = $conn->query("SELECT COUNT(*) as count FROM transactions");
     $totalTransactions = $totalTransactionsResult->fetch_assoc()['count'];
 
     // Fetch active borrowings (not returned yet)
-    $activeBorrowingsResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+    $activeBorrowingsResult = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
     $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
 
     // Fetch overdue books (borrowed more than 14 days ago, not returned)
-    $overdueBooksResult = $mysqli->query("
+    $overdueBooksResult = $conn->query("
             SELECT COUNT(*) as count
             FROM transactions
             WHERE returnDate IS NULL
@@ -66,7 +66,7 @@ class AdminController
     $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
 
     // Fetch low stock books (available <= 2)
-    $lowStockBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
+    $lowStockBooksResult = $conn->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
     $lowStockBooks = $lowStockBooksResult->fetch_assoc()['count'];
 
     // Prepare stats array for dashboard
@@ -87,7 +87,7 @@ class AdminController
 
     // Prepare system health array
     $systemHealth = [
-      'database' => $mysqli->ping() ? 'healthy' : 'error',
+      'database' => $conn->ping() ? 'healthy' : 'error',
       'disk_space' => 'healthy', // Simplified for now
       'overdue_books' => $overdueBooks,
       'low_stock_books' => $lowStockBooks,
@@ -112,7 +112,7 @@ class AdminController
             ORDER BY t.borrowDate DESC
             LIMIT 5
         ";
-    $recentTransactionsResult = $mysqli->query($recentTransactionsQuery);
+    $recentTransactionsResult = $conn->query($recentTransactionsQuery);
     $recentTransactions = [];
     if ($recentTransactionsResult) {
       while ($row = $recentTransactionsResult->fetch_assoc()) {
@@ -134,7 +134,7 @@ class AdminController
             ORDER BY borrow_count DESC
             LIMIT 5
         ";
-    $popularBooksResult = $mysqli->query($popularBooksQuery);
+    $popularBooksResult = $conn->query($popularBooksQuery);
     $popularBooks = [];
     if ($popularBooksResult) {
       while ($row = $popularBooksResult->fetch_assoc()) {
@@ -150,7 +150,7 @@ class AdminController
             ORDER BY createdAt DESC
             LIMIT 5
         ";
-    $notificationsResult = $mysqli->query($notificationsQuery);
+    $notificationsResult = $conn->query($notificationsQuery);
     $notifications = [];
     if ($notificationsResult) {
       while ($row = $notificationsResult->fetch_assoc()) {
@@ -174,14 +174,14 @@ class AdminController
       exit();
     }
 
-    global $mysqli;
+    global $conn;
 
     // Fetch all users with username
     $sql = "SELECT userId, username, emailId, phoneNumber, userType, gender, dob, address, isVerified, createdAt
                 FROM users
                 ORDER BY createdAt DESC";
 
-    $result = $mysqli->query($sql);
+    $result = $conn->query($sql);
 
     $users = [];
     if ($result) {

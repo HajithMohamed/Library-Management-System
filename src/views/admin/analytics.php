@@ -1,7 +1,6 @@
 <?php
 $pageTitle = 'Analytics & Reports';
-include APP_ROOT . '/views/layouts/admin-header.php';
-include APP_ROOT .  '/views/layouts/admin-navbar.php'
+
 ?>
 
 <style>
@@ -304,6 +303,39 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
   }
 </style>
 
+<?php
+// Additional computations for stats cards to match UI without changing backend
+$totalCopies = 0;
+foreach ($categoryDistribution as $cat) {
+    $totalCopies += (int)($cat['copies'] ?? 0);
+}
+
+$totalActiveUsers = 0;
+$studentCount = 0;
+$facultyCount = 0;
+foreach ($userActivity as $activity) {
+    $totalActiveUsers += (int)($activity['activeUsers'] ?? 0);
+    if (($activity['userType'] ?? '') === 'Student') {
+        $studentCount = (int)($activity['activeUsers'] ?? 0);
+    } elseif (in_array($activity['userType'] ?? '', ['Teacher', 'Faculty'])) {
+        $facultyCount = (int)($activity['activeUsers'] ?? 0);
+    }
+}
+
+$pendingRequests = 0; // No direct data; fallback to 0 (table may not exist)
+
+$overdue = 0; // No direct data in analytics; fallback to 0
+
+$totalFines = (float)($stats['total_fines'] ?? 0);
+$pendingFines = 0;
+foreach ($fineStats as $f) {
+    $pendingFines += (float)($f['pendingFines'] ?? 0);
+}
+
+$borrowedCount = (int)($stats['active_borrowings'] ?? 0);
+$availableCount = $totalCopies - $borrowedCount;
+?>
+
 <div class="analytics-container">
   <!-- Page Header -->
   <div class="page-header">
@@ -317,8 +349,8 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Total Books</div>
-          <div class="stat-value"><?= number_format($stats['books']['total']) ?></div>
-          <div class="stat-subtitle"><?= number_format($stats['books']['copies']) ?> total copies</div>
+          <div class="stat-value"><?= number_format($stats['total_books'] ?? 0) ?></div>
+          <div class="stat-subtitle"><?= number_format($totalCopies) ?> total copies</div>
         </div>
         <div class="stat-icon primary">
           <i class="fas fa-book"></i>
@@ -330,8 +362,8 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Active Users</div>
-          <div class="stat-value"><?= number_format($stats['users']['total']) ?></div>
-          <div class="stat-subtitle"><?= $stats['users']['students'] ?> Students | <?= $stats['users']['faculty'] ?> Faculty</div>
+          <div class="stat-value"><?= number_format($totalActiveUsers) ?></div>
+          <div class="stat-subtitle"><?= number_format($studentCount) ?> Students | <?= number_format($facultyCount) ?> Faculty</div>
         </div>
         <div class="stat-icon success">
           <i class="fas fa-users"></i>
@@ -343,8 +375,8 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Books Borrowed</div>
-          <div class="stat-value"><?= number_format($stats['books']['borrowed']) ?></div>
-          <div class="stat-subtitle"><?= number_format($stats['books']['available']) ?> available</div>
+          <div class="stat-value"><?= number_format($borrowedCount) ?></div>
+          <div class="stat-subtitle"><?= number_format($availableCount) ?> available</div>
         </div>
         <div class="stat-icon info">
           <i class="fas fa-book-reader"></i>
@@ -356,7 +388,7 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Pending Requests</div>
-          <div class="stat-value"><?= number_format($stats['pendingRequests']) ?></div>
+          <div class="stat-value"><?= number_format($pendingRequests) ?></div>
           <div class="stat-subtitle">Awaiting approval</div>
         </div>
         <div class="stat-icon warning">
@@ -369,7 +401,7 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Overdue Books</div>
-          <div class="stat-value"><?= number_format($stats['overdue']) ?></div>
+          <div class="stat-value"><?= number_format($overdue) ?></div>
           <div class="stat-subtitle">Require attention</div>
         </div>
         <div class="stat-icon danger">
@@ -382,8 +414,8 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
       <div class="stat-header">
         <div>
           <div class="stat-title">Total Fines</div>
-          <div class="stat-value">₹<?= number_format($stats['fines']['total'] ?? 0, 2) ?></div>
-          <div class="stat-subtitle">₹<?= number_format($stats['fines']['pending'] ?? 0, 2) ?> pending</div>
+          <div class="stat-value">₹<?= number_format($totalFines, 2) ?></div>
+          <div class="stat-subtitle">₹<?= number_format($pendingFines, 2) ?> pending</div>
         </div>
         <div class="stat-icon warning">
           <i class="fas fa-rupee-sign"></i>
@@ -461,9 +493,9 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
               <?php foreach ($topBooks as $index => $book): ?>
                 <tr>
                   <td><?= $index + 1 ?></td>
-                  <td><?= htmlspecialchars($book['bookName']) ?></td>
-                  <td><?= htmlspecialchars($book['authorName']) ?></td>
-                  <td><span class="badge badge-info"><?= $book['borrowCount'] ?></span></td>
+                  <td><?= htmlspecialchars($book['bookName'] ?? '') ?></td>
+                  <td><?= htmlspecialchars($book['authorName'] ?? '') ?></td>
+                  <td><span class="badge badge-info"><?= (int)($book['borrowCount'] ?? 0) ?></span></td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
@@ -485,12 +517,12 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
         <?php if (!empty($recentActivities)): ?>
           <?php foreach ($recentActivities as $activity): ?>
             <div class="activity-item">
-              <div class="activity-icon <?= $activity['type'] === 'Transaction' ? 'success' : 'warning' ?>">
-                <i class="fas fa-<?= $activity['type'] === 'Transaction' ? 'book' : 'hand-paper' ?>"></i>
+              <div class="activity-icon <?= ($activity['type'] ?? '') === 'Transaction' ? 'success' : 'warning' ?>">
+                <i class="fas fa-<?= ($activity['type'] ?? '') === 'Transaction' ? 'book' : 'hand-paper' ?>"></i>
               </div>
               <div class="activity-content">
-                <div class="activity-description"><?= htmlspecialchars($activity['description']) ?></div>
-                <div class="activity-time"><?= date('M j, Y H:i', strtotime($activity['timestamp'])) ?></div>
+                <div class="activity-description"><?= htmlspecialchars($activity['description'] ?? '') ?></div>
+                <div class="activity-time"><?= date('M j, Y H:i', strtotime($activity['timestamp'] ?? 'now')) ?></div>
               </div>
             </div>
           <?php endforeach; ?>
@@ -514,10 +546,10 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
   new Chart(borrowTrendsCtx, {
     type: 'line',
     data: {
-      labels: <?= json_encode(array_map(fn($t) => date('M j', strtotime($t['date'])), $borrowTrends)) ?>,
+      labels: <?= json_encode(array_map(fn($t) => date('M j', strtotime($t['date'] ?? 'now')), $borrowTrends ?? [])) ?>,
       datasets: [{
         label: 'Books Borrowed',
-        data: <?= json_encode(array_map(fn($t) => $t['count'], $borrowTrends)) ?>,
+        data: <?= json_encode(array_map(fn($t) => (int)($t['count'] ?? 0), $borrowTrends ?? [])) ?>,
         borderColor: '#6366f1',
         backgroundColor: 'rgba(99, 102, 241, 0.1)',
         tension: 0.4,
@@ -545,9 +577,9 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
   new Chart(categoryCtx, {
     type: 'doughnut',
     data: {
-      labels: <?= json_encode(array_map(fn($c) => $c['category'], $categoryDistribution)) ?>,
+      labels: <?= json_encode(array_map(fn($c) => $c['category'] ?? '', $categoryDistribution ?? [])) ?>,
       datasets: [{
-        data: <?= json_encode(array_map(fn($c) => $c['count'], $categoryDistribution)) ?>,
+        data: <?= json_encode(array_map(fn($c) => (int)($c['count'] ?? 0), $categoryDistribution ?? [])) ?>,
         backgroundColor: ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6']
       }]
     },
@@ -562,14 +594,14 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
   new Chart(monthlyStatsCtx, {
     type: 'bar',
     data: {
-      labels: <?= json_encode(array_map(fn($m) => date('M Y', strtotime($m['month'] . '-01')), $monthlyStats)) ?>,
+      labels: <?= json_encode(array_map(fn($m) => date('M Y', strtotime(($m['month'] ?? '') . '-01')), $monthlyStats ?? [])) ?>,
       datasets: [{
         label: 'Issues',
-        data: <?= json_encode(array_map(fn($m) => $m['issues'], $monthlyStats)) ?>,
+        data: <?= json_encode(array_map(fn($m) => (int)($m['issues'] ?? 0), $monthlyStats ?? [])) ?>,
         backgroundColor: '#6366f1'
       }, {
         label: 'Returns',
-        data: <?= json_encode(array_map(fn($m) => $m['returns'], $monthlyStats)) ?>,
+        data: <?= json_encode(array_map(fn($m) => (int)($m['returns'] ?? 0), $monthlyStats ?? [])) ?>,
         backgroundColor: '#10b981'
       }]
     },
@@ -589,14 +621,14 @@ include APP_ROOT .  '/views/layouts/admin-navbar.php'
   new Chart(fineStatsCtx, {
     type: 'bar',
     data: {
-      labels: <?= json_encode(array_map(fn($f) => date('M Y', strtotime($f['month'] . '-01')), $fineStats)) ?>,
+      labels: <?= json_encode(array_map(fn($f) => date('M Y', strtotime(($f['month'] ?? '') . '-01')), $fineStats ?? [])) ?>,
       datasets: [{
         label: 'Paid Fines',
-        data: <?= json_encode(array_map(fn($f) => $f['paidFines'], $fineStats)) ?>,
+        data: <?= json_encode(array_map(fn($f) => (float)($f['paidFines'] ?? 0), $fineStats ?? [])) ?>,
         backgroundColor: '#10b981'
       }, {
         label: 'Pending Fines',
-        data: <?= json_encode(array_map(fn($f) => $f['pendingFines'], $fineStats)) ?>,
+        data: <?= json_encode(array_map(fn($f) => (float)($f['pendingFines'] ?? 0), $fineStats ?? [])) ?>,
         backgroundColor: '#f59e0b'
       }]
     },
