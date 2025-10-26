@@ -82,6 +82,9 @@ class User
         // Generate unique user ID
         $data['userId'] = $this->generateUserId();
         
+        // Assign nullable values to variables first (required for bind_param by reference)
+        $profileImage = $data['profileImage'] ?? null;
+        
         if ($this->hasColumn('profileImage')) {
             $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, profileImage, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->conn->prepare($sql);
@@ -95,7 +98,7 @@ class User
                 $data['emailId'], 
                 $data['phoneNumber'], 
                 $data['address'], 
-                $data['profileImage'] ?? null,
+                $profileImage,
                 $data['isVerified'], 
                 $data['otp'], 
                 $data['otpExpiry']
@@ -142,6 +145,9 @@ class User
      */
     public function updateUser($userId, $data)
     {
+        // Assign nullable values to variables first
+        $profileImage = $data['profileImage'] ?? null;
+        
         if ($this->hasColumn('profileImage')) {
             $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ?, profileImage = COALESCE(?, profileImage) WHERE userId = ?";
             $stmt = $this->conn->prepare($sql);
@@ -151,7 +157,7 @@ class User
                 $data['emailId'], 
                 $data['phoneNumber'], 
                 $data['address'], 
-                $data['profileImage'] ?? null,
+                $profileImage,
                 $userId
             );
         } else {

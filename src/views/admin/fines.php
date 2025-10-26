@@ -1044,10 +1044,13 @@ include APP_ROOT . '/views/layouts/admin-header.php';
           
 
         </div>
-         
+
+
+
+        <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?> 
             </div>
             
-<?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+
     </main>
 </div>
 
@@ -1138,6 +1141,3 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 </script>
-
-</body>
-</html>
