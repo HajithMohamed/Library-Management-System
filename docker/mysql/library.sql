@@ -1,288 +1,618 @@
--- ============================================
--- Library Management System Database
--- ============================================
+-- University Library Management System Database Schema
+-- This file is automatically executed when the Docker container starts
+-- Version: 2.0 (Updated with Admin Dashboard Tables)
+-- Date: 2025-10-26
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 
--- ============================================
--- Database Creation
--- ============================================
-
+-- Create database if not exists
 DROP DATABASE IF EXISTS `integrated_library_system`;
 CREATE DATABASE `integrated_library_system` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `integrated_library_system`;
 
--- ============================================
--- Table: users
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `users`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `userId` varchar(10) NOT NULL,
-  `username` varchar(50) NOT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `userType` varchar(25) DEFAULT 'Student',
-  `gender` varchar(6) DEFAULT NULL,
+  `userId` varchar(255) NOT NULL,
+  `username` varchar(50) NULL,
+  `password` varchar(255) NOT NULL,
+  `userType` enum('Student','Faculty','Librarian','Admin') NOT NULL,
+  `gender` enum('Male','Female','Other') DEFAULT NULL,
   `dob` date DEFAULT NULL,
-  `emailId` varchar(255) DEFAULT NULL,
+  `emailId` varchar(255) NOT NULL,
   `phoneNumber` varchar(15) DEFAULT NULL,
-  `address` text DEFAULT NULL,
+  `address` text,
+  `profileImage` varchar(255) DEFAULT NULL,
   `isVerified` tinyint(1) DEFAULT 0,
+  `verificationToken` varchar(255) DEFAULT NULL,
   `otp` varchar(10) DEFAULT NULL,
   `otpExpiry` datetime DEFAULT NULL,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `userId` (`userId`),
-  UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `emailId` (`emailId`),
-  KEY `idx_userId` (`userId`),
-  KEY `idx_username` (`username`),
-  KEY `idx_emailId` (`emailId`),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`userId`),
+  UNIQUE KEY `unique_email` (`emailId`),
+  UNIQUE KEY `unique_username` (`username`),
   KEY `idx_userType` (`userType`),
-  KEY `idx_createdAt` (`createdAt`)
+  KEY `idx_isVerified` (`isVerified`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: books
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `books`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `books` (
-  `isbn` varchar(20) NOT NULL,
-  `barcode` varchar(255) DEFAULT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `barcode` varchar(255) NULL,
   `bookName` varchar(255) NOT NULL,
   `authorName` varchar(255) NOT NULL,
   `publisherName` varchar(255) NOT NULL,
-  `available` int(11) NOT NULL DEFAULT 0,
-  `borrowed` int(11) NOT NULL DEFAULT 0,
-  `totalCopies` int(11) NOT NULL DEFAULT 0,
-  `borrowCount` int(11) NOT NULL DEFAULT 0 COMMENT 'Total times this book has been borrowed',
-  `bookImage` varchar(255) DEFAULT NULL,
-  `description` text DEFAULT NULL,
+  `description` text,
   `category` varchar(100) DEFAULT NULL,
   `publicationYear` int(4) DEFAULT NULL,
+  `totalCopies` int(11) NOT NULL DEFAULT 0,
+  `available` int(11) NOT NULL DEFAULT 0,
+  `borrowed` int(11) NOT NULL DEFAULT 0,
+  `bookImage` varchar(255) DEFAULT NULL,
   `isTrending` tinyint(1) DEFAULT 0,
   `isSpecial` tinyint(1) DEFAULT 0,
   `specialBadge` varchar(50) DEFAULT NULL,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`isbn`)
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`isbn`),
+  KEY `idx_author` (`authorName`),
+  KEY `idx_publisher` (`publisherName`),
+  KEY `idx_category` (`category`),
+  KEY `idx_available` (`available`),
+  KEY `idx_trending` (`isTrending`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: transactions
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `transactions`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `transactions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `userId` varchar(10) NOT NULL,
-  `isbn` varchar(20) NOT NULL,
+  `tid` varchar(255) NOT NULL,
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `fine` decimal(10,2) DEFAULT 0.00,
   `borrowDate` date NOT NULL,
-  `dueDate` date NOT NULL,
   `returnDate` date DEFAULT NULL,
+  `lastFinePaymentDate` date DEFAULT NULL,
   `fineAmount` decimal(10,2) DEFAULT 0.00,
   `fineStatus` enum('pending','paid','waived') DEFAULT 'pending',
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `userId` (`userId`),
-  KEY `isbn` (`isbn`),
+  `finePaymentDate` date NULL,
+  `finePaymentMethod` enum('cash','online','card') NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`tid`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_borrowDate` (`borrowDate`),
+  KEY `idx_returnDate` (`returnDate`),
+  KEY `idx_fineStatus` (`fineStatus`),
   CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
   CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: borrow_requests
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `borrow_requests`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `borrow_requests` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `userId` varchar(10) NOT NULL,
-  `isbn` varchar(20) NOT NULL,
-  `requestDate` timestamp NOT NULL DEFAULT current_timestamp(),
-  `status` enum('Pending','Approved','Rejected') DEFAULT 'Pending',
-  `approvedBy` varchar(10) DEFAULT NULL,
-  `dueDate` date DEFAULT NULL,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `requestDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+  `approvedBy` varchar(255) NULL,
+  `dueDate` date NULL,
+  `rejectionReason` text NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `userId` (`userId`),
-  KEY `isbn` (`isbn`),
-  KEY `approvedBy` (`approvedBy`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_status` (`status`),
+  KEY `idx_requestDate` (`requestDate`),
   CONSTRAINT `borrow_requests_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
-  CONSTRAINT `borrow_requests_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE,
-  CONSTRAINT `borrow_requests_ibfk_3` FOREIGN KEY (`approvedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL
+  CONSTRAINT `borrow_requests_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: notifications
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `notifications`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `userId` varchar(10) DEFAULT NULL,
-  `title` varchar(255) NOT NULL,
+  `userId` varchar(255) NULL,
+  `title` varchar(150) NOT NULL,
   `message` text NOT NULL,
-  `type` enum('overdue','out_of_stock','reminder','approval','general') NOT NULL,
-  `priority` enum('low','medium','high') DEFAULT 'medium',
-  `isRead` tinyint(1) DEFAULT 0,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `type` enum('overdue','fine_paid','out_of_stock','system','reminder','approval') NOT NULL DEFAULT 'system',
+  `priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+  `isRead` tinyint(1) NOT NULL DEFAULT 0,
+  `relatedId` varchar(255) NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `userId` (`userId`),
-  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+  KEY `idx_userId` (`userId`),
+  KEY `idx_type` (`type`),
+  KEY `idx_isRead` (`isRead`),
+  KEY `idx_createdAt` (`createdAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: fine_settings
--- ============================================
-
+-- ====================================================================
+-- Table structure for table `fine_settings`
+-- ====================================================================
 CREATE TABLE IF NOT EXISTS `fine_settings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `setting_name` varchar(100) NOT NULL,
   `setting_value` varchar(255) NOT NULL,
-  `description` text DEFAULT NULL,
-  `updatedBy` varchar(10) DEFAULT NULL,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `description` text,
+  `updatedBy` varchar(255),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `setting_name` (`setting_name`),
-  KEY `updatedBy` (`updatedBy`),
-  CONSTRAINT `fine_settings_ibfk_1` FOREIGN KEY (`updatedBy`) REFERENCES `users` (`userId`) ON DELETE SET NULL
+  UNIQUE KEY `unique_setting_name` (`setting_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Table: analytics_stats (for performance optimization)
--- ============================================
-
-CREATE TABLE IF NOT EXISTS `analytics_stats` (
+-- ====================================================================
+-- Table structure for table `backup_log`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `backup_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `stat_month` int(2) NOT NULL COMMENT 'Month (1-12)',
-  `stat_year` int(4) NOT NULL COMMENT 'Year (YYYY)',
-  `total_borrowings` int(11) DEFAULT 0,
-  `total_returns` int(11) DEFAULT 0,
-  `total_fines_collected` decimal(10,2) DEFAULT 0.00,
-  `new_members` int(11) DEFAULT 0,
-  `overdue_count` int(11) DEFAULT 0,
-  `active_members` int(11) DEFAULT 0,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `filename` varchar(255) NOT NULL,
+  `filepath` varchar(500) NOT NULL,
+  `filesize` bigint(20) NOT NULL,
+  `backupType` enum('manual','scheduled','system') NOT NULL DEFAULT 'manual',
+  `status` enum('success','failed','in_progress') NOT NULL DEFAULT 'success',
+  `createdBy` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `month_year` (`stat_month`, `stat_year`)
+  KEY `idx_createdAt` (`createdAt`),
+  KEY `idx_backupType` (`backupType`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Admin User
--- ============================================
+-- ====================================================================
+-- Table structure for table `maintenance_log`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `maintenance_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `action` varchar(255) NOT NULL,
+  `description` text,
+  `performedBy` varchar(255) NOT NULL,
+  `status` enum('success','failed','warning') NOT NULL DEFAULT 'success',
+  `details` text NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_createdAt` (`createdAt`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `isVerified`) VALUES
-('ADMIN001', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'Male', '1990-01-01', 'admin@library.com', '1234567890', 'Library Office, Main Campus', 1);
+-- ====================================================================
+-- NEW TABLES FOR ADMIN DASHBOARD
+-- ====================================================================
 
--- ============================================
--- Insert Sample Data: Students
--- ============================================
+-- ====================================================================
+-- Table structure for table `admin_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `admin_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `adminId` varchar(255) NOT NULL,
+  `action` varchar(255) NOT NULL,
+  `entityType` varchar(100),
+  `entityId` varchar(255),
+  `oldValues` json,
+  `newValues` json,
+  `ipAddress` varchar(45) DEFAULT NULL,
+  `userAgent` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_adminId` (`adminId`),
+  KEY `idx_createdAt` (`createdAt`),
+  KEY `idx_action` (`action`),
+  CONSTRAINT `admin_logs_ibfk_1` FOREIGN KEY (`adminId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `isVerified`) VALUES
-('STU001', 'john_doe', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Student', 'Male', '2000-01-01', 'john.doe@student.com', '9876543210', '123 Student St', 1),
-('STU002', 'jane_smith', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Student', 'Male', '2000-01-01', 'jane.smith@student.com', '9876543211', '123 Student St', 1),
-('STU003', 'bob_wilson', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Student', 'Male', '2000-01-01', 'bob.wilson@student.com', '9876543212', '123 Student St', 1),
-('STU004', 'alice_brown', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Student', 'Male', '2000-01-01', 'alice.brown@student.com', '9876543213', '123 Student St', 1),
-('STU005', 'charlie_davis', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Student', 'Male', '2000-01-01', 'charlie.davis@student.com', '9876543214', '123 Student St', 1);
+-- ====================================================================
+-- Table structure for table `system_settings`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `system_settings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `settingKey` varchar(100) NOT NULL,
+  `settingValue` text,
+  `settingType` enum('string','number','boolean','json') DEFAULT 'string',
+  `description` text,
+  `updatedBy` varchar(255),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_key` (`settingKey`),
+  KEY `idx_settingKey` (`settingKey`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Books
--- ============================================
+-- ====================================================================
+-- Table structure for table `dashboard_stats`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `dashboard_stats` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `statKey` varchar(100) NOT NULL,
+  `statValue` int(11) NOT NULL DEFAULT 0,
+  `statDate` date NOT NULL,
+  `description` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_stat_date` (`statKey`,`statDate`),
+  KEY `idx_statKey` (`statKey`),
+  KEY `idx_statDate` (`statDate`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `available`, `borrowed`, `totalCopies`, `borrowCount`, `bookImage`, `description`, `category`, `publicationYear`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
-('9780134685991', 'BC9780134685991', 'Effective Java', 'Joshua Bloch', 'Addison-Wesley', 8, 2, 10, 156, '', 'A great book for learning and entertainment.', 'Technology', 2018, 1, 0, NULL),
-('9780735619678', 'BC9780735619678', 'Code Complete', 'Steve McConnell', 'Microsoft Press', 5, 3, 8, 89, '', 'A great book for learning and entertainment.', 'Technology', 2004, 1, 1, 'Best Seller'),
-('9780262033848', 'BC9780262033848', 'Introduction to Algorithms', 'Thomas H. Cormen', 'MIT Press', 6, 1, 7, 67, '', 'A great book for learning and entertainment.', 'Science', 2009, 0, 1, 'Classic'),
-('9780545010221', 'BC9780545010221', 'Harry Potter and the Deathly Hallows', 'J.K. Rowling', 'Scholastic', 12, 8, 20, 112, '', 'A great book for learning and entertainment.', 'Fiction', 2007, 1, 1, 'Popular'),
-('9780061120084', 'BC9780061120084', 'To Kill a Mockingbird', 'Harper Lee', 'HarperCollins', 4, 2, 6, 142, '', 'A great book for learning and entertainment.', 'Fiction', 1960, 0, 1, 'Classic'),
-('9780316769488', 'BC9780316769488', 'The Catcher in the Rye', 'J.D. Salinger', 'Little Brown', 3, 2, 5, 118, '', 'A great book for learning and entertainment.', 'Fiction', 1951, 0, 0, NULL),
-('9780451524935', 'BC9780451524935', '1984', 'George Orwell', 'Signet Classic', 7, 3, 10, 138, '', 'A great book for learning and entertainment.', 'Fiction', 1949, 1, 1, 'Must Read'),
-('9780743273565', 'BC9780743273565', 'The Great Gatsby', 'F. Scott Fitzgerald', 'Scribner', 5, 1, 6, 156, '', 'A great book for learning and entertainment.', 'Fiction', 1925, 0, 0, NULL),
-('9780140283334', 'BC9780140283334', 'Pride and Prejudice', 'Jane Austen', 'Penguin Classics', 4, 2, 6, 124, '', 'A great book for learning and entertainment.', 'Fiction', 1813, 0, 1, 'Classic'),
-('9780439023528', 'BC9780439023528', 'The Hunger Games', 'Suzanne Collins', 'Scholastic', 0, 10, 10, 92, '', 'A great book for learning and entertainment.', 'Fiction', 2008, 1, 0, NULL);
+-- ====================================================================
+-- Table structure for table `user_login_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `user_login_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `loginTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `logoutTime` datetime,
+  `ipAddress` varchar(45) DEFAULT NULL,
+  `userAgent` text,
+  `loginStatus` enum('success','failed','blocked') DEFAULT 'success',
+  `failureReason` varchar(255),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_loginTime` (`loginTime`),
+  CONSTRAINT `user_login_logs_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Transactions
--- ============================================
+-- ====================================================================
+-- Table structure for table `role_permissions`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `role_permissions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `role` enum('Student','Faculty','Librarian','Admin') NOT NULL,
+  `permission` varchar(100) NOT NULL,
+  `canRead` tinyint(1) DEFAULT 0,
+  `canWrite` tinyint(1) DEFAULT 0,
+  `canDelete` tinyint(1) DEFAULT 0,
+  `canApprove` tinyint(1) DEFAULT 0,
+  `description` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_role_permission` (`role`,`permission`),
+  KEY `idx_role` (`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `transactions` (`userId`, `isbn`, `borrowDate`, `dueDate`, `returnDate`, `fineAmount`, `fineStatus`) VALUES
-('STU001', '9780134685991', DATE_SUB(CURDATE(), INTERVAL 5 DAY), DATE_ADD(CURDATE(), INTERVAL 9 DAY), NULL, 0.00, 'pending'),
-('STU002', '9780735619678', DATE_SUB(CURDATE(), INTERVAL 10 DAY), DATE_ADD(CURDATE(), INTERVAL 4 DAY), NULL, 0.00, 'pending'),
-('STU003', '9780545010221', DATE_SUB(CURDATE(), INTERVAL 20 DAY), DATE_SUB(CURDATE(), INTERVAL 6 DAY), NULL, 30.00, 'pending'),
-('STU004', '9780451524935', DATE_SUB(CURDATE(), INTERVAL 3 DAY), DATE_ADD(CURDATE(), INTERVAL 11 DAY), NULL, 0.00, 'pending');
+-- ====================================================================
+-- Table structure for table `book_reservations`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `book_reservations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `reservationDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expiryDate` date NOT NULL,
+  `status` enum('Active','Fulfilled','Expired','Cancelled') DEFAULT 'Active',
+  `notificationSent` tinyint(1) DEFAULT 0,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_status` (`status`),
+  KEY `idx_expiryDate` (`expiryDate`),
+  CONSTRAINT `book_reservations_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
+  CONSTRAINT `book_reservations_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Borrow Requests
--- ============================================
+-- ====================================================================
+-- Table structure for table `book_inventory`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `book_inventory` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `isbn` varchar(13) NOT NULL,
+  `status` enum('Available','Lost','Damaged','Under Repair','Withdrawn') DEFAULT 'Available',
+  `copies` int(11) NOT NULL DEFAULT 1,
+  `lastVerifiedDate` date,
+  `verifiedBy` varchar(255),
+  `notes` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `book_inventory_ibfk_1` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`) VALUES
-('STU001', '9780262033848', NOW(), 'Pending', NULL, NULL),
-('STU002', '9780316769488', NOW(), 'Pending', NULL, NULL),
-('STU003', '9780743273565', NOW(), 'Approved', 'ADMIN001', DATE_ADD(CURDATE(), INTERVAL 14 DAY)),
-('STU004', '9780140283334', NOW(), 'Rejected', 'ADMIN001', NULL);
+-- ====================================================================
+-- Table structure for table `book_requests`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `book_requests` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `bookName` varchar(255) NOT NULL,
+  `authorName` varchar(255),
+  `isbn` varchar(13),
+  `category` varchar(100),
+  `reason` text,
+  `requestDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('Pending','Approved','Rejected','Ordered','Received') DEFAULT 'Pending',
+  `processedBy` varchar(255),
+  `processedDate` datetime,
+  `rejectionReason` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_status` (`status`),
+  KEY `idx_requestDate` (`requestDate`),
+  CONSTRAINT `book_requests_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Notifications
--- ============================================
+-- ====================================================================
+-- Table structure for table `feedback`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `feedback` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `feedbackType` enum('complaint','suggestion','appreciation','bug_report') DEFAULT 'suggestion',
+  `subject` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `rating` int(1),
+  `status` enum('New','Reviewed','In Progress','Resolved','Closed') DEFAULT 'New',
+  `resolvedBy` varchar(255),
+  `resolutionNotes` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_feedbackType` (`feedbackType`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`) VALUES
-('STU003', 'Overdue Book Alert', 'Your borrowed book \'Harry Potter and the Deathly Hallows\' is overdue. Fine: ₹30.00', 'overdue', 'high', 0),
-(NULL, 'Low Stock Alert', 'Book \'The Hunger Games\' is out of stock', 'out_of_stock', 'medium', 0),
-('STU001', 'Book Due Soon', 'Your borrowed book \'Effective Java\' is due in 3 days', 'reminder', 'medium', 0),
-('STU004', 'Request Rejected', 'Your borrow request for \'Pride and Prejudice\' has been rejected', 'approval', 'low', 0);
+-- ====================================================================
+-- Table structure for table `announcements`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `announcements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `content` text NOT NULL,
+  `announcementType` enum('General','Maintenance','Event','Warning','Update') DEFAULT 'General',
+  `targetAudience` enum('All','Students','Faculty','Librarians','Admin') DEFAULT 'All',
+  `priority` enum('low','medium','high','critical') DEFAULT 'medium',
+  `startDate` datetime NOT NULL,
+  `endDate` datetime,
+  `isActive` tinyint(1) DEFAULT 1,
+  `createdBy` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_isActive` (`isActive`),
+  KEY `idx_startDate` (`startDate`),
+  KEY `idx_announcementType` (`announcementType`),
+  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`createdBy`) REFERENCES `users` (`userId`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Fine Settings
--- ============================================
+-- ====================================================================
+-- Table structure for table `fine_payments`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `fine_payments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `transactionId` varchar(255) NOT NULL,
+  `userId` varchar(255) NOT NULL,
+  `paymentAmount` decimal(10,2) NOT NULL,
+  `paymentMethod` enum('cash','online','card','cheque') DEFAULT 'cash',
+  `paymentStatus` enum('pending','completed','failed','refunded') DEFAULT 'pending',
+  `transactionReference` varchar(255),
+  `paymentGateway` varchar(100),
+  `receiptNumber` varchar(100),
+  `paymentDate` datetime,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_paymentStatus` (`paymentStatus`),
+  KEY `idx_paymentDate` (`paymentDate`),
+  CONSTRAINT `fine_payments_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
+  CONSTRAINT `fine_payments_ibfk_2` FOREIGN KEY (`transactionId`) REFERENCES `transactions` (`tid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) VALUES
-('fine_per_day', '5', 'Fine amount per day for overdue books', 'ADMIN001'),
-('max_borrow_days', '14', 'Maximum days a book can be borrowed', 'ADMIN001'),
-('grace_period_days', '0', 'Grace period before fines start', 'ADMIN001'),
-('max_fine_amount', '500', 'Maximum fine amount per book', 'ADMIN001'),
-('fine_calculation_method', 'daily', 'Method for calculating fines', 'ADMIN001');
+-- ====================================================================
+-- Table structure for table `library_hours`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `library_hours` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `dayOfWeek` enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') NOT NULL,
+  `openingTime` time NOT NULL,
+  `closingTime` time NOT NULL,
+  `isClosed` tinyint(1) DEFAULT 0,
+  `notes` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_day` (`dayOfWeek`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Insert Sample Data: Analytics Stats
--- ============================================
+-- ====================================================================
+-- Table structure for table `holiday_calendar`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `holiday_calendar` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `holidayName` varchar(255) NOT NULL,
+  `holidayDate` date NOT NULL,
+  `endDate` date,
+  `description` text,
+  `isRecurring` tinyint(1) DEFAULT 0,
+  `createdBy` varchar(255),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_holidayDate` (`holidayDate`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `analytics_stats` (`stat_month`, `stat_year`, `total_borrowings`, `total_returns`, `total_fines_collected`, `new_members`, `overdue_count`, `active_members`) VALUES
-(1, 2024, 245, 230, 3250.00, 45, 15, 1180),
-(2, 2024, 289, 275, 3840.00, 58, 18, 1238),
-(3, 2024, 312, 298, 4125.00, 62, 20, 1300),
-(4, 2024, 278, 265, 3675.00, 71, 16, 1371),
-(5, 2024, 324, 310, 4380.00, 85, 22, 1456),
-(6, 2024, 356, 340, 4720.00, 92, 19, 1548),
-(7, 2024, 389, 375, 5145.00, 108, 24, 1656),
-(8, 2024, 412, 398, 5580.00, 115, 21, 1771),
-(9, 2024, 398, 385, 5230.00, 128, 18, 1899),
-(10, 2024, 445, 430, 6015.00, 142, 26, 2041),
-(11, 2024, 468, 455, 6345.00, 156, 23, 2197),
-(12, 2024, 492, 478, 6780.00, 165, 20, 2362),
-(1, 2023, 198, 185, 2680.00, 38, 12, 985),
-(2, 2023, 234, 220, 3120.00, 42, 14, 1027),
-(3, 2023, 267, 255, 3540.00, 51, 16, 1078),
-(4, 2023, 245, 235, 3280.00, 48, 13, 1126),
-(5, 2023, 289, 275, 3890.00, 59, 18, 1185),
-(6, 2023, 312, 298, 4180.00, 65, 17, 1250);
+-- ====================================================================
+-- Table structure for table `api_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `api_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `endpoint` varchar(255) NOT NULL,
+  `method` enum('GET','POST','PUT','DELETE','PATCH') DEFAULT 'GET',
+  `userId` varchar(255),
+  `statusCode` int(3),
+  `responseTime` int(11),
+  `ipAddress` varchar(45),
+  `userAgent` text,
+  `requestData` json,
+  `responseData` json,
+  `errorMessage` text,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_endpoint` (`endpoint`),
+  KEY `idx_method` (`method`),
+  KEY `idx_createdAt` (`createdAt`),
+  KEY `idx_userId` (`userId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- Commit Transaction
--- ============================================
+-- ====================================================================
+-- Table structure for table `report_schedule`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `report_schedule` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `reportName` varchar(255) NOT NULL,
+  `reportType` enum('Daily','Weekly','Monthly','Quarterly','Yearly') DEFAULT 'Monthly',
+  `frequency` varchar(50),
+  `recipients` json,
+  `isActive` tinyint(1) DEFAULT 1,
+  `lastGenerated` datetime,
+  `nextScheduled` datetime,
+  `createdBy` varchar(255),
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_reportName` (`reportName`),
+  KEY `idx_isActive` (`isActive`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
+-- Insert default fine settings (only if table is empty)
+-- ====================================================================
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system') AS tmp
+WHERE NOT EXISTS (
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'fine_per_day'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system') AS tmp
+WHERE NOT EXISTS (
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system') AS tmp
+WHERE NOT EXISTS (
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'grace_period_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system') AS tmp
+WHERE NOT EXISTS (
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system') AS tmp
+WHERE NOT EXISTS (
+    SELECT setting_name FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
+);
+
+-- ====================================================================
+-- Insert default system settings
+-- ====================================================================
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_name');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_email');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'library_phone');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'max_books_per_user');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT * FROM (SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system') AS tmp
+WHERE NOT EXISTS (SELECT settingKey FROM `system_settings` WHERE settingKey = 'enable_notifications');
+
+-- ====================================================================
+-- Insert default role permissions
+-- ====================================================================
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT * FROM (SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings') AS tmp
+WHERE NOT EXISTS (SELECT * FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
+
+-- ====================================================================
+-- Insert default library hours
+-- ====================================================================
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Monday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Monday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Tuesday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Wednesday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Thursday', '08:00:00', '20:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Thursday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Friday', '08:00:00', '18:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Friday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Saturday', '10:00:00', '16:00:00', 0) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Saturday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT * FROM (SELECT 'Sunday', '00:00:00', '00:00:00', 1) AS tmp
+WHERE NOT EXISTS (SELECT * FROM `library_hours` WHERE dayOfWeek = 'Sunday');
 
 COMMIT;
-
--- ============================================
--- Login Credentials
--- ============================================
--- Admin: username = admin, password = admin123
--- Students: username = john_doe/jane_smith/bob_wilson/alice_brown/charlie_davis, password = student123
--- Note: All passwords are hashed using PASSWORD_DEFAULT (bcrypt)
--- ============================================
