@@ -1,8 +1,11 @@
 <?php
+
 /**
  * Front Controller - Entry point for all requests
  * Routes requests to appropriate controllers based on URL patterns
  */
+
+use App\Controllers\AdminController;
 
 // Start session
 session_start();
@@ -11,131 +14,327 @@ session_start();
 define('APP_ROOT', dirname(__DIR__));
 define('PUBLIC_ROOT', __DIR__);
 
+// FORCE DEBUG MODE - ENABLE ALL ERROR REPORTING
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', APP_ROOT . '/logs/error.log');
+
+// Log startup
+error_log("=== Application Starting ===");
+error_log("APP_ROOT: " . APP_ROOT);
+error_log("PUBLIC_ROOT: " . PUBLIC_ROOT);
+
 // Include Composer autoloader (if exists)
 if (file_exists(APP_ROOT . '/../vendor/autoload.php')) {
-    require_once APP_ROOT . '/../vendor/autoload.php';
+  require_once APP_ROOT . '/../vendor/autoload.php';
+  error_log("Composer autoloader loaded");
 }
 
 // Include configuration (this creates $mysqli)
 require_once APP_ROOT . '/config/config.php';
-
-// Error Reporting
-if (APP_DEBUG === "true") {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-    ini_set('display_startup_errors', 1);
-} else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
-}
+error_log("Config loaded");
 
 // Include dbConnection for backwards compatibility (creates $conn alias)
 require_once APP_ROOT . '/config/dbConnection.php';
+error_log("DB Connection loaded");
 
 // Verify connection
 if (!$mysqli || !($mysqli instanceof mysqli)) {
-    die("Database connection failed in index.php");
+  error_log("ERROR: Database connection failed - mysqli not initialized");
+  die("Database connection failed in index.php");
 }
 
+if (!$conn || !($conn instanceof mysqli)) {
+  error_log("ERROR: Database connection failed - conn not initialized");
+  die("Database connection failed - conn alias not created");
+}
+
+error_log("Database connections verified (mysqli and conn)");
+
 // Simple routing system
-class Router {
-    private $routes = [];
-    
-    public function addRoute($method, $path, $controller, $action) {
-        $this->routes[] = [
-            'method' => $method,
-            'path' => $path,
-            'controller' => $controller,
-            'action' => $action
-        ];
+class Router
+{
+  private $routes = [];
+
+  public function addRoute($method, $path, $controller, $action)
+  {
+    $this->routes[] = [
+      'method' => $method,
+      'path' => $path,
+      'controller' => $controller,
+      'action' => $action
+    ];
+  }
+
+  public function dispatch()
+  {
+    $method = $_SERVER['REQUEST_METHOD'];
+    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $path = rtrim($path, '/');
+
+    // Remove base path if running in subdirectory
+    $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
+    if (strpos($path, $basePath) === 0) {
+      $path = substr($path, strlen($basePath));
     }
-    
-    public function dispatch() {
-        $method = $_SERVER['REQUEST_METHOD'];
-        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $path = rtrim($path, '/');
-        
-        // Remove base path if running in subdirectory
-        $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
-        if (strpos($path, $basePath) === 0) {
-            $path = substr($path, strlen($basePath));
-        }
-        
-        // Default route
-        if (empty($path) || $path === '/') {
-            $path = '/';
-        }
-        
-        foreach ($this->routes as $route) {
-            if ($route['method'] === $method && $route['path'] === $path) {
-                $this->callController($route['controller'], $route['action']);
-                return;
-            }
-        }
-        
-        // 404 Not Found
-        http_response_code(404);
-        include APP_ROOT . '/views/errors/404.php';
+
+    // Default route
+    if (empty($path) || $path === '/') {
+      $path = '/';
     }
-    
-    private function callController($controller, $action) {
-        $controllerClass = "App\\Controllers\\{$controller}";
-        
-        if (!class_exists($controllerClass)) {
-            $this->show404();
-            return;
-        }
-        
-        $controllerInstance = new $controllerClass();
-        
-        if (!method_exists($controllerInstance, $action)) {
-            $this->show404();
-            return;
-        }
-        
-        try {
-            // Call the controller action
-            $controllerInstance->$action();
-        } catch (\Exception $e) {
-            // Log the error
-            error_log("Error in {$controller}::{$action} - " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
-            
-            // Show appropriate error page
-            if ($e->getCode() == 403) {
-                $this->show403();
-            } else {
-                $this->show500();
-            }
-        }
+
+    error_log("Routing: {$method} {$path}");
+
+    foreach ($this->routes as $route) {
+      if ($route['method'] === $method && $route['path'] === $path) {
+        error_log("Route matched: {$route['controller']}::{$route['action']}");
+        $this->callController($route['controller'], $route['action']);
+        return;
+      }
     }
-    
-    private function show404() {
-        http_response_code(404);
-        if (file_exists(APP_ROOT . '/views/errors/404.php')) {
-            include APP_ROOT . '/views/errors/404.php';
-        } else {
-            echo '<h1>404 - Page Not Found</h1><p>The requested page could not be found.</p>';
-        }
+
+    // 404 Not Found
+    error_log("No route matched - 404");
+    http_response_code(404);
+    include APP_ROOT . '/views/errors/404.php';
+  }
+
+  private function callController($controller, $action)
+  {
+    $controllerClass = "App\\Controllers\\{$controller}";
+
+    error_log("Attempting to load controller: {$controllerClass}");
+
+    if (!class_exists($controllerClass)) {
+      error_log("ERROR: Controller class not found: {$controllerClass}");
+      $this->show404();
+      return;
     }
-    
-    private function show403() {
-        http_response_code(403);
-        if (file_exists(APP_ROOT . '/views/errors/403.php')) {
-            include APP_ROOT . '/views/errors/403.php';
-        } else {
-            echo '<h1>403 - Access Forbidden</h1><p>You do not have permission to access this resource.</p>';
-        }
+
+    error_log("Controller class found: {$controllerClass}");
+
+    try {
+      $controllerInstance = new $controllerClass();
+      error_log("Controller instance created");
+    } catch (\Exception $e) {
+      error_log("ERROR creating controller instance: " . $e->getMessage());
+      error_log("Stack trace: " . $e->getTraceAsString());
+      $this->showDetailedError($e, "Controller Instantiation Error");
+      return;
     }
-    
-    private function show500() {
-        http_response_code(500);
-        if (file_exists(APP_ROOT . '/views/errors/500.php')) {
-            include APP_ROOT . '/views/errors/500.php';
-        } else {
-            echo '<h1>500 - Internal Server Error</h1><p>An error occurred while processing your request.</p>';
-        }
+
+    if (!method_exists($controllerInstance, $action)) {
+      error_log("ERROR: Method not found: {$action}");
+      $this->show404();
+      return;
     }
+
+    error_log("Calling action: {$action}");
+
+    try {
+      // Call the controller action
+      $controllerInstance->$action();
+      error_log("Action completed successfully");
+    } catch (\Exception $e) {
+      // Log the error
+      error_log("ERROR in {$controller}::{$action}");
+      error_log("Error message: " . $e->getMessage());
+      error_log("Error code: " . $e->getCode());
+      error_log("Error file: " . $e->getFile() . ":" . $e->getLine());
+      error_log("Stack trace: " . $e->getTraceAsString());
+
+      // Show detailed error page
+      $this->showDetailedError($e, "{$controller}::{$action}");
+    } catch (\Error $e) {
+      // Catch PHP 7+ errors (like undefined variable, etc)
+      error_log("PHP ERROR in {$controller}::{$action}");
+      error_log("Error message: " . $e->getMessage());
+      error_log("Error file: " . $e->getFile() . ":" . $e->getLine());
+      error_log("Stack trace: " . $e->getTraceAsString());
+
+      // Show detailed error page
+      $this->showDetailedError($e, "{$controller}::{$action}");
+    }
+  }
+
+  private function showDetailedError($exception, $context)
+  {
+    http_response_code(500);
+?>
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+      <title>Application Error</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          background: #f5f5f5;
+          padding: 20px;
+        }
+
+        .error-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }
+
+        .error-header {
+          background: #ef4444;
+          color: white;
+          padding: 20px 30px;
+        }
+
+        .error-header h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+
+        .error-header p {
+          margin: 10px 0 0 0;
+          opacity: 0.9;
+        }
+
+        .error-body {
+          padding: 30px;
+        }
+
+        .error-section {
+          margin-bottom: 30px;
+        }
+
+        .error-section h2 {
+          color: #1f2937;
+          font-size: 18px;
+          margin-bottom: 15px;
+          border-bottom: 2px solid #e5e7eb;
+          padding-bottom: 10px;
+        }
+
+        .error-code {
+          background: #fee2e2;
+          border-left: 4px solid #ef4444;
+          padding: 15px;
+          border-radius: 4px;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          color: #991b1b;
+          overflow-x: auto;
+        }
+
+        .stack-trace {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          padding: 15px;
+          border-radius: 4px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          color: #374151;
+          overflow-x: auto;
+          white-space: pre-wrap;
+        }
+
+        .info-box {
+          background: #dbeafe;
+          border-left: 4px solid #3b82f6;
+          padding: 15px;
+          border-radius: 4px;
+          margin-bottom: 15px;
+        }
+
+        .info-box strong {
+          color: #1e40af;
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="error-container">
+        <div class="error-header">
+          <h1>⚠️ Application Error</h1>
+          <p>An error occurred while processing your request</p>
+        </div>
+        <div class="error-body">
+          <div class="error-section">
+            <h2>Context</h2>
+            <div class="info-box">
+              <strong>Location:</strong> <?= htmlspecialchars($context) ?>
+            </div>
+          </div>
+
+          <div class="error-section">
+            <h2>Error Message</h2>
+            <div class="error-code">
+              <?= htmlspecialchars($exception->getMessage()) ?>
+            </div>
+          </div>
+
+          <div class="error-section">
+            <h2>Error Details</h2>
+            <div class="info-box">
+              <strong>Type:</strong> <?= get_class($exception) ?><br>
+              <strong>File:</strong> <?= htmlspecialchars($exception->getFile()) ?><br>
+              <strong>Line:</strong> <?= $exception->getLine() ?>
+            </div>
+          </div>
+
+          <div class="error-section">
+            <h2>Stack Trace</h2>
+            <div class="stack-trace"><?= htmlspecialchars($exception->getTraceAsString()) ?></div>
+          </div>
+
+          <div class="error-section">
+            <h2>Request Information</h2>
+            <div class="info-box">
+              <strong>Method:</strong> <?= htmlspecialchars($_SERVER['REQUEST_METHOD']) ?><br>
+              <strong>URI:</strong> <?= htmlspecialchars($_SERVER['REQUEST_URI']) ?><br>
+              <strong>Session User:</strong> <?= isset($_SESSION['userId']) ? htmlspecialchars($_SESSION['userId']) : 'Not logged in' ?><br>
+              <strong>User Type:</strong> <?= isset($_SESSION['userType']) ? htmlspecialchars($_SESSION['userType']) : 'N/A' ?>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+
+    </html>
+<?php
+    exit;
+  }
+
+  private function show404()
+  {
+    http_response_code(404);
+    if (file_exists(APP_ROOT . '/views/errors/404.php')) {
+      include APP_ROOT . '/views/errors/404.php';
+    } else {
+      echo '<h1>404 - Page Not Found</h1><p>The requested page could not be found.</p>';
+    }
+  }
+
+  private function show403()
+  {
+    http_response_code(403);
+    if (file_exists(APP_ROOT . '/views/errors/403.php')) {
+      include APP_ROOT . '/views/errors/403.php';
+    } else {
+      echo '<h1>403 - Access Forbidden</h1><p>You do not have permission to access this resource.</p>';
+    }
+  }
+
+  private function show500()
+  {
+    http_response_code(500);
+    if (file_exists(APP_ROOT . '/views/errors/500.php')) {
+      include APP_ROOT . '/views/errors/500.php';
+    } else {
+      echo '<h1>500 - Internal Server Error</h1><p>An error occurred while processing your request.</p>';
+    }
+  }
 }
 
 // Initialize router and define routes
@@ -193,7 +392,7 @@ $router->addRoute('POST', '/admin/maintenance/perform', 'AdminController', 'perf
 // Admin borrow requests routes
 $router->addRoute('GET', '/admin/borrow-requests', 'AdminController', 'borrowRequests');
 $router->addRoute('POST', '/admin/borrow-requests/handle', 'AdminController', 'handleBorrowRequest');
-
+$router->addRoute('GET', '/admin/analytics', 'AdminController', 'analytics');
 // Admin notifications routes
 $router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
 $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
@@ -225,5 +424,24 @@ $router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
 // Debug routes (remove in production)
 $router->addRoute('GET', '/debug/video', 'HomeController', 'videoDebug');
 
+error_log("Routes registered, dispatching...");
+
 // Dispatch the request
-$router->dispatch();
+try {
+  $router->dispatch();
+} catch (\Exception $e) {
+  error_log("FATAL ERROR during dispatch: " . $e->getMessage());
+  error_log("Stack trace: " . $e->getTraceAsString());
+
+  // Show error page
+  http_response_code(500);
+  echo "<!DOCTYPE html><html><head><title>Fatal Error</title></head><body>";
+  echo "<h1>Fatal Application Error</h1>";
+  echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+  echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . "</p>";
+  echo "<p><strong>Line:</strong> " . $e->getLine() . "</p>";
+  echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+  echo "</body></html>";
+}
+
+error_log("=== Request Complete ===");

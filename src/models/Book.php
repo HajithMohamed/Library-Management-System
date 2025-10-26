@@ -4,15 +4,20 @@ namespace App\Models;
 
 class Book
 {
+    private $conn;
+
+    public function __construct()
+    {
+        global $conn;
+        $this->conn = $conn;
+    }
+
     /**
-     * Get book statistics
-     *
-     * @return array Book statistics
+     * Get book statistics - FIXED VERSION
+     * Uses $conn consistently and matches database column names
      */
     public function getBookStats()
     {
-        global $mysqli;  // Changed from $conn to $mysqli
-        
         $stats = [
             'total_books' => 0,
             'available_books' => 0,
@@ -28,18 +33,18 @@ class Book
                         SUM(borrowed) as borrowed_books
                      FROM books";
             
-            $result = $mysqli->query($query);  // Changed to use $mysqli
+            $result = $this->conn->query($query);
             
             if ($result && $result->num_rows > 0) {
                 $row = $result->fetch_assoc();
-                $stats['total_books'] = (int)$row['total_books'];
-                $stats['available_books'] = (int)$row['available_books'];
-                $stats['borrowed_books'] = (int)$row['borrowed_books'];
+                $stats['total_books'] = (int)($row['total_books'] ?? 0);
+                $stats['available_books'] = (int)($row['available_books'] ?? 0);
+                $stats['borrowed_books'] = (int)($row['borrowed_books'] ?? 0);
             }
             
             // Get book count by category
-            $query = "SELECT category, COUNT(*) as count FROM books GROUP BY category ORDER BY count DESC";
-            $result = $mysqli->query($query);  // Changed to use $mysqli
+            $query = "SELECT category, COUNT(*) as count FROM books WHERE category IS NOT NULL GROUP BY category ORDER BY count DESC";
+            $result = $this->conn->query($query);
             
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
@@ -55,30 +60,36 @@ class Book
     }
     
     /**
-     * Get popular books
-     *
-     * @param int $limit Number of books to return
-     * @return array Popular books
+     * Get popular books - FIXED VERSION
+     * Includes all columns from books table in GROUP BY
      */
     public function getPopularBooks($limit = 5)
     {
-        global $mysqli;  // Changed from $conn to $mysqli
-        
         try {
             $query = "SELECT b.*, COUNT(t.tid) as borrow_count 
                      FROM books b 
                      LEFT JOIN transactions t ON b.isbn = t.isbn 
-                     GROUP BY b.isbn 
+                     GROUP BY b.isbn, b.barcode, b.bookName, b.authorName, b.publisherName, 
+                              b.description, b.category, b.publicationYear, b.totalCopies, 
+                              b.available, b.borrowed, b.bookImage, b.isTrending, b.isSpecial, 
+                              b.specialBadge, b.createdAt, b.updatedAt
                      ORDER BY borrow_count DESC 
                      LIMIT ?";
             
-            $stmt = $mysqli->prepare($query);  // Changed to use $mysqli
+            $stmt = $this->conn->prepare($query);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
             $stmt->bind_param("i", $limit);
             $stmt->execute();
             $result = $stmt->get_result();
             
             $books = [];
             while ($row = $result->fetch_assoc()) {
+                // Add 'image' key for backward compatibility if code uses it
+                $row['image'] = $row['bookImage'];
                 $books[] = $row;
             }
             
@@ -91,22 +102,22 @@ class Book
     
     /**
      * Check if a book is available for borrowing
-     * 
-     * @param string $isbn Book ISBN
-     * @return bool Whether the book is available
      */
     public function isBookAvailable($isbn)
     {
-        global $mysqli;  // Changed from $conn to $mysqli
-        
         try {
-            $stmt = $mysqli->prepare("SELECT available FROM books WHERE isbn = ?");  // Changed to use $mysqli
+            $stmt = $this->conn->prepare("SELECT available FROM books WHERE isbn = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
             $stmt->bind_param("s", $isbn);
             $stmt->execute();
             $result = $stmt->get_result();
             
             if ($row = $result->fetch_assoc()) {
-                return (int)$row['available'] > 0;
+                return (int)($row['available'] ?? 0) > 0;
             }
             
             return false;
@@ -117,16 +128,16 @@ class Book
     }
     
     /**
-     * Get all books
-     * 
-     * @return array All books in the database
+     * Get all books - FIXED with image alias
      */
     public function getAllBooks()
     {
-        global $mysqli;  // Changed from $conn to $mysqli
-        
         try {
-            $result = $mysqli->query("SELECT * FROM books ORDER BY bookName");  // Changed to use $mysqli
+            $result = $this->conn->query("SELECT *, bookImage as image FROM books ORDER BY bookName");
+            
+            if (!$result) {
+                throw new \Exception("Query failed: " . $this->conn->error);
+            }
             
             $books = [];
             while ($row = $result->fetch_assoc()) {
@@ -145,14 +156,22 @@ class Book
      */
     public function getBookByIsbn($isbn)
     {
-        global $mysqli;
-        
-        $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
-        $stmt->bind_param("s", $isbn);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_assoc();
+        try {
+            $stmt = $this->conn->prepare("SELECT *, bookImage as image FROM books WHERE isbn = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("s", $isbn);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_assoc();
+        } catch (\Exception $e) {
+            error_log("Error getting book by ISBN: " . $e->getMessage());
+            return null;
+        }
     }
     
     /**
@@ -160,24 +179,33 @@ class Book
      */
     public function createBook($data)
     {
-        global $mysqli;
-        
-        $stmt = $mysqli->prepare("INSERT INTO books (isbn, barcode, bookName, authorName, publisherName, description, totalCopies, available, borrowed, bookImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        
-        $stmt->bind_param("ssssssiiis",
-            $data['isbn'],
-            $data['barcode'],
-            $data['bookName'],
-            $data['authorName'],
-            $data['publisherName'],
-            $data['description'],
-            $data['totalCopies'],
-            $data['available'],
-            $data['borrowed'],
-            $data['bookImage']
-        );
-        
-        return $stmt->execute();
+        try {
+            $stmt = $this->conn->prepare("INSERT INTO books (isbn, barcode, bookName, authorName, publisherName, description, category, publicationYear, totalCopies, available, borrowed, bookImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("sssssssiiiis",
+                $data['isbn'] ?? null,
+                $data['barcode'] ?? null,
+                $data['bookName'] ?? null,
+                $data['authorName'] ?? null,
+                $data['publisherName'] ?? null,
+                $data['description'] ?? null,
+                $data['category'] ?? null,
+                $data['publicationYear'] ?? null,
+                $data['totalCopies'] ?? 0,
+                $data['available'] ?? 0,
+                $data['borrowed'] ?? 0,
+                $data['bookImage'] ?? null
+            );
+            
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error creating book: " . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -185,23 +213,32 @@ class Book
      */
     public function updateBook($isbn, $data)
     {
-        global $mysqli;
-        
-        $stmt = $mysqli->prepare("UPDATE books SET bookName = ?, authorName = ?, publisherName = ?, description = ?, totalCopies = ?, available = ?, borrowed = ?, bookImage = ? WHERE isbn = ?");
-        
-        $stmt->bind_param("ssssiiiis",
-            $data['bookName'],
-            $data['authorName'],
-            $data['publisherName'],
-            $data['description'],
-            $data['totalCopies'],
-            $data['available'],
-            $data['borrowed'],
-            $data['bookImage'],
-            $isbn
-        );
-        
-        return $stmt->execute();
+        try {
+            $stmt = $this->conn->prepare("UPDATE books SET bookName = ?, authorName = ?, publisherName = ?, description = ?, category = ?, publicationYear = ?, totalCopies = ?, available = ?, borrowed = ?, bookImage = ? WHERE isbn = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("sssssiiiiis",
+                $data['bookName'] ?? null,
+                $data['authorName'] ?? null,
+                $data['publisherName'] ?? null,
+                $data['description'] ?? null,
+                $data['category'] ?? null,
+                $data['publicationYear'] ?? null,
+                $data['totalCopies'] ?? 0,
+                $data['available'] ?? 0,
+                $data['borrowed'] ?? 0,
+                $data['bookImage'] ?? null,
+                $isbn
+            );
+            
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating book: " . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -209,27 +246,35 @@ class Book
      */
     public function deleteBook($isbn)
     {
-        global $mysqli;
-        
-        $stmt = $mysqli->prepare("DELETE FROM books WHERE isbn = ?");
-        $stmt->bind_param("s", $isbn);
-        
-        return $stmt->execute();
+        try {
+            $stmt = $this->conn->prepare("DELETE FROM books WHERE isbn = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("s", $isbn);
+            
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error deleting book: " . $e->getMessage());
+            return false;
+        }
     }
     
     /**
      * Decrease available book count when borrowed
-     * 
-     * @param string $isbn Book ISBN
-     * @return bool Success status
      */
     public function decreaseAvailable($isbn)
     {
-        global $mysqli;
-        
         try {
             // Update available and borrowed counts
-            $stmt = $mysqli->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ? AND available > 0");
+            $stmt = $this->conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ? AND available > 0");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
             $stmt->bind_param("s", $isbn);
             $result = $stmt->execute();
             
@@ -247,17 +292,17 @@ class Book
     
     /**
      * Increase available book count when returned
-     * 
-     * @param string $isbn Book ISBN
-     * @return bool Success status
      */
     public function increaseAvailable($isbn)
     {
-        global $mysqli;
-        
         try {
             // Update available and borrowed counts
-            $stmt = $mysqli->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ? AND borrowed > 0");
+            $stmt = $this->conn->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ? AND borrowed > 0");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
             $stmt->bind_param("s", $isbn);
             $result = $stmt->execute();
             
@@ -274,19 +319,12 @@ class Book
     }
     
     /**
-     * Search books by title, author, ISBN, or publisher
-     * 
-     * @param string $searchTerm Search term
-     * @param string $category Optional category filter
-     * @param int $limit Maximum number of results
-     * @return array Matching books
+     * Search books by title, author, ISBN, or publisher - FIXED VERSION
      */
     public function searchBooks($searchTerm = '', $category = '', $limit = 100)
     {
-        global $mysqli;
-        
         try {
-            $query = "SELECT * FROM books WHERE 1=1";
+            $query = "SELECT *, bookImage as image FROM books WHERE 1=1";
             $params = [];
             $types = "";
             
@@ -312,7 +350,11 @@ class Book
             $params[] = $limit;
             $types .= "i";
             
-            $stmt = $mysqli->prepare($query);
+            $stmt = $this->conn->prepare($query);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
             
             if (!empty($params)) {
                 $stmt->bind_param($types, ...$params);
@@ -334,26 +376,24 @@ class Book
     }
     
     /**
-     * Get books by author names
-     * 
-     * @param array $authors Array of author names
-     * @param int $limit Maximum number of results per author
-     * @return array Books by specified authors
+     * Get books by author names - FIXED VERSION
      */
     public function getBooksByAuthors($authors, $limit = 50)
     {
-        global $mysqli;
-        
-        if (empty($authors)) {
-            return [];
-        }
-        
         try {
+            if (empty($authors)) {
+                return [];
+            }
+            
             // Create placeholders for IN clause
             $placeholders = str_repeat('?,', count($authors) - 1) . '?';
-            $query = "SELECT * FROM books WHERE authorName IN ({$placeholders}) ORDER BY authorName, bookName LIMIT ?";
+            $query = "SELECT *, bookImage as image FROM books WHERE authorName IN ({$placeholders}) ORDER BY authorName, bookName LIMIT ?";
             
-            $stmt = $mysqli->prepare($query);
+            $stmt = $this->conn->prepare($query);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
             
             // Build parameter types string
             $types = str_repeat('s', count($authors)) . 'i';
@@ -379,17 +419,16 @@ class Book
     
     /**
      * Get books by category
-     * 
-     * @param string $category Category name
-     * @param int $limit Maximum number of results
-     * @return array Books in specified category
      */
     public function getBooksByCategory($category, $limit = 50)
     {
-        global $mysqli;
-        
         try {
-            $stmt = $mysqli->prepare("SELECT * FROM books WHERE category = ? ORDER BY bookName LIMIT ?");
+            $stmt = $this->conn->prepare("SELECT *, bookImage as image FROM books WHERE category = ? ORDER BY bookName LIMIT ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
             $stmt->bind_param("si", $category, $limit);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -408,15 +447,15 @@ class Book
     
     /**
      * Get all unique categories
-     * 
-     * @return array List of categories
      */
     public function getAllCategories()
     {
-        global $mysqli;
-        
         try {
-            $result = $mysqli->query("SELECT DISTINCT category FROM books WHERE category IS NOT NULL AND category != '' ORDER BY category");
+            $result = $this->conn->query("SELECT DISTINCT category FROM books WHERE category IS NOT NULL AND category != '' ORDER BY category");
+            
+            if (!$result) {
+                throw new \Exception("Query failed: " . $this->conn->error);
+            }
             
             $categories = [];
             while ($row = $result->fetch_assoc()) {
@@ -429,4 +468,61 @@ class Book
             return [];
         }
     }
+
+    /**
+     * Get book by ID (new method for general retrieval)
+     */
+    public function getBookById($bookId)
+    {
+        return $this->getBookByIsbn($bookId);
+    }
+
+    /**
+     * Get books count
+     */
+    public function getBooksCount()
+    {
+        try {
+            $result = $this->conn->query("SELECT COUNT(*) as count FROM books");
+            
+            if (!$result) {
+                throw new \Exception("Query failed: " . $this->conn->error);
+            }
+            
+            $row = $result->fetch_assoc();
+            return (int)($row['count'] ?? 0);
+        } catch (\Exception $e) {
+            error_log("Error getting books count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get low stock books (available <= threshold)
+     */
+    public function getLowStockBooks($threshold = 2)
+    {
+        try {
+            $stmt = $this->conn->prepare("SELECT *, bookImage as image FROM books WHERE available <= ? ORDER BY available ASC");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("i", $threshold);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $books = [];
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
+            }
+            
+            return $books;
+        } catch (\Exception $e) {
+            error_log("Error getting low stock books: " . $e->getMessage());
+            return [];
+        }
+    }
 }
+?>

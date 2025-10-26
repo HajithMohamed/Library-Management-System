@@ -25,7 +25,7 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all books - ONLY columns that exist in your table
+        // Fetch all books - FIXED: Changed 'image' to 'bookImage'
         $sql = "SELECT 
                     isbn,
                     barcode,
@@ -33,7 +33,7 @@ class BookController
                     authorName,
                     publisherName,
                     totalCopies,
-                    image,
+                    bookImage,
                     available,
                     borrowed,
                     isTrending
@@ -51,6 +51,8 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                // Add 'image' alias for backward compatibility if needed
+                $row['image'] = $row['bookImage'];
                 // Add missing columns with default values for view compatibility
                 $row['isSpecial'] = 0;
                 $row['specialBadge'] = null;
@@ -185,9 +187,9 @@ class BookController
             $barcodeValue = null;
             $borrowed = $totalCopies - $available;
             
-            // Insert book
+            // Insert book - FIXED: Changed 'image' to 'bookImage'
             $stmt = $mysqli->prepare("INSERT INTO books 
-                (isbn, barcode, bookName, authorName, publisherName, totalCopies, image, available, borrowed, isTrending) 
+                (isbn, barcode, bookName, authorName, publisherName, totalCopies, bookImage, available, borrowed, isTrending) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             if (!$stmt) {
@@ -256,34 +258,35 @@ class BookController
             $publisherName = trim($_POST['publisherName'] ?? '');
             $totalCopies = (int)($_POST['totalCopies'] ?? 1);
             $available = (int)($_POST['available'] ?? 0);
-            $borrowed = (int)($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
             
-            // Validate
+            // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
                 $_SESSION['error'] = 'All required fields must be filled';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
-            // Validate copies
-            if ($totalCopies < ($available + $borrowed)) {
-                $_SESSION['error'] = 'Total copies must be at least ' . ($available + $borrowed);
+            // Get current book data
+            $currentStmt = $mysqli->prepare("SELECT bookImage, totalCopies, available FROM books WHERE isbn = ?");
+            if (!$currentStmt) {
+                throw new \Exception("Prepare statement failed: " . $mysqli->error);
+            }
+            
+            $currentStmt->bind_param("s", $isbn);
+            $currentStmt->execute();
+            $currentBook = $currentStmt->get_result()->fetch_assoc();
+            $currentStmt->close();
+            
+            if (!$currentBook) {
+                $_SESSION['error'] = 'Book not found';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             
-            // Get current book data to retrieve old image
-            $currentStmt = $mysqli->prepare("SELECT image FROM books WHERE isbn = ?");
-            $currentStmt->bind_param("s", $isbn);
-            $currentStmt->execute();
-            $currentResult = $currentStmt->get_result();
-            $currentBook = $currentResult->fetch_assoc();
-            $currentStmt->close();
+            $imagePath = $currentBook['bookImage'];
             
-            $imagePath = $currentBook['image'] ?? null;
-            
-            // Handle image upload
+            // Handle new image upload
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $uploadDir = APP_ROOT . '/public/uploads/books/';
                 if (!is_dir($uploadDir)) {
@@ -303,21 +306,23 @@ class BookController
                 $targetPath = $uploadDir . $fileName;
                 
                 if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-                    // Delete old image if exists
-                    if ($imagePath && file_exists(APP_ROOT . '/public/' . $imagePath)) {
+                    // Delete old image if it exists
+                    if (!empty($imagePath) && file_exists(APP_ROOT . '/public/' . $imagePath)) {
                         unlink(APP_ROOT . '/public/' . $imagePath);
                     }
                     $imagePath = 'uploads/books/' . $fileName;
                 }
             }
             
-            // Update book
+            $borrowed = $totalCopies - $available;
+            
+            // Update book - FIXED: Changed 'image' to 'bookImage'
             $stmt = $mysqli->prepare("UPDATE books SET 
                 bookName = ?, 
                 authorName = ?, 
                 publisherName = ?, 
                 totalCopies = ?,
-                image = ?,
+                bookImage = ?,
                 available = ?, 
                 borrowed = ?,
                 isTrending = ?
@@ -445,14 +450,14 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all available books - ADDED image column
+        // Fetch all available books - FIXED: Changed 'image' to 'bookImage'
         $sql = "SELECT 
                     isbn,
                     bookName,
                     authorName,
                     publisherName,
                     totalCopies,
-                    image,
+                    bookImage,
                     available,
                     borrowed,
                     isTrending
@@ -470,6 +475,8 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                // Add 'image' alias for backward compatibility if needed
+                $row['image'] = $row['bookImage'];
                 // Add missing columns with default values for view compatibility
                 $row['isSpecial'] = 0;
                 $row['specialBadge'] = null;
@@ -504,13 +511,13 @@ class BookController
         }
         
         $searchTerm = '%' . $query . '%';
-        // ADDED image column to SELECT
+        // FIXED: Changed 'image' to 'bookImage'
         $stmt = $mysqli->prepare("SELECT 
                 isbn, 
                 bookName, 
                 authorName, 
                 publisherName,
-                image,
+                bookImage,
                 available,
                 isTrending
             FROM books 
@@ -530,6 +537,8 @@ class BookController
         
         $books = [];
         while ($row = $result->fetch_assoc()) {
+            // Add 'image' alias for backward compatibility if needed
+            $row['image'] = $row['bookImage'];
             // Add missing columns with default values for view compatibility
             $row['isSpecial'] = 0;
             $row['specialBadge'] = null;
