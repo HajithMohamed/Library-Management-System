@@ -376,9 +376,57 @@ $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
 
 // User fines routes
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
-$router->addRoute('POST', '/user/pay-fine', 'UserController', 'payFine');
+$router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
 
-// Admin dashboard routes
+// Faculty routes
+$router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
+$router->addRoute('/faculty/search', 'FacultyController', 'search');
+$router->addRoute('/faculty/book/{isbn}', 'FacultyController', 'viewBook');
+$router->addRoute('/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
+$router->addRoute('/faculty/borrow-history', 'FacultyController', 'borrowHistory');
+$router->addRoute('/faculty/book-request', 'FacultyController', 'bookRequest');
+$router->addRoute('/faculty/notifications', 'FacultyController', 'notifications');
+
+// Profile Management
+$router->get('/faculty/profile', [new FacultyController(), 'profile']);
+$router->post('/faculty/profile', [new FacultyController(), 'profile']);
+
+    // Communication / Feedback
+    $router->get('/faculty/feedback', [new FacultyController(), 'feedback']);
+    $router->post('/faculty/feedback', [new FacultyController(), 'feedback']);
+
+    // Student routes
+    $router->get('/student/dashboard', function () {
+$router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
+$router->addRoute('GET', '/student/profile', 'UserController', 'profile');
+$router->addRoute('POST', '/student/profile', 'UserController', 'updateProfile');
+$router->addRoute('POST', '/student/change-password', 'UserController', 'changePassword');
+
+// User book management routes
+$router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
+$router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
+$router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
+$router->addRoute('GET', '/user/return', 'BookController', 'return');
+$router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
+
+// User fines routes
+$router->addRoute('GET', '/user/fines', 'UserController', 'fines');
+$router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
+
+// Faculty routes
+$router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
+$router->addRoute('/faculty/search', 'FacultyController', 'search');
+$router->addRoute('/faculty/book/{isbn}', 'FacultyController', 'viewBook');
+$router->addRoute('/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
+$router->addRoute('/faculty/borrow-history', 'FacultyController', 'borrowHistory');
+$router->addRoute('/faculty/book-request', 'FacultyController', 'bookRequest');
+$router->addRoute('/faculty/notifications', 'FacultyController', 'notifications');
+
+// Dispatch the request
+$router->dispatch($_SERVER['REQUEST_URI']);
+
+
+// Admin routes
 $router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
 $router->addRoute('GET', '/admin/users', 'AdminController', 'users');
 $router->addRoute('POST', '/admin/users/add', 'AdminController', 'addUser');

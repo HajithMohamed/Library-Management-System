@@ -145,34 +145,44 @@ class User
      */
     public function updateUser($userId, $data)
     {
-        // Assign nullable values to variables first
-        $profileImage = $data['profileImage'] ?? null;
-        
-        if ($this->hasColumn('profileImage')) {
-            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ?, profileImage = COALESCE(?, profileImage) WHERE userId = ?";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('sssssss', 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $profileImage,
-                $userId
-            );
-        } else {
-            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ? WHERE userId = ?";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('ssssss', 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $userId
-            );
+        $fields = [];
+        $params = [];
+        $types = '';
+
+        // Map form fields to database columns
+        $fieldMap = [
+            'name' => 'username',
+            'email' => 'emailId',
+            'gender' => 'gender',
+            'dob' => 'dob',
+            'phoneNumber' => 'phoneNumber',
+            'address' => 'address',
+            'profileImage' => 'profileImage',
+            'password' => 'password'
+        ];
+
+        foreach ($fieldMap as $key => $column) {
+            if (isset($data[$key])) {
+                if ($column === 'profileImage' && !$this->hasColumn('profileImage')) {
+                    continue;
+                }
+                $fields[] = "$column = ?";
+                $params[] = $data[$key];
+                $types .= 's';
+            }
         }
-        
+
+        if (empty($fields)) {
+            return true; // Nothing to update
+        }
+
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE userId = ?";
+        $types .= 's';
+        $params[] = $userId;
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
+
         return $stmt->execute();
     }
 
@@ -481,6 +491,19 @@ class User
         $row = $result->fetch_assoc();
         
         return $row['count'] > 0;
+    }
+
+    /**
+     * Get notifications for a user
+     */
+    public function getNotifications($userId, $limit = 5)
+    {
+        $query = "SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC LIMIT ?";
+        $stmt = $this->db->prepare($query);
+        $stmt->bind_param('si', $userId, $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 }
 ?>
