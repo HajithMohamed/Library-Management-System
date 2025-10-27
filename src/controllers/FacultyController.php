@@ -11,551 +11,332 @@ use App\Services\BookService;
 
 class FacultyController
 {
+    private $authHelper;
+
+    public function __construct()
+    {
+        $this->authHelper = new AuthHelper();
+    }
+
+    /**
+     * Faculty/Student dashboard
+     */
     public function dashboard()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
         
-        // Get user type and redirect if not faculty
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        
-        // Redirect non-faculty users to their appropriate dashboards
-        if ($userType === 'Admin') {
-            header('Location: /admin/dashboard');
-            exit();
-        }
-        
-        if ($userType === 'Student' || $userType === 'User') {
-            header('Location: /user/dashboard');
-            exit();
-        }
-        
-        // Verify user is faculty
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
-        $user = $userModel->getUserById($userId);
-        
-        if (!$user) {
-            $_SESSION['error_message'] = 'User not found';
-            header('Location: /login');
-            exit();
-        }
-
-        $transactionModel = new Transaction();
-        
-        // Get borrowed books safely
-        try {
-            if (method_exists($transactionModel, 'getBorrowedBooks')) {
-                $borrowedBooks = $transactionModel->getBorrowedBooks($userId) ?? [];
-            } else {
-                $borrowedBooks = $transactionModel->getActiveTransactionsByUser($userId) ?? [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting borrowed books: " . $e->getMessage());
-            $borrowedBooks = [];
-        }
-        
-        // Get overdue books safely
-        try {
-            if (method_exists($transactionModel, 'getOverdueBooks')) {
-                $overdueBooks = $transactionModel->getOverdueBooks($userId) ?? [];
-            } else {
-                // Calculate overdue books manually
-                $overdueBooks = [];
-                foreach ($borrowedBooks as $book) {
-                    $dueDate = $book['dueDate'] ?? $book['returnDate'] ?? null;
-                    if ($dueDate && strtotime($dueDate) < time()) {
-                        $overdueBooks[] = $book;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting overdue books: " . $e->getMessage());
-            $overdueBooks = [];
-        }
-        
-        // Get transaction history safely
-        try {
-            if (method_exists($transactionModel, 'getTransactionsByUser')) {
-                $transactionHistory = $transactionModel->getTransactionsByUser($userId) ?? [];
-            } elseif (method_exists($transactionModel, 'getTransactionsByUserId')) {
-                $transactionHistory = $transactionModel->getTransactionsByUserId($userId) ?? [];
-            } else {
-                $transactionHistory = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting transaction history: " . $e->getMessage());
-            $transactionHistory = [];
-        }
-
-        // Get reserved books safely
-        try {
-            $bookReservationModel = new BookReservation();
-            if (method_exists($bookReservationModel, 'getReservationsByUser')) {
-                $reservedBooks = $bookReservationModel->getReservationsByUser($userId) ?? [];
-            } else {
-                $reservedBooks = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting reserved books: " . $e->getMessage());
-            $reservedBooks = [];
-        }
-
-        // Get notifications safely
-        try {
-            if (method_exists($userModel, 'getNotifications')) {
-                $notifications = $userModel->getNotifications($userId) ?? [];
-            } else {
-                $notifications = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting notifications: " . $e->getMessage());
-            $notifications = [];
-        }
-
-        // Calculate total fines safely
-        try {
-            $totalFines = UserService::calculateTotalFines($userId);
-        } catch (\Exception $e) {
-            error_log("Error calculating fines: " . $e->getMessage());
-            $totalFines = 0;
-        }
-        
-        // Initialize UserService for the view
-        $userService = new UserService();
-
-        // Ensure all borrowed books have required keys
-        foreach ($borrowedBooks as &$book) {
-            $book['title'] = $book['title'] ?? $book['bookName'] ?? 'Unknown';
-            $book['dueDate'] = $book['dueDate'] ?? $book['returnDate'] ?? 'N/A';
-        }
-        
-        // Ensure all transactions have required keys
-        foreach ($transactionHistory as &$transaction) {
-            $transaction['transactionId'] = $transaction['transactionId'] ?? $transaction['tid'] ?? 'N/A';
-            $transaction['title'] = $transaction['title'] ?? $transaction['bookName'] ?? 'Unknown';
-            $transaction['borrowDate'] = $transaction['borrowDate'] ?? $transaction['issueDate'] ?? 'N/A';
-            $transaction['returnDate'] = $transaction['returnDate'] ?? null;
-        }
-        
-        // Ensure notifications have required keys
-        foreach ($notifications as &$notification) {
-            $notification['message'] = $notification['message'] ?? $notification['content'] ?? '';
-            $notification['createdAt'] = $notification['createdAt'] ?? $notification['created_at'] ?? date('Y-m-d H:i:s');
-        }
-
-        // Calculate stats for dashboard
-        $stats = [
-            'borrowed_books' => count($borrowedBooks),
-            'overdue_books' => count($overdueBooks),
-            'total_fines' => $totalFines,
-            'reserved_books' => count($reservedBooks)
-        ];
-
-        // Load the view and pass the data
-        include __DIR__ . '/../views/faculty/dashboard.php';
+        // Dashboard logic here
+        $pageTitle = 'Dashboard';
+        $this->render('faculty/dashboard');
     }
 
+    /**
+     * Browse books catalog
+     */
     public function books()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        global $mysqli;
+        
+        // Fetch all books
+        $stmt = $mysqli->prepare("SELECT * FROM books ORDER BY bookName ASC");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $books = [];
+        while ($row = $result->fetch_assoc()) {
+            $books[] = $row;
         }
         
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
+        // Get categories for filter
+        $categoriesStmt = $mysqli->prepare("SELECT DISTINCT publisherName FROM books ORDER BY publisherName");
+        $categoriesStmt->execute();
+        $categoriesResult = $categoriesStmt->get_result();
+        
+        $categories = [];
+        while ($row = $categoriesResult->fetch_assoc()) {
+            $categories[] = $row['publisherName'];
         }
+        
+        $pageTitle = 'Browse Books';
+        $this->render('faculty/books', [
+            'books' => $books,
+            'categories' => $categories
+        ]);
+    }
 
-        $bookService = new BookService();
+    /**
+     * View single book details
+     */
+    public function viewBook($isbn)
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
         
-        // Get search parameters
-        $searchTerm = $_GET['q'] ?? '';
-        $category = $_GET['category'] ?? '';
-        $status = $_GET['status'] ?? '';
-        $sort = $_GET['sort'] ?? '';
+        global $mysqli;
         
-        // Get all books or search results
-        if (!empty($searchTerm) || !empty($category) || !empty($status)) {
-            $books = $bookService->searchBooks($searchTerm, $category, $status);
-            $totalBooks = count($books);
+        $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            $_SESSION['error_message'] = 'Book not found.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        $book = $result->fetch_assoc();
+        
+        $pageTitle = $book['bookName'];
+        $this->render('faculty/view-book', ['book' => $book]);
+    }
+
+    /**
+     * Handle book reservation/borrowing
+     */
+    public function reserve($isbn = null)
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        $userId = $_SESSION['userId'];
+        
+        // Get ISBN from URL parameter if not passed
+        if ($isbn === null && isset($_GET['isbn'])) {
+            $isbn = $_GET['isbn'];
+        }
+        
+        if (empty($isbn)) {
+            $_SESSION['error_message'] = 'Invalid book ISBN.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        global $mysqli;
+        
+        if (!$mysqli) {
+            $_SESSION['error_message'] = 'Database connection error.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        // Get book details
+        $bookStmt = $mysqli->prepare("SELECT isbn, bookName, authorName, available FROM books WHERE isbn = ?");
+        $bookStmt->bind_param("s", $isbn);
+        $bookStmt->execute();
+        $bookResult = $bookStmt->get_result();
+        
+        if ($bookResult->num_rows === 0) {
+            $_SESSION['error_message'] = 'Book not found.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        $book = $bookResult->fetch_assoc();
+        
+        // Check if user already has a pending request for this book
+        $checkStmt = $mysqli->prepare("SELECT id FROM borrow_requests WHERE userId = ? AND isbn = ? AND status = 'Pending'");
+        $checkStmt->bind_param("ss", $userId, $isbn);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        
+        if ($checkResult->num_rows > 0) {
+            $_SESSION['error_message'] = 'You already have a pending request for this book.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        // Check if user already borrowed this book and hasn't returned it
+        $borrowedStmt = $mysqli->prepare("SELECT tid FROM transactions WHERE userId = ? AND isbn = ? AND returnDate IS NULL");
+        $borrowedStmt->bind_param("ss", $userId, $isbn);
+        $borrowedStmt->execute();
+        $borrowedResult = $borrowedStmt->get_result();
+        
+        if ($borrowedResult->num_rows > 0) {
+            $_SESSION['error_message'] = 'You have already borrowed this book and haven\'t returned it yet.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
+        // Insert borrow request
+        $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, status) VALUES (?, ?, 'Pending')");
+        $stmt->bind_param("ss", $userId, $isbn);
+        
+        if ($stmt->execute()) {
+            $requestId = $mysqli->insert_id;
+            
+            // Create notification for admin
+            $notifStmt = $mysqli->prepare("
+                INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
+                VALUES (NULL, ?, ?, 'approval', 'high', ?)
+            ");
+            $notifTitle = 'New Borrow Request';
+            $notifMessage = "User {$userId} requested to borrow '{$book['bookName']}' by {$book['authorName']}";
+            $notifStmt->bind_param("ssi", $notifTitle, $notifMessage, $requestId);
+            $notifStmt->execute();
+            
+            if ($book['available'] > 0) {
+                $_SESSION['success_message'] = "Borrow request submitted successfully! The book is available and waiting for admin approval.";
+            } else {
+                $_SESSION['success_message'] = "Reservation request submitted successfully! You will be notified when the book becomes available and admin approves your request.";
+            }
         } else {
-            $booksData = $bookService->getAllBooks(1, 1000);
-            $books = $booksData['books'];
-            $totalBooks = $booksData['total'];
+            $_SESSION['error_message'] = 'Failed to submit request. Please try again.';
         }
         
-        // Apply sorting if requested
-        if (!empty($sort) && !empty($books)) {
-            switch ($sort) {
-                case 'title':
-                    usort($books, function($a, $b) {
-                        return strcmp($a['bookName'] ?? '', $b['bookName'] ?? '');
-                    });
-                    break;
-                case 'author':
-                    usort($books, function($a, $b) {
-                        return strcmp($a['authorName'] ?? '', $b['authorName'] ?? '');
-                    });
-                    break;
-                case 'available':
-                    usort($books, function($a, $b) {
-                        return ($b['available'] ?? 0) - ($a['available'] ?? 0);
-                    });
-                    break;
-            }
-        }
-        
-        // Get categories for filter dropdown
-        $categories = $bookService->getCategories();
-
-        include __DIR__ . '/../views/faculty/books.php';
+        $this->redirect('/faculty/books');
     }
 
-    public function search()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        // Redirect to books page with search parameters
-        $queryParams = http_build_query($_GET);
-        header('Location: /faculty/books?' . $queryParams);
-        exit;
-    }
-
-    public function viewBook($params)
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $isbn = $params['isbn'] ?? '';
-        $bookService = new BookService();
-        $book = $bookService->getBookByIsbn($isbn);
-
-        if (!$book) {
-            $_SESSION['error_message'] = 'Book not found!';
-            header('Location: /faculty/books');
-            exit;
-        }
-
-        include __DIR__ . '/../views/faculty/view-book.php';
-    }
-
-    public function reserve($params)
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $isbn = $params['isbn'] ?? '';
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-
-        try {
-            $bookService = new BookService();
-            $book = $bookService->getBookByIsbn($isbn);
-            
-            if (!$book) {
-                $_SESSION['error_message'] = 'Book not found!';
-                header('Location: /faculty/books');
-                exit;
-            }
-            
-            $reservationModel = new BookReservation();
-            
-            // Process based on availability
-            if (($book['available'] ?? 0) > 0) {
-                $reservationModel->createReservation($userId, $isbn);
-                $_SESSION['success_message'] = 'Book reserved successfully! Please visit the library to collect it within 24 hours.';
-            } else {
-                $reservationModel->createReservation($userId, $isbn);
-                $_SESSION['success_message'] = 'Book is currently unavailable. You have been added to the waiting list.';
-            }
-        } catch (\Exception $e) {
-            $_SESSION['error_message'] = 'An error occurred while processing your request. Please try again.';
-            error_log("Reservation error: " . $e->getMessage());
-        }
-
-        header('Location: /faculty/books');
-        exit;
-    }
-
-    public function borrowHistory()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
-        
-        try {
-            if (method_exists($transactionModel, 'getTransactionsByUserId')) {
-                $transactions = $transactionModel->getTransactionsByUserId($userId);
-            } elseif (method_exists($transactionModel, 'getTransactionsByUser')) {
-                $transactions = $transactionModel->getTransactionsByUser($userId);
-            } else {
-                $transactions = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting borrow history: " . $e->getMessage());
-            $transactions = [];
-        }
-
-        include __DIR__ . '/../views/faculty/borrow-history.php';
-    }
-
+    /**
+     * Show book request page
+     */
     public function bookRequest()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        $userId = $_SESSION['userId'];
+        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-            $bookTitle = $_POST['book_title'] ?? '';
-            $author = $_POST['author'] ?? '';
-            $isbn = $_POST['isbn'] ?? '';
-            $reason = $_POST['reason'] ?? '';
-
-            if (empty($bookTitle) || empty($author)) {
-                $_SESSION['error_message'] = 'Book title and author are required!';
-                header('Location: /faculty/book-request');
-                exit;
+            $isbn = trim($_POST['isbn'] ?? '');
+            $bookTitle = trim($_POST['book_title'] ?? '');
+            $author = trim($_POST['author'] ?? '');
+            $reason = trim($_POST['reason'] ?? '');
+            
+            // Validate inputs
+            if (empty($isbn) || empty($bookTitle) || empty($author)) {
+                $_SESSION['error'] = 'Please fill in all required fields.';
+                $this->redirect('/faculty/book-request');
+                return;
             }
-
-            try {
-                $bookRequestModel = new \App\Models\BookRequest();
-                $bookRequestModel->createRequest($userId, $bookTitle, $author, $isbn, $reason);
-                $_SESSION['success_message'] = 'Book request submitted successfully!';
-            } catch (\Exception $e) {
-                $_SESSION['error_message'] = 'Failed to submit book request.';
-                error_log("Book request error: " . $e->getMessage());
+            
+            global $mysqli;
+            
+            if (!$mysqli) {
+                $_SESSION['error'] = 'Database connection error.';
+                $this->redirect('/faculty/book-request');
+                return;
             }
-
-            header('Location: /faculty/dashboard');
-            exit;
-        } else {
-            $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-            try {
-                $bookRequestModel = new \App\Models\BookRequest();
-                $requests = $bookRequestModel->getRequestsByUserId($userId);
-            } catch (\Exception $e) {
-                error_log("Error getting book requests: " . $e->getMessage());
-                $requests = [];
+            
+            // Check if book exists in catalog
+            $bookStmt = $mysqli->prepare("SELECT isbn, bookName FROM books WHERE isbn = ?");
+            $bookStmt->bind_param("s", $isbn);
+            $bookStmt->execute();
+            $bookResult = $bookStmt->get_result();
+            
+            if ($bookResult->num_rows === 0) {
+                $_SESSION['error'] = 'Book not found in catalog. Please check the ISBN.';
+                $this->redirect('/faculty/book-request');
+                return;
             }
-            include __DIR__ . '/../views/faculty/book-request.php';
+            
+            // Check for duplicate pending requests
+            $checkStmt = $mysqli->prepare("SELECT id FROM borrow_requests WHERE userId = ? AND isbn = ? AND status = 'Pending'");
+            $checkStmt->bind_param("ss", $userId, $isbn);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
+            
+            if ($checkResult->num_rows > 0) {
+                $_SESSION['error'] = 'You already have a pending request for this book.';
+                $this->redirect('/faculty/book-request');
+                return;
+            }
+            
+            // Insert borrow request
+            $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, status) VALUES (?, ?, 'Pending')");
+            $stmt->bind_param("ss", $userId, $isbn);
+            
+            if ($stmt->execute()) {
+                // Create notification for admin
+                $notifStmt = $mysqli->prepare("
+                    INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
+                    VALUES (NULL, ?, ?, 'approval', 'high', ?)
+                ");
+                $notifTitle = 'New Borrow Request';
+                $notifMessage = "User {$userId} requested to borrow '{$bookTitle}' by {$author}";
+                $requestId = $mysqli->insert_id;
+                $notifStmt->bind_param("ssi", $notifTitle, $notifMessage, $requestId);
+                $notifStmt->execute();
+                
+                $_SESSION['success'] = 'Book request submitted successfully! You will be notified once approved.';
+            } else {
+                $_SESSION['error'] = 'Failed to submit request. Please try again.';
+            }
+            
+            $this->redirect('/faculty/book-request');
+            return;
         }
+        
+        // Get user's requests
+        $requests = [];
+        global $mysqli;
+        if ($mysqli) {
+            $stmt = $mysqli->prepare("
+                SELECT br.id, br.isbn, br.requestDate, br.status, br.dueDate, br.rejectionReason,
+                       b.bookName, b.authorName as author
+                FROM borrow_requests br
+                LEFT JOIN books b ON br.isbn = b.isbn
+                WHERE br.userId = ?
+                ORDER BY br.requestDate DESC
+            ");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                $requests[] = $row;
+            }
+        }
+        
+        $pageTitle = 'Book Request';
+        $this->render('faculty/book-request', ['requests' => $requests]);
     }
 
-    public function notifications()
+    /**
+     * View transactions/borrowing history
+     */
+    public function transactions()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        try {
-            $notificationModel = new \App\Models\Notification();
-            $notifications = $notificationModel->getNotificationsByUserId($userId);
-        } catch (\Exception $e) {
-            error_log("Error getting notifications: " . $e->getMessage());
-            $notifications = [];
-        }
-
-        include __DIR__ . '/../views/faculty/notifications.php';
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // Transaction history logic
+        $pageTitle = 'My Transactions';
+        $this->render('faculty/transactions');
     }
 
+    /**
+     * View/Edit profile
+     */
     public function profile()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // Profile logic
+        $pageTitle = 'My Profile';
+        $this->render('faculty/profile');
+    }
 
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
+    /**
+     * Render a view with data
+     */
+    private function render($view, $data = [])
+    {
+        extract($data);
+        $viewFile = APP_ROOT . '/views/' . $view . '.php';
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'name' => $_POST['name'] ?? '',
-                'email' => $_POST['email'] ?? '',
-                'department' => $_POST['department'] ?? '',
-            ];
-
-            if (!empty($_POST['password'])) {
-                $data['password'] = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            }
-
-            try {
-                $userModel->updateUser($userId, $data);
-                $_SESSION['success_message'] = 'Profile updated successfully!';
-            } catch (\Exception $e) {
-                $_SESSION['error_message'] = 'Failed to update profile.';
-                error_log("Profile update error: " . $e->getMessage());
-            }
-
-            header('Location: /faculty/profile');
-            exit;
+        if (file_exists($viewFile)) {
+            include $viewFile;
         } else {
-            $user = $userModel->getUserById($userId);
-            include __DIR__ . '/../views/faculty/profile.php';
+            http_response_code(404);
+            include APP_ROOT . '/views/errors/404.php';
         }
     }
 
-    public function feedback()
+    /**
+     * Redirect to a URL
+     */
+    private function redirect($url)
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-        
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
-        $user = $userModel->getUserById($userId);
-        
-        try {
-            $feedbackModel = new \App\Models\Feedback();
-
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $subject = $_POST['subject'] ?? '';
-                $message = $_POST['message'] ?? '';
-
-                if (empty($subject) || empty($message)) {
-                    $_SESSION['error_message'] = 'Subject and message are required.';
-                } else {
-                    if ($feedbackModel->createFeedback($userId, $subject, $message)) {
-                        $_SESSION['success_message'] = 'Feedback submitted successfully.';
-                        header('Location: /faculty/feedback');
-                        exit;
-                    } else {
-                        $_SESSION['error_message'] = 'Failed to submit feedback.';
-                    }
-                }
-            }
-
-            $feedbacks = $feedbackModel->getFeedbackByUserId($userId);
-        } catch (\Exception $e) {
-            error_log("Feedback error: " . $e->getMessage());
-            $feedbacks = [];
-        }
-
-        include __DIR__ . '/../views/faculty/feedback.php';
-    }
-
-    public function fines()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-        
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
-        
-        // Get all fines for the user
-        $fines = $transactionModel->getFinesByUserId($userId) ?? [];
-        
-        // Calculate total fines
-        $totalFines = 0;
-        $pendingFines = 0;
-        $paidFines = 0;
-        
-        foreach ($fines as $fine) {
-            $amount = (float)($fine['fineAmount'] ?? 0);
-            $totalFines += $amount;
-            
-            $status = $fine['fineStatus'] ?? 'pending';
-            if ($status === 'paid') {
-                $paidFines += $amount;
-            } else {
-                $pendingFines += $amount;
-            }
-        }
-
-        include __DIR__ . '/../views/faculty/fines.php';
-    }
-
-    public function returnBook()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-        
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
-        
-        // Get borrowed books (not yet returned)
-        $borrowedBooks = $transactionModel->getBorrowedBooks($userId) ?? [];
-
-        // Handle return submission
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $transactionId = $_POST['transaction_id'] ?? '';
-            
-            if (!empty($transactionId)) {
-                try {
-                    $success = $transactionModel->returnBook($transactionId);
-                    
-                    if ($success) {
-                        $_SESSION['success_message'] = 'Book returned successfully!';
-                    } else {
-                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
-                    }
-                } catch (\Exception $e) {
-                    $_SESSION['error_message'] = 'An error occurred: ' . $e->getMessage();
-                    error_log("Return book error: " . $e->getMessage());
-                }
-                
-                header('Location: /faculty/return');
-                exit();
-            }
-        }
-
-        include __DIR__ . '/../views/faculty/return.php';
+        header('Location: ' . BASE_URL . ltrim($url, '/'));
+        exit;
     }
 }
