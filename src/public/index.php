@@ -386,8 +386,10 @@ $router->addRoute('POST', '/student/change-password', 'UserController', 'changeP
 
 // Faculty routes
 $router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
+$router->addRoute('GET', '/faculty/books', 'FacultyController', 'books');
 $router->addRoute('GET', '/faculty/search', 'FacultyController', 'search');
 $router->addRoute('GET', '/faculty/book/{isbn}', 'FacultyController', 'viewBook');
+$router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
 $router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');

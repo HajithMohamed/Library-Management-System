@@ -27,9 +27,31 @@ class UserController
      */
     public function dashboard()
     {
-        $this->authHelper->requireAuth(['Student', 'Faculty']);
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
         
-        $userId = $_SESSION['userId'];
+        // Get user type and redirect to appropriate dashboard
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        
+        // Redirect faculty to faculty dashboard
+        if ($userType === 'Faculty') {
+            header('Location: /faculty/dashboard');
+            exit();
+        }
+        
+        // Redirect admin to admin dashboard
+        if ($userType === 'Admin') {
+            header('Location: /admin/dashboard');
+            exit();
+        }
+        
+        // Continue with student/user dashboard
+        $this->authHelper->requireAuth(['Student', 'User']);
+
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
         $user = $this->userModel->getUserById($userId);
         $borrowedBooks = $this->transactionModel->getBorrowedBooks($userId);
         $transactionHistory = $this->transactionModel->getUserTransactionHistory($userId, 10);

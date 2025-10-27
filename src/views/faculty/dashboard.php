@@ -1,96 +1,11 @@
 <?php
+// Ensure user is authenticated
+if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+    header('Location: /login');
+    exit();
+}
 
 include APP_ROOT . '/views/layouts/header.php';
-
-?>
-
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-md-3">
-            <?php include APP_ROOT . '/views/layouts/sidebar.php'; ?>
-        </div>
-        <div class="col-md-9">
-            <h1>Faculty Dashboard</h1>
-            <p>Welcome, <?= htmlspecialchars($user['username']) ?>!</p>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Borrowed Books</h5>
-                            <p class="card-text"><?= $stats['borrowed_books'] ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Overdue Books</h5>
-                            <p class="card-text"><?= $stats['overdue_books'] ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Total Fines</h5>
-                            <p class="card-text">$<?= number_format($stats['total_fines'], 2) ?></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <h2 class="mt-4">Borrowed Books</h2>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Book Name</th>
-                        <th>Borrow Date</th>
-                        <th>Return Date</th>
-                        <th>Fine</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($borrowedBooks as $book) : ?>
-                        <tr>
-                            <td><?= htmlspecialchars($book['bookName']) ?></td>
-                            <td><?= $book['borrowDate'] ?></td>
-                            <td><?= $book['returnDate'] ?? 'Not Returned' ?></td>
-                            <td>$<?= number_format($userService->calculateFine($book['borrowDate']), 2) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <h2 class="mt-4">Transaction History</h2>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Transaction ID</th>
-                        <th>Book Name</th>
-                        <th>Borrow Date</th>
-                        <th>Return Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($transactionHistory as $transaction) : ?>
-                        <tr>
-                            <td><?= htmlspecialchars($transaction['tid']) ?></td>
-                            <td><?= htmlspecialchars($transaction['bookName']) ?></td>
-                            <td><?= $transaction['borrowDate'] ?></td>
-                            <td><?= $transaction['returnDate'] ?? 'Not Returned' ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<?php
-
-include APP_ROOT . '/views/layouts/footer.php';
-
 ?>
 
 <div class="container-fluid py-4">
@@ -104,7 +19,7 @@ include APP_ROOT . '/views/layouts/footer.php';
                             <div class="numbers">
                                 <p class="text-sm mb-0 text-uppercase font-weight-bold">Books Borrowed</p>
                                 <h5 class="font-weight-bolder">
-                                    <?php echo count($borrowedBooks); ?>
+                                    <?php echo count($borrowedBooks ?? []); ?>
                                 </h5>
                             </div>
                         </div>
@@ -125,7 +40,7 @@ include APP_ROOT . '/views/layouts/footer.php';
                             <div class="numbers">
                                 <p class="text-sm mb-0 text-uppercase font-weight-bold">Books Overdue</p>
                                 <h5 class="font-weight-bolder">
-                                    <?php echo count($overdueBooks); ?>
+                                    <?php echo count($overdueBooks ?? []); ?>
                                 </h5>
                             </div>
                         </div>
@@ -146,7 +61,7 @@ include APP_ROOT . '/views/layouts/footer.php';
                             <div class="numbers">
                                 <p class="text-sm mb-0 text-uppercase font-weight-bold">Reserved Books</p>
                                 <h5 class="font-weight-bolder">
-                                    <?php echo count($reservedBooks); ?>
+                                    <?php echo count($reservedBooks ?? []); ?>
                                 </h5>
                             </div>
                         </div>
@@ -167,7 +82,7 @@ include APP_ROOT . '/views/layouts/footer.php';
                             <div class="numbers">
                                 <p class="text-sm mb-0 text-uppercase font-weight-bold">Notifications</p>
                                 <h5 class="font-weight-bolder">
-                                    <?php echo count($notifications); ?>
+                                    <?php echo count($notifications ?? []); ?>
                                 </h5>
                             </div>
                         </div>
@@ -187,15 +102,15 @@ include APP_ROOT . '/views/layouts/footer.php';
         <div class="col-md-8">
             <div class="form-group">
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search for books by title, author, ISBN...">
+                    <input type="text" class="form-control" placeholder="Search for books by title, author, ISBN..." id="quickSearch">
                     <span class="input-group-text"><i class="ni ni-zoom-split-in"></i></span>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="d-flex justify-content-end">
-                <a href="/faculty/history" class="btn btn-primary mb-0">Borrow History</a>
-                <a href="/faculty/request" class="btn btn-secondary mb-0 ms-2">Request Book</a>
+                <a href="/faculty/borrow-history" class="btn btn-primary mb-0">Borrow History</a>
+                <a href="/faculty/book-request" class="btn btn-secondary mb-0 ms-2">Request Book</a>
             </div>
         </div>
     </div>
@@ -217,20 +132,26 @@ include APP_ROOT . '/views/layouts/footer.php';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($borrowedBooks as $book) : ?>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex px-2 py-1">
-                                                <div class="d-flex flex-column justify-content-center">
-                                                    <h6 class="mb-0 text-sm"><?php echo htmlspecialchars($book['title']); ?></h6>
+                                <?php if (!empty($borrowedBooks)): ?>
+                                    <?php foreach ($borrowedBooks as $book) : ?>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex px-2 py-1">
+                                                    <div class="d-flex flex-column justify-content-center">
+                                                        <h6 class="mb-0 text-sm"><?php echo htmlspecialchars($book['title'] ?? $book['bookName'] ?? 'Unknown'); ?></h6>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($book['dueDate']); ?></p>
-                                        </td>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($book['dueDate'] ?? $book['returnDate'] ?? 'N/A'); ?></p>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="2" class="text-center text-sm py-4">No borrowed books</td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -246,14 +167,20 @@ include APP_ROOT . '/views/layouts/footer.php';
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
-                        <?php foreach ($notifications as $notification) : ?>
-                            <li class="list-group-item border-0 d-flex justify-content-between ps-4 mb-2 border-radius-lg">
-                                <div class="d-flex flex-column">
-                                    <h6 class="mb-1 text-dark font-weight-bold text-sm"><?php echo htmlspecialchars($notification['message']); ?></h6>
-                                    <span class="text-xs"><?php echo htmlspecialchars($notification['createdAt']); ?></span>
-                                </div>
+                        <?php if (!empty($notifications)): ?>
+                            <?php foreach ($notifications as $notification) : ?>
+                                <li class="list-group-item border-0 d-flex justify-content-between ps-4 mb-2 border-radius-lg">
+                                    <div class="d-flex flex-column">
+                                        <h6 class="mb-1 text-dark font-weight-bold text-sm"><?php echo htmlspecialchars($notification['message'] ?? $notification['content'] ?? 'No message'); ?></h6>
+                                        <span class="text-xs"><?php echo htmlspecialchars($notification['createdAt'] ?? $notification['created_at'] ?? date('Y-m-d H:i:s')); ?></span>
+                                    </div>
+                                </li>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <li class="list-group-item border-0 text-center py-4">
+                                <span class="text-sm text-secondary">No new notifications</span>
                             </li>
-                        <?php endforeach; ?>
+                        <?php endif; ?>
                     </ul>
                 </div>
             </div>
@@ -279,22 +206,28 @@ include APP_ROOT . '/views/layouts/footer.php';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($transactionHistory as $transaction) : ?>
+                                <?php if (!empty($transactionHistory)): ?>
+                                    <?php foreach ($transactionHistory as $transaction) : ?>
+                                        <tr>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['transactionId'] ?? $transaction['tid'] ?? 'N/A'); ?></p>
+                                            </td>
+                                            <td>
+                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['title'] ?? $transaction['bookName'] ?? 'Unknown'); ?></p>
+                                            </td>
+                                            <td class="align-middle text-center text-sm">
+                                                <span class="badge badge-sm bg-gradient-success"><?php echo htmlspecialchars($transaction['borrowDate'] ?? $transaction['issueDate'] ?? 'N/A'); ?></span>
+                                            </td>
+                                            <td class="align-middle text-center text-sm">
+                                                <span class="badge badge-sm bg-gradient-secondary"><?php echo htmlspecialchars($transaction['returnDate'] ?? 'Not Returned'); ?></span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
                                     <tr>
-                                        <td>
-                                            <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['transactionId']); ?></p>
-                                        </td>
-                                        <td>
-                                            <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['title']); ?></p>
-                                        </td>
-                                        <td class="align-middle text-center text-sm">
-                                            <span class="badge badge-sm bg-gradient-success"><?php echo htmlspecialchars($transaction['borrowDate']); ?></span>
-                                        </td>
-                                        <td class="align-middle text-center text-sm">
-                                            <span class="badge badge-sm bg-gradient-secondary"><?php echo htmlspecialchars($transaction['returnDate'] ?? 'Not Returned'); ?></span>
-                                        </td>
+                                        <td colspan="4" class="text-center text-sm py-4">No transaction history</td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -303,3 +236,17 @@ include APP_ROOT . '/views/layouts/footer.php';
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('quickSearch')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const searchTerm = this.value.trim();
+        if (searchTerm) {
+            window.location.href = '/faculty/books?q=' + encodeURIComponent(searchTerm);
+        }
+    }
+});
+</script>
+
+<?php include APP_ROOT . '/views/layouts/footer.php'; ?>

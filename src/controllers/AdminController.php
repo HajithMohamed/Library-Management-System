@@ -21,10 +21,28 @@ class AdminController
    */
   public function dashboard()
   {
-    if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-      header('Location: ' . BASE_URL . '403');
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+      header('Location: /login');
       exit();
     }
+    
+    // Get user type and redirect if not admin
+    $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+    
+    // Redirect non-admin users to their appropriate dashboards
+    if ($userType === 'Faculty') {
+      header('Location: /faculty/dashboard');
+      exit();
+    }
+    
+    if ($userType === 'Student' || $userType === 'User') {
+      header('Location: /user/dashboard');
+      exit();
+    }
+    
+    // Require admin role
+    AuthHelper::requireRole(['Admin']);
 
     global $conn;
 

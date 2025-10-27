@@ -544,6 +544,7 @@ class BookController
 
     /**
      * Display books for users (public/student view)
+     * NOTE: Faculty should use /faculty/books route which goes to FacultyController
      */
     public function userBooks()
     {
@@ -588,8 +589,47 @@ class BookController
             $result->free();
         }
         
+        // Calculate statistics
+        $totalBooks = count($books);
+        $totalAvailable = 0;
+        $totalBorrowed = 0;
+        
+        foreach ($books as $book) {
+            $totalAvailable += ($book['available'] ?? 0);
+            $totalBorrowed += ($book['borrowed'] ?? 0);
+        }
+        
+        // Get categories for filter dropdown (publishers in this case)
+        $categories = [];
+        $publisherSql = "SELECT DISTINCT publisherName 
+                        FROM books 
+                        WHERE publisherName IS NOT NULL AND publisherName != '' 
+                        ORDER BY publisherName ASC";
+        $publisherResult = $mysqli->query($publisherSql);
+        
+        if ($publisherResult) {
+            while ($row = $publisherResult->fetch_assoc()) {
+                if (!empty($row['publisherName'])) {
+                    $categories[] = $row['publisherName'];
+                }
+            }
+            $publisherResult->free();
+        }
+        
         $pageTitle = 'Available Books';
-        include APP_ROOT . '/views/user/books.php';
+        
+        // Check if user view file exists, otherwise use faculty view
+        $userViewPath = APP_ROOT . '/views/user/books.php';
+        $facultyViewPath = APP_ROOT . '/views/faculty/books.php';
+        
+        if (file_exists($userViewPath)) {
+            include $userViewPath;
+        } elseif (file_exists($facultyViewPath)) {
+            include $facultyViewPath;
+        } else {
+            error_log("ERROR: No books view found. Checked: {$userViewPath} and {$facultyViewPath}");
+            die("Books view template not found");
+        }
     }
 
     /**
