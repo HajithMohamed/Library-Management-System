@@ -8,245 +8,590 @@ if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
 include APP_ROOT . '/views/layouts/header.php';
 ?>
 
-<div class="container-fluid py-4">
-    <div class="row">
-        <!-- Summary Cards -->
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-uppercase font-weight-bold">Books Borrowed</p>
-                                <h5 class="font-weight-bolder">
-                                    <?php echo count($borrowedBooks ?? []); ?>
-                                </h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-gradient-primary shadow-primary text-center rounded-circle">
-                                <i class="ni ni-book-bookmark text-lg opacity-10" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<style>
+    .dashboard-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
+    
+    .dashboard-header {
+        color: white;
+        margin-bottom: 40px;
+        text-align: center;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .dashboard-header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+        transform: rotate(45deg);
+        animation: shine 3s infinite;
+    }
+    
+    @keyframes shine {
+        0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .stat-card.warning .stat-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stat-card.success .stat-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stat-card.info .stat-icon {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1;
+    }
+    
+    .quick-actions {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .quick-actions h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 20px;
+    }
+    
+    .search-box {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 15px 50px 15px 20px;
+        border: 2px solid #e5e7eb;
+        border-radius: 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+    
+    .search-box i {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        color: #9ca3af;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        padding: 12px 25px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .action-btn.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .action-btn.secondary {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    .content-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .content-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .content-card h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .content-card h3 i {
+        color: #667eea;
+    }
+    
+    .book-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .book-item {
+        padding: 15px;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
+        border-radius: 10px;
+    }
+    
+    .book-item:hover {
+        background: #f9fafb;
+    }
+    
+    .book-item:last-child {
+        border-bottom: none;
+    }
+    
+    .book-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 5px;
+    }
+    
+    .book-meta {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+    
+    .notification-item {
+        padding: 15px;
+        border-left: 4px solid #667eea;
+        background: #f9fafb;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        transition: all 0.2s ease;
+    }
+    
+    .notification-item:hover {
+        background: #f3f4f6;
+        transform: translateX(5px);
+    }
+    
+    .notification-message {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 5px;
+    }
+    
+    .notification-time {
+        font-size: 0.8rem;
+        color: #9ca3af;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #9ca3af;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    .full-width-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+    
+    .modern-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+    
+    .modern-table thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .modern-table thead th:first-child {
+        border-radius: 10px 0 0 10px;
+    }
+    
+    .modern-table thead th:last-child {
+        border-radius: 0 10px 10px 0;
+    }
+    
+    .modern-table tbody tr {
+        background: #f9fafb;
+        transition: all 0.3s ease;
+    }
+    
+    .modern-table tbody tr:hover {
+        background: #f3f4f6;
+        transform: scale(1.02);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .modern-table tbody td {
+        padding: 15px;
+        border-top: none;
+    }
+    
+    .modern-table tbody tr td:first-child {
+        border-radius: 10px 0 0 10px;
+    }
+    
+    .modern-table tbody tr td:last-child {
+        border-radius: 0 10px 10px 0;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge.success {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: white;
+    }
+    
+    .badge.pending {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>👋 Welcome Back, <?= htmlspecialchars($user['username'] ?? 'Faculty Member') ?>!</h1>
+        <p>Here's your library overview for today</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                📚
             </div>
+            <div class="stat-label">Books Borrowed</div>
+            <div class="stat-value"><?= count($borrowedBooks ?? []) ?></div>
         </div>
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-uppercase font-weight-bold">Books Overdue</p>
-                                <h5 class="font-weight-bolder">
-                                    <?php echo count($overdueBooks ?? []); ?>
-                                </h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-gradient-danger shadow-danger text-center rounded-circle">
-                                <i class="ni ni-time-alarm text-lg opacity-10" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                ⏰
             </div>
+            <div class="stat-label">Books Overdue</div>
+            <div class="stat-value"><?= count($overdueBooks ?? []) ?></div>
         </div>
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-uppercase font-weight-bold">Reserved Books</p>
-                                <h5 class="font-weight-bolder">
-                                    <?php echo count($reservedBooks ?? []); ?>
-                                </h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-gradient-success shadow-success text-center rounded-circle">
-                                <i class="ni ni-calendar-grid-58 text-lg opacity-10" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+        <div class="stat-card success">
+            <div class="stat-icon">
+                🔖
             </div>
+            <div class="stat-label">Reserved Books</div>
+            <div class="stat-value"><?= count($reservedBooks ?? []) ?></div>
         </div>
-        <div class="col-xl-3 col-sm-6">
-            <div class="card">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-uppercase font-weight-bold">Notifications</p>
-                                <h5 class="font-weight-bolder">
-                                    <?php echo count($notifications ?? []); ?>
-                                </h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
-                                <i class="ni ni-bell-55 text-lg opacity-10" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+        <div class="stat-card info">
+            <div class="stat-icon">
+                🔔
             </div>
+            <div class="stat-label">Notifications</div>
+            <div class="stat-value"><?= count($notifications ?? []) ?></div>
         </div>
     </div>
 
-    <!-- Search Bar and Quick Links -->
-    <div class="row mt-4">
-        <div class="col-md-8">
-            <div class="form-group">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search for books by title, author, ISBN..." id="quickSearch">
-                    <span class="input-group-text"><i class="ni ni-zoom-split-in"></i></span>
-                </div>
-            </div>
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h2>🚀 Quick Actions</h2>
+        <div class="search-box">
+            <input type="text" 
+                   id="quickSearch" 
+                   placeholder="Search for books by title, author, ISBN..." 
+                   onkeypress="handleQuickSearch(event)">
+            <i class="fas fa-search"></i>
         </div>
-        <div class="col-md-4">
-            <div class="d-flex justify-content-end">
-                <a href="/faculty/borrow-history" class="btn btn-primary mb-0">Borrow History</a>
-                <a href="/faculty/book-request" class="btn btn-secondary mb-0 ms-2">Request Book</a>
-            </div>
+        <div class="action-buttons">
+            <a href="/faculty/books" class="action-btn primary">
+                <i class="fas fa-book"></i>
+                Browse Books
+            </a>
+            <a href="/faculty/borrow-history" class="action-btn primary">
+                <i class="fas fa-history"></i>
+                Borrow History
+            </a>
+            <a href="/faculty/book-request" class="action-btn secondary">
+                <i class="fas fa-plus-circle"></i>
+                Request New Book
+            </a>
+            <a href="/faculty/return" class="action-btn secondary">
+                <i class="fas fa-undo"></i>
+                Return Books
+            </a>
         </div>
     </div>
 
-    <div class="row mt-4">
+    <!-- Content Grid -->
+    <div class="content-grid">
         <!-- Borrowed Books -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header pb-0">
-                    <h6>Borrowed Books</h6>
+        <div class="content-card">
+            <h3>
+                <i class="fas fa-book-open"></i>
+                Currently Borrowed
+            </h3>
+            <?php if (!empty($borrowedBooks)): ?>
+                <ul class="book-list">
+                    <?php foreach (array_slice($borrowedBooks, 0, 5) as $book): ?>
+                        <li class="book-item">
+                            <div class="book-title">
+                                <?= htmlspecialchars($book['title'] ?? $book['bookName'] ?? 'Unknown') ?>
+                            </div>
+                            <div class="book-meta">
+                                Due: <?= htmlspecialchars($book['dueDate'] ?? $book['returnDate'] ?? 'N/A') ?>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if (count($borrowedBooks) > 5): ?>
+                    <a href="/faculty/return" style="display: block; text-align: center; margin-top: 15px; color: #667eea; font-weight: 600;">
+                        View All (<?= count($borrowedBooks) ?>)
+                    </a>
+                <?php endif; ?>
+            <?php else: ?>
+                <div class="empty-state">
+                    <i class="fas fa-book"></i>
+                    <p>No borrowed books</p>
                 </div>
-                <div class="card-body px-0 pt-0 pb-2">
-                    <div class="table-responsive p-0">
-                        <table class="table align-items-center mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Book</th>
-                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Due Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($borrowedBooks)): ?>
-                                    <?php foreach ($borrowedBooks as $book) : ?>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex px-2 py-1">
-                                                    <div class="d-flex flex-column justify-content-center">
-                                                        <h6 class="mb-0 text-sm"><?php echo htmlspecialchars($book['title'] ?? $book['bookName'] ?? 'Unknown'); ?></h6>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($book['dueDate'] ?? $book['returnDate'] ?? 'N/A'); ?></p>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="2" class="text-center text-sm py-4">No borrowed books</td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Notifications -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header pb-0">
-                    <h6>Notifications</h6>
+        <div class="content-card">
+            <h3>
+                <i class="fas fa-bell"></i>
+                Recent Notifications
+            </h3>
+            <?php if (!empty($notifications)): ?>
+                <?php foreach (array_slice($notifications, 0, 5) as $notification): ?>
+                    <div class="notification-item">
+                        <div class="notification-message">
+                            <?= htmlspecialchars($notification['message'] ?? $notification['content'] ?? 'No message') ?>
+                        </div>
+                        <div class="notification-time">
+                            <?= htmlspecialchars($notification['createdAt'] ?? $notification['created_at'] ?? date('Y-m-d H:i:s')) ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+                <?php if (count($notifications) > 5): ?>
+                    <a href="/faculty/notifications" style="display: block; text-align: center; margin-top: 15px; color: #667eea; font-weight: 600;">
+                        View All (<?= count($notifications) ?>)
+                    </a>
+                <?php endif; ?>
+            <?php else: ?>
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>No new notifications</p>
                 </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush">
-                        <?php if (!empty($notifications)): ?>
-                            <?php foreach ($notifications as $notification) : ?>
-                                <li class="list-group-item border-0 d-flex justify-content-between ps-4 mb-2 border-radius-lg">
-                                    <div class="d-flex flex-column">
-                                        <h6 class="mb-1 text-dark font-weight-bold text-sm"><?php echo htmlspecialchars($notification['message'] ?? $notification['content'] ?? 'No message'); ?></h6>
-                                        <span class="text-xs"><?php echo htmlspecialchars($notification['createdAt'] ?? $notification['created_at'] ?? date('Y-m-d H:i:s')); ?></span>
-                                    </div>
-                                </li>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <li class="list-group-item border-0 text-center py-4">
-                                <span class="text-sm text-secondary">No new notifications</span>
-                            </li>
-                        <?php endif; ?>
-                    </ul>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Transaction History -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-header pb-0">
-                    <h6>Transaction History</h6>
-                </div>
-                <div class="card-body px-0 pt-0 pb-2">
-                    <div class="table-responsive p-0">
-                        <table class="table align-items-center mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Transaction ID</th>
-                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Book Title</th>
-                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Issue Date</th>
-                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Return Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($transactionHistory)): ?>
-                                    <?php foreach ($transactionHistory as $transaction) : ?>
-                                        <tr>
-                                            <td>
-                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['transactionId'] ?? $transaction['tid'] ?? 'N/A'); ?></p>
-                                            </td>
-                                            <td>
-                                                <p class="text-xs font-weight-bold mb-0"><?php echo htmlspecialchars($transaction['title'] ?? $transaction['bookName'] ?? 'Unknown'); ?></p>
-                                            </td>
-                                            <td class="align-middle text-center text-sm">
-                                                <span class="badge badge-sm bg-gradient-success"><?php echo htmlspecialchars($transaction['borrowDate'] ?? $transaction['issueDate'] ?? 'N/A'); ?></span>
-                                            </td>
-                                            <td class="align-middle text-center text-sm">
-                                                <span class="badge badge-sm bg-gradient-secondary"><?php echo htmlspecialchars($transaction['returnDate'] ?? 'Not Returned'); ?></span>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
+    <div class="full-width-card">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 20px;">
+            <i class="fas fa-history" style="color: #667eea;"></i>
+            Recent Transaction History
+        </h2>
+        <?php if (!empty($transactionHistory)): ?>
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Book Title</th>
+                        <th>Borrow Date</th>
+                        <th>Return Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (array_slice($transactionHistory, 0, 10) as $transaction): ?>
+                        <tr>
+                            <td>
+                                <strong><?= htmlspecialchars($transaction['transactionId'] ?? $transaction['tid'] ?? 'N/A') ?></strong>
+                            </td>
+                            <td><?= htmlspecialchars($transaction['title'] ?? $transaction['bookName'] ?? 'Unknown') ?></td>
+                            <td><?= htmlspecialchars($transaction['borrowDate'] ?? $transaction['issueDate'] ?? 'N/A') ?></td>
+                            <td><?= htmlspecialchars($transaction['returnDate'] ?? 'Not Returned') ?></td>
+                            <td>
+                                <?php if (empty($transaction['returnDate'])): ?>
+                                    <span class="badge pending">Borrowed</span>
                                 <?php else: ?>
-                                    <tr>
-                                        <td colspan="4" class="text-center text-sm py-4">No transaction history</td>
-                                    </tr>
+                                    <span class="badge success">Returned</span>
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php if (count($transactionHistory) > 10): ?>
+                <a href="/faculty/borrow-history" style="display: block; text-align: center; margin-top: 20px; color: #667eea; font-weight: 600; font-size: 1.1rem;">
+                    View All Transactions →
+                </a>
+            <?php endif; ?>
+        <?php else: ?>
+            <div class="empty-state">
+                <i class="fas fa-history"></i>
+                <p>No transaction history</p>
             </div>
-        </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <script>
-document.getElementById('quickSearch')?.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        const searchTerm = this.value.trim();
+function handleQuickSearch(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const searchTerm = document.getElementById('quickSearch').value.trim();
         if (searchTerm) {
             window.location.href = '/faculty/books?q=' + encodeURIComponent(searchTerm);
         }
     }
-});
+}
+
+// Add Font Awesome if not already included
+if (!document.querySelector('link[href*="font-awesome"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+    document.head.appendChild(link);
+}
 </script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>
