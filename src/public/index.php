@@ -91,10 +91,34 @@ class Router
 
     error_log("Routing: {$method} {$path}");
 
+    // First try exact matches
     foreach ($this->routes as $route) {
       if ($route['method'] === $method && $route['path'] === $path) {
         error_log("Route matched: {$route['controller']}::{$route['action']}");
         $this->callController($route['controller'], $route['action']);
+        return;
+      }
+    }
+    
+    // Then try pattern matches for dynamic routes
+    foreach ($this->routes as $route) {
+      // Convert route pattern to regex
+      $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '([^/]+)', $route['path']);
+      $pattern = '#^' . $pattern . '$#';
+      
+      if ($route['method'] === $method && preg_match($pattern, $path, $matches)) {
+        error_log("Dynamic route matched: {$route['controller']}::{$route['action']}");
+        
+        // Extract parameter names
+        preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $route['path'], $paramNames);
+        
+        // Build params array
+        $params = [];
+        for ($i = 0; $i < count($paramNames[1]); $i++) {
+          $params[$paramNames[1][$i]] = $matches[$i + 1];
+        }
+        
+        $this->callController($route['controller'], $route['action'], $params);
         return;
       }
     }
@@ -105,7 +129,7 @@ class Router
     include APP_ROOT . '/views/errors/404.php';
   }
 
-  private function callController($controller, $action)
+  private function callController($controller, $action, $params = [])
   {
     $controllerClass = "App\\Controllers\\{$controller}";
 
@@ -138,8 +162,12 @@ class Router
     error_log("Calling action: {$action}");
 
     try {
-      // Call the controller action
-      $controllerInstance->$action();
+      // Call the controller action with params
+      if (!empty($params)) {
+        $controllerInstance->$action($params);
+      } else {
+        $controllerInstance->$action();
+      }
       error_log("Action completed successfully");
     } catch (\Exception $e) {
       // Log the error
@@ -387,12 +415,12 @@ $router->addRoute('POST', '/student/change-password', 'UserController', 'changeP
 // Faculty routes
 $router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
 $router->addRoute('GET', '/faculty/books', 'FacultyController', 'books');
+$router->addRoute('GET', '/faculty/book/{isbn}', 'FacultyController', 'viewBook');
 $router->addRoute('GET', '/faculty/fines', 'FacultyController', 'fines');
 $router->addRoute('POST', '/faculty/fines', 'FacultyController', 'fines');
 $router->addRoute('GET', '/faculty/return', 'FacultyController', 'returnBook');
 $router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
 $router->addRoute('GET', '/faculty/search', 'FacultyController', 'search');
-$router->addRoute('GET', '/faculty/book/{isbn}', 'FacultyController', 'viewBook');
 $router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
@@ -400,6 +428,9 @@ $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('GET', '/faculty/feedback', 'FacultyController', 'feedback');
 $router->addRoute('POST', '/faculty/feedback', 'FacultyController', 'feedback');
+$router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');
+$router->addRoute('POST', '/faculty/book-request', 'FacultyController', 'bookRequest');
+$router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
 
 // Admin routes
 $router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
