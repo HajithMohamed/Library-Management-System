@@ -708,4 +708,107 @@ class BookController
         echo json_encode(['success' => true, 'books' => $books]);
         exit();
     }
+
+    /**
+     * Return book page - redirects Faculty to faculty/return
+     */
+    public function return()
+    {
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
+        
+        // Get user type and redirect to appropriate page
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        
+        // Redirect faculty to faculty return page
+        if ($userType === 'Faculty') {
+            header('Location: /faculty/return');
+            exit();
+        }
+        
+        // Redirect admin to admin dashboard
+        if ($userType === 'Admin') {
+            header('Location: /admin/dashboard');
+            exit();
+        }
+        
+        // Continue with student/user return page
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+        
+        global $mysqli;
+        
+        if (!$mysqli) {
+            die("Database connection failed");
+        }
+        
+        // Get borrowed books for student/user
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName, b.authorName, b.bookImage 
+            FROM transactions t
+            JOIN books b ON t.isbn = b.isbn
+            WHERE t.userId = ? AND t.returnDate IS NULL
+            ORDER BY t.borrowDate DESC
+        ");
+        
+        $borrowedBooks = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $borrowedBooks = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        // Handle return submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $transactionId = $_POST['transaction_id'] ?? '';
+            
+            if (!empty($transactionId)) {
+                $updateStmt = $mysqli->prepare("
+                    UPDATE transactions 
+                    SET returnDate = CURDATE() 
+                    WHERE tid = ? AND userId = ? AND returnDate IS NULL
+                ");
+                
+                if ($updateStmt) {
+                    $updateStmt->bind_param("ss", $transactionId, $userId);
+                    
+                    if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
+                        // Update book availability
+                        $getIsbn = $mysqli->prepare("SELECT isbn FROM transactions WHERE tid = ?");
+                        $getIsbn->bind_param("s", $transactionId);
+                        $getIsbn->execute();
+                        $isbnResult = $getIsbn->get_result()->fetch_assoc();
+                        
+                        if ($isbnResult) {
+                            $updateBook = $mysqli->prepare("
+                                UPDATE books 
+                                SET available = available + 1, borrowed = borrowed - 1 
+                                WHERE isbn = ?
+                            ");
+                            $updateBook->bind_param("s", $isbnResult['isbn']);
+                            $updateBook->execute();
+                            $updateBook->close();
+                        }
+                        $getIsbn->close();
+                        
+                        $_SESSION['success_message'] = 'Book returned successfully!';
+                    } else {
+                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
+                    }
+                    $updateStmt->close();
+                }
+                
+                header('Location: /user/return');
+                exit();
+            }
+        }
+        
+        // Load user return view
+        $pageTitle = 'Return Books';
+        include APP_ROOT . '/views/user/return.php';
+    }
 }
