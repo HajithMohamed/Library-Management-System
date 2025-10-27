@@ -86,6 +86,28 @@ class UserController
      */
     public function fines()
     {
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
+        
+        // Get user type and redirect to appropriate page
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        
+        // Redirect faculty to faculty fines page
+        if ($userType === 'Faculty') {
+            header('Location: /faculty/fines');
+            exit();
+        }
+        
+        // Redirect admin to admin dashboard
+        if ($userType === 'Admin') {
+            header('Location: /admin/dashboard');
+            exit();
+        }
+        
+        // Continue with student/user fines page
         $this->authHelper->requireAuth(['Student', 'Faculty']);
         
         $userId = $_SESSION['userId'];

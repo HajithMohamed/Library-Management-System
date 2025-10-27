@@ -4,55 +4,81 @@ namespace App\Models;
 
 class BookReservation
 {
-    private $db;
-    
+    private $conn;
+
     public function __construct()
     {
-        global $mysqli;
-        $this->db = $mysqli;
+        global $conn;
+        $this->conn = $conn;
     }
-    
+
     /**
-     * Get reservations for a user
+     * Get reservations by user
      */
     public function getReservationsByUser($userId)
     {
         try {
-            $stmt = $this->db->prepare("
-                SELECT r.*, b.bookName, b.authorName 
-                FROM book_reservations r
-                JOIN books b ON r.isbn = b.isbn
-                WHERE r.userId = ? AND r.reservationStatus = 'Active'
-                ORDER BY r.createdAt DESC
+            $stmt = $this->conn->prepare("
+                SELECT br.*, b.bookName, b.authorName, b.bookImage
+                FROM book_reservations br
+                JOIN books b ON br.isbn = b.isbn
+                WHERE br.userId = ? AND br.reservationStatus = 'Active'
+                ORDER BY br.createdAt DESC
             ");
+            
+            if (!$stmt) {
+                return [];
+            }
             
             $stmt->bind_param("s", $userId);
             $stmt->execute();
             $result = $stmt->get_result();
             
-            $reservations = [];
-            while ($row = $result->fetch_assoc()) {
-                $reservations[] = $row;
-            }
-            
-            return $reservations;
+            return $result->fetch_all(MYSQLI_ASSOC);
         } catch (\Exception $e) {
             error_log("Error getting reservations: " . $e->getMessage());
             return [];
         }
     }
-    
+
     /**
-     * Check if user has active reservation for a book
+     * Create a new reservation
+     */
+    public function createReservation($userId, $isbn)
+    {
+        try {
+            $stmt = $this->conn->prepare("
+                INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate, createdAt)
+                VALUES (?, ?, 'Active', DATE_ADD(CURDATE(), INTERVAL 7 DAY), NOW())
+            ");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("ss", $userId, $isbn);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error creating reservation: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get active reservation by user and book
      */
     public function getActiveReservationByUserAndBook($userId, $isbn)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->conn->prepare("
                 SELECT * FROM book_reservations 
                 WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'
                 LIMIT 1
             ");
+            
+            if (!$stmt) {
+                return null;
+            }
             
             $stmt->bind_param("ss", $userId, $isbn);
             $stmt->execute();
@@ -60,30 +86,8 @@ class BookReservation
             
             return $result->fetch_assoc();
         } catch (\Exception $e) {
-            error_log("Error checking active reservation: " . $e->getMessage());
+            error_log("Error checking reservation: " . $e->getMessage());
             return null;
-        }
-    }
-    
-    /**
-     * Create a new reservation
-     */
-    public function createReservation($userId, $isbn)
-    {
-        try {
-            $expiryDate = date('Y-m-d', strtotime('+7 days'));
-            
-            $stmt = $this->db->prepare("
-                INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate, createdAt)
-                VALUES (?, ?, 'Active', ?, NOW())
-            ");
-            
-            $stmt->bind_param("sss", $userId, $isbn, $expiryDate);
-            
-            return $stmt->execute();
-        } catch (\Exception $e) {
-            error_log("Error creating reservation: " . $e->getMessage());
-            return false;
         }
     }
 }

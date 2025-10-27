@@ -387,13 +387,15 @@ $router->addRoute('POST', '/student/change-password', 'UserController', 'changeP
 // Faculty routes
 $router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
 $router->addRoute('GET', '/faculty/books', 'FacultyController', 'books');
+$router->addRoute('GET', '/faculty/fines', 'FacultyController', 'fines');
+$router->addRoute('POST', '/faculty/fines', 'FacultyController', 'fines');
+$router->addRoute('GET', '/faculty/return', 'FacultyController', 'returnBook');
+$router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
 $router->addRoute('GET', '/faculty/search', 'FacultyController', 'search');
 $router->addRoute('GET', '/faculty/book/{isbn}', 'FacultyController', 'viewBook');
 $router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
-$router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');
-$router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('GET', '/faculty/feedback', 'FacultyController', 'feedback');

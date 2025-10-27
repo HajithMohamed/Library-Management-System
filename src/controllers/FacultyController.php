@@ -470,4 +470,92 @@ class FacultyController
 
         include __DIR__ . '/../views/faculty/feedback.php';
     }
+
+    public function fines()
+    {
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
+        
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        if ($userType !== 'Faculty') {
+            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
+            header('Location: /login');
+            exit();
+        }
+
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+        $transactionModel = new Transaction();
+        
+        // Get all fines for the user
+        $fines = $transactionModel->getFinesByUserId($userId) ?? [];
+        
+        // Calculate total fines
+        $totalFines = 0;
+        $pendingFines = 0;
+        $paidFines = 0;
+        
+        foreach ($fines as $fine) {
+            $amount = (float)($fine['fineAmount'] ?? 0);
+            $totalFines += $amount;
+            
+            $status = $fine['fineStatus'] ?? 'pending';
+            if ($status === 'paid') {
+                $paidFines += $amount;
+            } else {
+                $pendingFines += $amount;
+            }
+        }
+
+        include __DIR__ . '/../views/faculty/fines.php';
+    }
+
+    public function returnBook()
+    {
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
+        
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        if ($userType !== 'Faculty') {
+            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
+            header('Location: /login');
+            exit();
+        }
+
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+        $transactionModel = new Transaction();
+        
+        // Get borrowed books (not yet returned)
+        $borrowedBooks = $transactionModel->getBorrowedBooks($userId) ?? [];
+
+        // Handle return submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $transactionId = $_POST['transaction_id'] ?? '';
+            
+            if (!empty($transactionId)) {
+                try {
+                    $success = $transactionModel->returnBook($transactionId);
+                    
+                    if ($success) {
+                        $_SESSION['success_message'] = 'Book returned successfully!';
+                    } else {
+                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
+                    }
+                } catch (\Exception $e) {
+                    $_SESSION['error_message'] = 'An error occurred: ' . $e->getMessage();
+                    error_log("Return book error: " . $e->getMessage());
+                }
+                
+                header('Location: /faculty/return');
+                exit();
+            }
+        }
+
+        include __DIR__ . '/../views/faculty/return.php';
+    }
 }

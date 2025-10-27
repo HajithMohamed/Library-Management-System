@@ -544,10 +544,25 @@ class BookController
 
     /**
      * Display books for users (public/student view)
-     * NOTE: Faculty should use /faculty/books route which goes to FacultyController
+     * NOTE: Faculty users will be redirected to /faculty/books
      */
     public function userBooks()
     {
+        // Check if logged in user is Faculty and redirect
+        if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
+            $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+            
+            if ($userType === 'Faculty') {
+                header('Location: /faculty/books');
+                exit();
+            }
+            
+            if ($userType === 'Admin') {
+                header('Location: /admin/books');
+                exit();
+            }
+        }
+        
         global $mysqli;
         
         if (!$mysqli) {
