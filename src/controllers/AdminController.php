@@ -21,11 +21,18 @@ class AdminController
    */
   public function dashboard()
   {
-    if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-      header('Location: ' . BASE_URL . '403');
-      exit();
+    // Use existing requireAuth method
+    $this->authHelper->requireAuth();
+    
+    // Check if user is admin
+    $userType = $_SESSION['userType'] ?? '';
+    if (strtolower($userType) !== 'admin') {
+        http_response_code(403);
+        $_SESSION['error'] = 'Access denied. Admin privileges required.';
+        header('Location: ' . BASE_URL);
+        exit;
     }
-
+    
     global $conn;
 
     // Fetch total books

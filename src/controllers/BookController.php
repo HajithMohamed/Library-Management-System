@@ -4,6 +4,8 @@
 namespace App\Controllers;
 
 use App\Helpers\BarcodeHelper;
+use Picqer\Barcode\BarcodeGeneratorPNG;
+use Picqer\Barcode\Types\TypeCode128;
 
 class BookController
 {
@@ -184,7 +186,40 @@ class BookController
                 }
             }
             
-            $barcodeValue = null;
+            // GENERATE BARCODE - ENHANCED VERSION
+            $cleanIsbn = str_replace(['-', ' '], '', $isbn);
+            $barcodeValue = 'BK' . strtoupper(substr(md5($cleanIsbn . time()), 0, 10));
+            
+            // Generate barcode image using Picqer library
+            try {
+                $barcodeDir = APP_ROOT . '/public/uploads/barcodes/';
+                if (!is_dir($barcodeDir)) {
+                    mkdir($barcodeDir, 0755, true);
+                }
+                
+                // Create barcode using TypeCode128
+                $barcodeObj = (new TypeCode128())->getBarcode($barcodeValue);
+                
+                // Render as PNG
+                $generator = new BarcodeGeneratorPNG();
+                $barcodeImage = $generator->render($barcodeObj, 2, 50);
+                
+                // Save barcode image
+                $barcodePath = $barcodeDir . $cleanIsbn . '_barcode.png';
+                file_put_contents($barcodePath, $barcodeImage);
+                
+                // Create barcode label with text and book info
+                $this->createBarcodeLabel($cleanIsbn, $barcodeValue, $bookName, $barcodeImage);
+                
+                error_log("✓ Barcode generated successfully: {$barcodeValue}");
+                
+            } catch (\Exception $e) {
+                error_log('Barcode generation failed: ' . $e->getMessage());
+                error_log('Stack trace: ' . $e->getTraceAsString());
+                // Continue even if barcode generation fails
+            }
+            // END BARCODE GENERATION
+            
             $borrowed = $totalCopies - $available;
             
             // Insert book - FIXED: Changed 'image' to 'bookImage'
@@ -225,6 +260,74 @@ class BookController
             $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
+        }
+    }
+
+    /**
+     * Create barcode label with text and book information
+     */
+    private function createBarcodeLabel($cleanIsbn, $barcodeValue, $bookName, $barcodeImage)
+    {
+        try {
+            $barcodeDir = APP_ROOT . '/public/uploads/barcodes/';
+            $labelPath = $barcodeDir . $cleanIsbn . '_label.png';
+            
+            // Create label image (500x250 - larger for better quality)
+            $label = imagecreatetruecolor(500, 250);
+            $white = imagecolorallocate($label, 255, 255, 255);
+            $black = imagecolorallocate($label, 0, 0, 0);
+            $gray = imagecolorallocate($label, 100, 100, 100);
+            $blue = imagecolorallocate($label, 37, 99, 235); // Modern blue color
+            
+            // Fill background
+            imagefilledrectangle($label, 0, 0, 500, 250, $white);
+            
+            // Add border
+            imagerectangle($label, 0, 0, 499, 249, $gray);
+            imagerectangle($label, 1, 1, 498, 248, $gray);
+            
+            // Load barcode image
+            $barcode = imagecreatefromstring($barcodeImage);
+            $barcodeWidth = imagesx($barcode);
+            $barcodeHeight = imagesy($barcode);
+            
+            // Center barcode on label
+            $x = (500 - $barcodeWidth) / 2;
+            $y = 60;
+            imagecopy($label, $barcode, $x, $y, 0, 0, $barcodeWidth, $barcodeHeight);
+            
+            // Add book title at top (truncate if too long)
+            $maxTitleLength = 45;
+            $displayTitle = strlen($bookName) > $maxTitleLength 
+                ? substr($bookName, 0, $maxTitleLength) . '...' 
+                : $bookName;
+            
+            $font = 5; // Built-in font
+            $titleWidth = strlen($displayTitle) * imagefontwidth($font);
+            $titleX = (500 - $titleWidth) / 2;
+            imagestring($label, $font, $titleX, 20, $displayTitle, $blue);
+            
+            // Add barcode value below barcode
+            $textWidth = strlen($barcodeValue) * imagefontwidth($font);
+            $textX = (500 - $textWidth) / 2;
+            $textY = $y + $barcodeHeight + 15;
+            imagestring($label, $font, $textX, $textY, $barcodeValue, $black);
+            
+            // Add "Scan to Identify" text at bottom
+            $footerText = "Library Management System";
+            $footerWidth = strlen($footerText) * imagefontwidth(3);
+            $footerX = (500 - $footerWidth) / 2;
+            imagestring($label, 3, $footerX, 220, $footerText, $gray);
+            
+            // Save label
+            imagepng($label, $labelPath);
+            imagedestroy($label);
+            imagedestroy($barcode);
+            
+            error_log("✓ Barcode label created: {$labelPath}");
+            
+        } catch (\Exception $e) {
+            error_log('Label creation failed: ' . $e->getMessage());
         }
     }
 
@@ -441,9 +544,25 @@ class BookController
 
     /**
      * Display books for users (public/student view)
+     * NOTE: Faculty users will be redirected to /faculty/books
      */
     public function userBooks()
     {
+        // Check if logged in user is Faculty and redirect
+        if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
+            $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+            
+            if ($userType === 'Faculty') {
+                header('Location: /faculty/books');
+                exit();
+            }
+            
+            if ($userType === 'Admin') {
+                header('Location: /admin/books');
+                exit();
+            }
+        }
+        
         global $mysqli;
         
         if (!$mysqli) {
@@ -485,8 +604,47 @@ class BookController
             $result->free();
         }
         
+        // Calculate statistics
+        $totalBooks = count($books);
+        $totalAvailable = 0;
+        $totalBorrowed = 0;
+        
+        foreach ($books as $book) {
+            $totalAvailable += ($book['available'] ?? 0);
+            $totalBorrowed += ($book['borrowed'] ?? 0);
+        }
+        
+        // Get categories for filter dropdown (publishers in this case)
+        $categories = [];
+        $publisherSql = "SELECT DISTINCT publisherName 
+                        FROM books 
+                        WHERE publisherName IS NOT NULL AND publisherName != '' 
+                        ORDER BY publisherName ASC";
+        $publisherResult = $mysqli->query($publisherSql);
+        
+        if ($publisherResult) {
+            while ($row = $publisherResult->fetch_assoc()) {
+                if (!empty($row['publisherName'])) {
+                    $categories[] = $row['publisherName'];
+                }
+            }
+            $publisherResult->free();
+        }
+        
         $pageTitle = 'Available Books';
-        include APP_ROOT . '/views/user/books.php';
+        
+        // Check if user view file exists, otherwise use faculty view
+        $userViewPath = APP_ROOT . '/views/user/books.php';
+        $facultyViewPath = APP_ROOT . '/views/faculty/books.php';
+        
+        if (file_exists($userViewPath)) {
+            include $userViewPath;
+        } elseif (file_exists($facultyViewPath)) {
+            include $facultyViewPath;
+        } else {
+            error_log("ERROR: No books view found. Checked: {$userViewPath} and {$facultyViewPath}");
+            die("Books view template not found");
+        }
     }
 
     /**
@@ -549,5 +707,108 @@ class BookController
         
         echo json_encode(['success' => true, 'books' => $books]);
         exit();
+    }
+
+    /**
+     * Return book page - redirects Faculty to faculty/return
+     */
+    public function return()
+    {
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            header('Location: /login');
+            exit();
+        }
+        
+        // Get user type and redirect to appropriate page
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        
+        // Redirect faculty to faculty return page
+        if ($userType === 'Faculty') {
+            header('Location: /faculty/return');
+            exit();
+        }
+        
+        // Redirect admin to admin dashboard
+        if ($userType === 'Admin') {
+            header('Location: /admin/dashboard');
+            exit();
+        }
+        
+        // Continue with student/user return page
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+        
+        global $mysqli;
+        
+        if (!$mysqli) {
+            die("Database connection failed");
+        }
+        
+        // Get borrowed books for student/user
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName, b.authorName, b.bookImage 
+            FROM transactions t
+            JOIN books b ON t.isbn = b.isbn
+            WHERE t.userId = ? AND t.returnDate IS NULL
+            ORDER BY t.borrowDate DESC
+        ");
+        
+        $borrowedBooks = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $borrowedBooks = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        // Handle return submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $transactionId = $_POST['transaction_id'] ?? '';
+            
+            if (!empty($transactionId)) {
+                $updateStmt = $mysqli->prepare("
+                    UPDATE transactions 
+                    SET returnDate = CURDATE() 
+                    WHERE tid = ? AND userId = ? AND returnDate IS NULL
+                ");
+                
+                if ($updateStmt) {
+                    $updateStmt->bind_param("ss", $transactionId, $userId);
+                    
+                    if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
+                        // Update book availability
+                        $getIsbn = $mysqli->prepare("SELECT isbn FROM transactions WHERE tid = ?");
+                        $getIsbn->bind_param("s", $transactionId);
+                        $getIsbn->execute();
+                        $isbnResult = $getIsbn->get_result()->fetch_assoc();
+                        
+                        if ($isbnResult) {
+                            $updateBook = $mysqli->prepare("
+                                UPDATE books 
+                                SET available = available + 1, borrowed = borrowed - 1 
+                                WHERE isbn = ?
+                            ");
+                            $updateBook->bind_param("s", $isbnResult['isbn']);
+                            $updateBook->execute();
+                            $updateBook->close();
+                        }
+                        $getIsbn->close();
+                        
+                        $_SESSION['success_message'] = 'Book returned successfully!';
+                    } else {
+                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
+                    }
+                    $updateStmt->close();
+                }
+                
+                header('Location: /user/return');
+                exit();
+            }
+        }
+        
+        // Load user return view
+        $pageTitle = 'Return Books';
+        include APP_ROOT . '/views/user/return.php';
     }
 }
