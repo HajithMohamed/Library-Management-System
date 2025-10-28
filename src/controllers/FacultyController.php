@@ -37,10 +37,105 @@ class FacultyController extends BaseController
         // Get recent activity
         $recentActivity = $this->borrowModel->getRecentActivity($userId, 10);
         
+        // Get user info
+        $user = $this->userModel->findById($userId);
+        
+        // Get borrowed books
+        $borrowedBooks = $this->borrowModel->getActiveBorrows($userId);
+        
+        // Get overdue books
+        $overdueBooks = array_filter($borrowedBooks, function($book) {
+            $dueDate = $book['dueDate'] ?? date('Y-m-d', strtotime($book['borrowDate'] . ' + 14 days'));
+            return strtotime($dueDate) < time();
+        });
+        
+        // Get reserved books (placeholder - implement if you have reservations table)
+        $reservedBooks = [];
+        
+        // Get notifications
+        $notifications = $this->userModel->getNotifications($userId);
+        
+        // Get transaction history
+        $transactionHistory = $this->borrowModel->getBorrowHistory($userId);
+        
+        // Get analytics stats
+        $stats = $this->getPersonalStats($userId);
+        
+        // Pass all data to view
         $this->data['userStats'] = $userStats;
         $this->data['recentActivity'] = $recentActivity;
+        $this->data['user'] = $user;
+        $this->data['borrowedBooks'] = $borrowedBooks;
+        $this->data['overdueBooks'] = $overdueBooks;
+        $this->data['reservedBooks'] = $reservedBooks;
+        $this->data['notifications'] = $notifications;
+        $this->data['transactionHistory'] = $transactionHistory;
+        $this->data['stats'] = $stats;
         
-        $this->view('users/dashboard', $this->data);
+        $this->view('faculty/dashboard', $this->data);
+    }
+    
+    /**
+     * Get personal statistics for analytics
+     */
+    private function getPersonalStats($userId)
+    {
+        $stats = [
+            'total_books' => 0,
+            'reviews' => [
+                'total_reviews' => 0,
+                'avg_rating' => 0
+            ],
+            'categories' => [],
+            'monthly' => []
+        ];
+        
+        // Get total books borrowed
+        $sql = "SELECT COUNT(DISTINCT isbn) as total FROM transactions WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $stats['total_books'] = $result['total'] ?? 0;
+        
+        // Get reviews stats (if book_reviews table exists)
+        $tableCheck = $this->db->query("SHOW TABLES LIKE 'book_reviews'");
+        if ($tableCheck->num_rows > 0) {
+            $sql = "SELECT COUNT(*) as total, AVG(rating) as avg_rating 
+                    FROM book_reviews WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stats['reviews']['total_reviews'] = $result['total'] ?? 0;
+            $stats['reviews']['avg_rating'] = $result['avg_rating'] ?? 0;
+        }
+        
+        // Get category distribution
+        $sql = "SELECT b.category, COUNT(*) as borrow_count 
+                FROM transactions t 
+                JOIN books b ON t.isbn = b.isbn 
+                WHERE t.userId = ? AND b.category IS NOT NULL 
+                GROUP BY b.category 
+                ORDER BY borrow_count DESC 
+                LIMIT 6";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $stats['categories'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Get monthly trend (last 6 months)
+        $sql = "SELECT DATE_FORMAT(borrowDate, '%Y-%m') as month, COUNT(*) as count 
+                FROM transactions 
+                WHERE userId = ? AND borrowDate >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                GROUP BY month 
+                ORDER BY month ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $stats['monthly'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        return $stats;
     }
 
     public function books()

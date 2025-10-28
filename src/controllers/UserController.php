@@ -27,6 +27,12 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
+        // Redirect Faculty users to their own dashboard
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/dashboard');
+            return;
+        }
+        
         $userId = $_SESSION['userId'];
         $userType = $_SESSION['userType'];
         

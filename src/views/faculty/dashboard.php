@@ -5,11 +5,30 @@ if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
     exit();
 }
 
-require_once __DIR__ . '/../../src/Controllers/FacultyController.php';
-$facultyController = new FacultyController();
-$stats = $facultyController->getPersonalStats();
-
+$pageTitle = 'Faculty Dashboard';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Get data passed from controller
+$userStats = $userStats ?? [
+    'borrowed_books' => 0,
+    'overdue_books' => 0,
+    'total_fines' => 0,
+    'max_books' => 5
+];
+
+$stats = $stats ?? [
+    'total_books' => 0,
+    'reviews' => ['total_reviews' => 0, 'avg_rating' => 0],
+    'categories' => [],
+    'monthly' => []
+];
+
+$user = $user ?? ['username' => $_SESSION['username'] ?? 'Faculty Member'];
+$borrowedBooks = $borrowedBooks ?? [];
+$overdueBooks = $overdueBooks ?? [];
+$reservedBooks = $reservedBooks ?? [];
+$notifications = $notifications ?? [];
+$transactionHistory = $transactionHistory ?? [];
 ?>
 
 <style>

@@ -41,7 +41,9 @@ class User extends BaseModel
     public function getUserByEmail($email)
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
+            // Try emailId column first (your schema)
+            $sql = "SELECT * FROM {$this->table} WHERE emailId = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
             
             if (!$stmt) {
                 throw new \Exception("Prepare failed: " . $this->db->error);
@@ -51,7 +53,22 @@ class User extends BaseModel
             $stmt->execute();
             $result = $stmt->get_result();
             
-            return $result->fetch_assoc();
+            if ($row = $result->fetch_assoc()) {
+                return $row;
+            }
+            
+            // Fallback: try 'email' column
+            $sql = "SELECT * FROM {$this->table} WHERE email = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            
+            if ($stmt) {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                return $result->fetch_assoc();
+            }
+            
+            return null;
         } catch (\Exception $e) {
             error_log("Error getting user by email: " . $e->getMessage());
             return null;
@@ -533,6 +550,52 @@ class User extends BaseModel
         $stmt->execute();
         
         return $stmt->get_result()->fetch_assoc();
+    }
+
+    /**
+     * Update user OTP for password reset
+     */
+    public function updateUserOtp($userId, $otp, $otpExpiry)
+    {
+        try {
+            $sql = "UPDATE {$this->table} SET otp = ?, otpExpiry = ? WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                error_log("Failed to prepare OTP update statement: " . $this->db->error);
+                return false;
+            }
+            
+            $stmt->bind_param('sss', $otp, $otpExpiry, $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating user OTP: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update user password
+     */
+    public function updateUserPassword($userId, $hashedPassword)
+    {
+        try {
+            $sql = "UPDATE {$this->table} 
+                    SET password = ?, otp = NULL, otpExpiry = NULL, updatedAt = NOW() 
+                    WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                error_log("Failed to prepare password update statement: " . $this->db->error);
+                return false;
+            }
+            
+            $stmt->bind_param('ss', $hashedPassword, $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating user password: " . $e->getMessage());
+            return false;
+        }
     }
 }
 ?>

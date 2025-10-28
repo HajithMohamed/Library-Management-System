@@ -339,17 +339,11 @@ class AuthController
     $userId = $_SESSION['reset_userId'] ?? '';
 
     if ($this->userModel->updateUserPassword($userId, $hashedPassword)) {
-      // Log the password change
-      $action_log = "Password reset";
-      $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
-      $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-      
-      // Note: You might want to add an audit log method to User model
-      // $this->userModel->logUserAction($userId, $action_log, $ip, $userAgent);
-
+      // Clear session variables
       unset($_SESSION['reset_email']);
       unset($_SESSION['reset_userId']);
       unset($_SESSION['otp_verified']);
+      $_SESSION['success'] = 'Password reset successfully! You can now login.';
       $_SESSION['message'] = '<div class="alert alert-success">Password reset successfully! <a href="' . BASE_URL . '">Go to Login</a></div>';
     } else {
       $_SESSION['message'] = '<div class="alert alert-danger">Error resetting password. Please try again.</div>';
@@ -475,16 +469,31 @@ class AuthController
   private function migrateWishlistToFavorites($userId, $wishlist)
   {
     try {
-        require_once __DIR__ . '/../config/dbConnection.php';
+        global $mysqli;
         
-        $stmt = $pdo->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
-        
-        foreach ($wishlist as $isbn) {
-            $stmt->execute([$userId, $isbn, 'Migrated from guest wishlist']);
+        if (!$mysqli) {
+            error_log("Wishlist migration error: Database connection not available");
+            return false;
         }
         
+        // Use INSERT IGNORE to skip duplicates without errors
+        $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
+        
+        if (!$stmt) {
+            error_log("Wishlist migration error: " . $mysqli->error);
+            return false;
+        }
+        
+        $note = 'Migrated from guest wishlist';
+        
+        foreach ($wishlist as $isbn) {
+            $stmt->bind_param('sss', $userId, $isbn, $note);
+            $stmt->execute();
+        }
+        
+        $stmt->close();
         return true;
-    } catch (PDOException $e) {
+    } catch (\Exception $e) {
         error_log("Wishlist migration error: " . $e->getMessage());
         return false;
     }
