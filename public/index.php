@@ -34,69 +34,84 @@ define('OTP_EXPIRY_MINUTES', 15);
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 
-// Instantiate controllers
-$authController = new AuthController();
-$adminController = new AdminController();
-$facultyController = new FacultyController(); // Make sure this line exists
+// Initialize controllers
+$authController = new App\Controllers\AuthController();
+$facultyController = new App\Controllers\FacultyController();
+$adminController = new App\Controllers\AdminController();
 
-// Public routes
-if (preg_match('#^/$#', $requestUri)) {
-    // Home page
-    include APP_ROOT . '/views/home.php';
-} elseif (preg_match('#^/login$#', $requestUri)) {
-    $authController->login();
-} elseif (preg_match('#^/signup$#', $requestUri)) {
-    $authController->signup();
-} elseif (preg_match('#^/verify-otp$#', $requestUri)) {
-    $authController->verifyOtp();
-} elseif (preg_match('#^/forgot-password$#', $requestUri)) {
-    $authController->forgotPassword();
-} elseif (preg_match('#^/reset-password$#', $requestUri)) {
-    $authController->resetPassword();
-} elseif (preg_match('#^/logout$#', $requestUri)) {
-    $authController->logout();
-} elseif (preg_match('#^/admin$#', $requestUri)) {
-    $adminController->dashboard();
-} elseif (preg_match('#^/admin/users$#', $requestUri)) {
-    $adminController->users();
-} elseif (preg_match('#^/admin/fines$#', $requestUri)) {
-    $adminController->fines();
-} elseif (preg_match('#^/admin/borrow-requests$#', $requestUri)) {
-    $adminController->borrowRequests();
-} elseif (preg_match('#^/admin/notifications$#', $requestUri)) {
-    $adminController->notifications();
-} elseif (preg_match('#^/admin/maintenance$#', $requestUri)) {
-    $adminController->maintenance();
-} elseif (preg_match('#^/admin/reports$#', $requestUri)) {
-    $adminController->reports();
-} elseif (preg_match('#^/admin/settings$#', $requestUri)) {
-    $adminController->settings();
-} elseif (preg_match('#^/admin/analytics$#', $requestUri)) {
-    $adminController->analytics();
+// Define routes
+$routes = [
+    // Public routes
+    ['GET', '#^/$#', function() { include APP_ROOT . '/views/home.php'; }],
+    ['GET|POST', '#^/login$#', [$authController, 'login']],
+    ['GET|POST', '#^/signup$#', [$authController, 'signup']],
+    ['GET|POST', '#^/verify-otp$#', [$authController, 'verifyOtp']],
+    ['GET|POST', '#^/forgot-password$#', [$authController, 'forgotPassword']],
+    ['GET|POST', '#^/reset-password$#', [$authController, 'resetPassword']],
+    ['GET', '#^/logout$#', [$authController, 'logout']],
+    
+    // Admin routes
+    ['GET', '#^/admin$#', [$adminController, 'dashboard']],
+    ['GET|POST', '#^/admin/users$#', [$adminController, 'users']],
+    ['GET|POST', '#^/admin/fines$#', [$adminController, 'fines']],
+    ['GET|POST', '#^/admin/borrow-requests$#', [$adminController, 'borrowRequests']],
+    ['GET|POST', '#^/admin/notifications$#', [$adminController, 'notifications']],
+    ['GET|POST', '#^/admin/maintenance$#', [$adminController, 'maintenance']],
+    ['GET|POST', '#^/admin/reports$#', [$adminController, 'reports']],
+    ['GET|POST', '#^/admin/settings$#', [$adminController, 'settings']],
+    ['GET', '#^/admin/analytics$#', [$adminController, 'analytics']],
+    
+    // Faculty/Student routes
+    ['GET', '#^/faculty/books$#', [$facultyController, 'books']],
+    ['GET', '#^/faculty/book/([^/]+)$#', function($isbn) use ($facultyController) {
+        // Decode the ISBN in case it has special characters
+        $isbn = urldecode($isbn);
+        $facultyController->viewBook($isbn);
+    }],
+    // Simplified: Let controller handle ISBN extraction from both URL and query
+    ['GET|POST', '#^/faculty/reserve(/([^/]+))?$#', function($fullMatch = '', $isbn = null) use ($facultyController) {
+        $facultyController->reserve($isbn);
+    }],
+    ['GET|POST', '#^/faculty/book-request$#', [$facultyController, 'bookRequest']],
+    ['GET', '#^/faculty/transactions$#', [$facultyController, 'transactions']],
+    ['GET|POST', '#^/faculty/profile$#', [$facultyController, 'profile']],
+    ['GET|POST', '#^/faculty/return$#', [$facultyController, 'returnBook']],
+    ['GET', '#^/faculty/fines$#', [$facultyController, 'fines']],
+    ['GET', '#^/faculty/borrow-history$#', [$facultyController, 'borrowHistory']],
+    ['GET|POST', '#^/faculty/notifications$#', [$facultyController, 'notifications']],
+];
+
+// Route matching
+$matched = false;
+foreach ($routes as $route) {
+    list($methods, $pattern, $handler) = $route;
+    
+    // Check if method matches
+    if (!preg_match('#' . $requestMethod . '#', $methods)) {
+        continue;
+    }
+    
+    // Check if pattern matches
+    if (preg_match($pattern, $requestUri, $matches)) {
+        $matched = true;
+        
+        // Remove the full match from parameters
+        array_shift($matches);
+            // Handle controller method calls
+            list($controller, $method) = $handler;
+            call_user_func_array([$controller, $method], $matches);
+        }
+        
+        exit;
+    }
 }
-
-// Faculty/Student routes
-if (preg_match('#^/faculty/books$#', $requestUri)) {
-    $facultyController->books();
-} elseif (preg_match('#^/faculty/book/([^/]+)$#', $requestUri, $matches)) {
-    $facultyController->viewBook($matches[1]);
-} elseif (preg_match('#^/faculty/reserve$#', $requestUri)) {
-    // Handle query parameter: ?isbn=xxx
-    $isbn = $_GET['isbn'] ?? null;
-    $facultyController->reserve($isbn);
-} elseif (preg_match('#^/faculty/reserve/([^/]+)$#', $requestUri, $matches)) {
-    // Handle path parameter: /faculty/reserve/isbn
-    $facultyController->reserve($matches[1]);
-} elseif (preg_match('#^/faculty/book-request$#', $requestUri)) {
-    $facultyController->bookRequest();
-} elseif (preg_match('#^/faculty/dashboard$#', $requestUri)) {
-    $facultyController->dashboard();
-} elseif (preg_match('#^/faculty/transactions$#', $requestUri)) {
-    $facultyController->transactions();
-} elseif (preg_match('#^/faculty/profile$#', $requestUri)) {
-    $facultyController->profile();
+   call_user_func_array($handler, $matches);
+// No route matched - 404} elseif (is_array($handler) && count($handler) === 2) {
+if (!$matched) {/ Handle controller method calls
+    http_response_code(404);       list($controller, $method) = $handler;
+    include APP_ROOT . '/views/errors/404.php';           call_user_func_array([$controller, $method], $matches);
+}// No route matched - 404
+if (!$matched) {
+    http_response_code(404);
+    include APP_ROOT . '/views/errors/404.php';
 }
-
-// Fallback for 404
-http_response_code(404);
-include APP_ROOT . '/views/errors/404.php';

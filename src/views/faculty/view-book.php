@@ -426,7 +426,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <div class="book-image-section">
                 <div class="book-image-wrapper-detail">
                     <?php if (!empty($book['bookImage'])): ?>
-                        <img src="/<?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
+                        <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
                     <?php else: ?>
                         <div class="book-placeholder-detail">📚</div>
                     <?php endif; ?>

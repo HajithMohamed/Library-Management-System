@@ -19,6 +19,23 @@ class FacultyController
     }
 
     /**
+     * Get user ID from session - FIXED: Handle both userId and user_id
+     */
+    private function getUserId()
+    {
+        // Try different session keys
+        if (isset($_SESSION['userId']) && !is_array($_SESSION['userId'])) {
+            return $_SESSION['userId'];
+        }
+        
+        if (isset($_SESSION['user_id']) && !is_array($_SESSION['user_id'])) {
+            return $_SESSION['user_id'];
+        }
+        
+        return null;
+    }
+
+    /**
      * Faculty/Student dashboard
      */
     public function dashboard()
@@ -46,6 +63,13 @@ class FacultyController
         
         $books = [];
         while ($row = $result->fetch_assoc()) {
+            // Ensure bookImage path is correct
+            if (!empty($row['bookImage']) && strpos($row['bookImage'], 'uploads/') !== 0) {
+                // If the image path doesn't start with 'uploads/', prepend it
+                if (!preg_match('#^(https?://|/)#', $row['bookImage'])) {
+                    $row['bookImage'] = 'uploads/books/' . $row['bookImage'];
+                }
+            }
             $books[] = $row;
         }
         
@@ -69,11 +93,40 @@ class FacultyController
     /**
      * View single book details
      */
-    public function viewBook($isbn)
+    public function viewBook($isbn = null)
     {
         $this->authHelper->requireAuth(['Faculty', 'Student']);
         
+        // Debug: Log the received ISBN
+        error_log("viewBook called with ISBN: " . var_export($isbn, true));
+        
+        // FIXED: Get ISBN from parameter or URL
+        if ($isbn === null && isset($_GET['isbn'])) {
+            $isbn = $_GET['isbn'];
+            error_log("ISBN from GET parameter: " . $isbn);
+        }
+        
+        // Extract ISBN from URL path if it's part of the route
+        if ($isbn === null) {
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            error_log("Request URI path: " . $path);
+            if (preg_match('#/faculty/book/([^/]+)$#', $path, $matches)) {
+                $isbn = urldecode($matches[1]);
+                error_log("ISBN extracted from path: " . $isbn);
+            }
+        }
+        
+        if (empty($isbn)) {
+            error_log("No ISBN found - redirecting to books page");
+            $_SESSION['error_message'] = 'Invalid book ISBN.';
+            $this->redirect('/faculty/books');
+            return;
+        }
+        
         global $mysqli;
+        
+        // Debug: Log the SQL query
+        error_log("Searching for book with ISBN: " . $isbn);
         
         $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
         $stmt->bind_param("s", $isbn);
@@ -81,25 +134,41 @@ class FacultyController
         $result = $stmt->get_result();
         
         if ($result->num_rows === 0) {
+            error_log("Book not found in database for ISBN: " . $isbn);
             $_SESSION['error_message'] = 'Book not found.';
             $this->redirect('/faculty/books');
             return;
         }
         
         $book = $result->fetch_assoc();
+        error_log("Book found: " . $book['bookName']);
+        
+        // Ensure bookImage path is correct
+        if (!empty($book['bookImage']) && strpos($book['bookImage'], 'uploads/') !== 0) {
+            if (!preg_match('#^(https?://|/)#', $book['bookImage'])) {
+                $book['bookImage'] = 'uploads/books/' . $book['bookImage'];
+            }
+        }
         
         $pageTitle = $book['bookName'];
         $this->render('faculty/view-book', ['book' => $book]);
     }
 
     /**
-     * Handle book reservation/borrowing
+     * Handle book reservation/borrowing - FIXED userId handling
      */
     public function reserve($isbn = null)
     {
         $this->authHelper->requireAuth(['Faculty', 'Student']);
         
-        $userId = $_SESSION['userId'];
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
         
         // Get ISBN from URL parameter if not passed
         if ($isbn === null && isset($_GET['isbn'])) {
@@ -188,13 +257,20 @@ class FacultyController
     }
 
     /**
-     * Show book request page
+     * Show book request page - FIXED userId handling
      */
     public function bookRequest()
     {
         $this->authHelper->requireAuth(['Faculty', 'Student']);
         
-        $userId = $_SESSION['userId'];
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isbn = trim($_POST['isbn'] ?? '');
@@ -316,6 +392,224 @@ class FacultyController
     }
 
     /**
+     * Handle book return - FIXED userId handling
+     */
+    public function returnBook()
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
+        
+        global $mysqli;
+        
+        // Get borrowed books for this user
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName, b.authorName, b.bookImage 
+            FROM transactions t
+            JOIN books b ON t.isbn = b.isbn
+            WHERE t.userId = ? AND t.returnDate IS NULL
+            ORDER BY t.borrowDate DESC
+        ");
+        
+        $borrowedBooks = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $borrowedBooks = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        // Handle return submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $transactionId = $_POST['transaction_id'] ?? '';
+            
+            if (!empty($transactionId)) {
+                $updateStmt = $mysqli->prepare("
+                    UPDATE transactions 
+                    SET returnDate = CURDATE() 
+                    WHERE tid = ? AND userId = ? AND returnDate IS NULL
+                ");
+                
+                if ($updateStmt) {
+                    $updateStmt->bind_param("ss", $transactionId, $userId);
+                    
+                    if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
+                        // Update book availability
+                        $getIsbn = $mysqli->prepare("SELECT isbn FROM transactions WHERE tid = ?");
+                        $getIsbn->bind_param("s", $transactionId);
+                        $getIsbn->execute();
+                        $isbnResult = $getIsbn->get_result()->fetch_assoc();
+                        
+                        if ($isbnResult) {
+                            $updateBook = $mysqli->prepare("
+                                UPDATE books 
+                                SET available = available + 1, borrowed = borrowed - 1 
+                                WHERE isbn = ?
+                            ");
+                            $updateBook->bind_param("s", $isbnResult['isbn']);
+                            $updateBook->execute();
+                            $updateBook->close();
+                        }
+                        $getIsbn->close();
+                        
+                        $_SESSION['success_message'] = 'Book returned successfully!';
+                    } else {
+                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
+                    }
+                    $updateStmt->close();
+                }
+                
+                $this->redirect('/faculty/return');
+                return;
+            }
+        }
+        
+        $pageTitle = 'Return Books';
+        $this->render('faculty/return', ['borrowedBooks' => $borrowedBooks]);
+    }
+
+    /**
+     * View fines - FIXED userId handling
+     */
+    public function fines()
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
+        
+        global $mysqli;
+        
+        // Get all transactions with fines for this user
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName, b.authorName, b.bookImage 
+            FROM transactions t
+            JOIN books b ON t.isbn = b.isbn
+            WHERE t.userId = ? AND t.fineAmount > 0
+            ORDER BY t.borrowDate DESC
+        ");
+        
+        $fines = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $fines = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        $pageTitle = 'My Fines';
+        $this->render('faculty/fines', ['fines' => $fines]);
+    }
+
+    /**
+     * View borrow history - FIXED userId handling
+     */
+    public function borrowHistory()
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
+        
+        global $mysqli;
+        
+        // Get all transactions for this user
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName, b.authorName, b.bookImage 
+            FROM transactions t
+            JOIN books b ON t.isbn = b.isbn
+            WHERE t.userId = ?
+            ORDER BY t.borrowDate DESC
+        ");
+        
+        $history = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $history = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        $pageTitle = 'Borrow History';
+        $this->render('faculty/borrow-history', ['history' => $history]);
+    }
+
+    /**
+     * View notifications - FIXED userId handling
+     */
+    public function notifications()
+    {
+        $this->authHelper->requireAuth(['Faculty', 'Student']);
+        
+        // FIXED: Get userId properly
+        $userId = $this->getUserId();
+        
+        if (!$userId) {
+            $_SESSION['error_message'] = 'User session invalid. Please login again.';
+            $this->redirect('/login');
+            return;
+        }
+        
+        global $mysqli;
+        
+        // Get notifications for this user
+        $stmt = $mysqli->prepare("
+            SELECT * FROM notifications 
+            WHERE userId = ? OR userId IS NULL
+            ORDER BY createdAt DESC
+            LIMIT 50
+        ");
+        
+        $notifications = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $notifications = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        // Mark as read if POST request
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
+            $notifId = $_POST['notification_id'] ?? '';
+            if (!empty($notifId)) {
+                $markStmt = $mysqli->prepare("UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?");
+                $markStmt->bind_param("is", $notifId, $userId);
+                $markStmt->execute();
+                $markStmt->close();
+                
+                $this->redirect('/faculty/notifications');
+                return;
+            }
+        }
+        
+        $pageTitle = 'Notifications';
+        $this->render('faculty/notifications', ['notifications' => $notifications]);
+    }
+
+    /**
      * Render a view with data
      */
     private function render($view, $data = [])
@@ -332,11 +626,17 @@ class FacultyController
     }
 
     /**
-     * Redirect to a URL
+     * Redirect to a URL - FIXED: Check if headers not sent
      */
     private function redirect($url)
     {
-        header('Location: ' . BASE_URL . ltrim($url, '/'));
-        exit;
+        if (!headers_sent()) {
+            header('Location: ' . BASE_URL . ltrim($url, '/'));
+            exit;
+        } else {
+            // Fallback to JavaScript redirect if headers already sent
+            echo '<script>window.location.href = "' . BASE_URL . ltrim($url, '/') . '";</script>';
+            exit;
+        }
     }
 }

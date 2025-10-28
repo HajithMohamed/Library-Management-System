@@ -714,7 +714,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 <div class="book-card-modern">
                     <div class="book-image-wrapper">
                         <?php if (!empty($book['bookImage'])): ?>
-                            <img src="/<?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
+                            <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
                         <?php else: ?>
                             <div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 7rem; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.3);">
                                 📚
@@ -753,21 +753,21 @@ include APP_ROOT . '/views/layouts/header.php';
                         </div>
                         
                         <div class="action-buttons-group">
-                            <a href="/faculty/book/<?= htmlspecialchars($book['isbn'] ?? '') ?>" class="action-button-modern btn-view-details">
+                            <a href="<?= BASE_URL ?>faculty/book/<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-view-details">
                                 👁️ Details
                             </a>
                             <?php if (isset($_SESSION['user_id']) || isset($_SESSION['userId'])): ?>
                                 <?php if (($book['available'] ?? 0) > 0): ?>
-                                    <a href="/faculty/reserve?isbn=<?= htmlspecialchars($book['isbn'] ?? '') ?>" class="action-button-modern btn-borrow">
+                                    <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-borrow">
                                         📖 Borrow
                                     </a>
                                 <?php else: ?>
-                                    <a href="/faculty/reserve?isbn=<?= htmlspecialchars($book['isbn'] ?? '') ?>" class="action-button-modern btn-reserve">
+                                    <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-reserve">
                                         🔖 Reserve
                                     </a>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <a href="/login" class="action-button-modern btn-borrow">🔐 Login</a>
+                                <a href="<?= BASE_URL ?>login" class="action-button-modern btn-borrow">🔐 Login</a>
                             <?php endif; ?>
                         </div>
                     </div>
