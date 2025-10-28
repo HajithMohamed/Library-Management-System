@@ -60,6 +60,12 @@ class AuthController
         $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
         $_SESSION['emailId'] = $user['emailId'];
 
+        // Migrate wishlist to favorites if exists
+        if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
+          $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
+          unset($_SESSION['guest_wishlist']);
+        }
+
         $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
         $this->authHelper->redirectByUserType();
       } else {
@@ -333,17 +339,11 @@ class AuthController
     $userId = $_SESSION['reset_userId'] ?? '';
 
     if ($this->userModel->updateUserPassword($userId, $hashedPassword)) {
-      // Log the password change
-      $action_log = "Password reset";
-      $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
-      $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-      
-      // Note: You might want to add an audit log method to User model
-      // $this->userModel->logUserAction($userId, $action_log, $ip, $userAgent);
-
+      // Clear session variables
       unset($_SESSION['reset_email']);
       unset($_SESSION['reset_userId']);
       unset($_SESSION['otp_verified']);
+      $_SESSION['success'] = 'Password reset successfully! You can now login.';
       $_SESSION['message'] = '<div class="alert alert-success">Password reset successfully! <a href="' . BASE_URL . '">Go to Login</a></div>';
     } else {
       $_SESSION['message'] = '<div class="alert alert-danger">Error resetting password. Please try again.</div>';
@@ -461,5 +461,41 @@ class AuthController
       header('Content-Type: application/json');
       echo json_encode($status);
       exit();
+  }
+
+  /**
+   * Migrate wishlist to favorites
+   */
+  private function migrateWishlistToFavorites($userId, $wishlist)
+  {
+    try {
+        global $mysqli;
+        
+        if (!$mysqli) {
+            error_log("Wishlist migration error: Database connection not available");
+            return false;
+        }
+        
+        // Use INSERT IGNORE to skip duplicates without errors
+        $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
+        
+        if (!$stmt) {
+            error_log("Wishlist migration error: " . $mysqli->error);
+            return false;
+        }
+        
+        $note = 'Migrated from guest wishlist';
+        
+        foreach ($wishlist as $isbn) {
+            $stmt->bind_param('sss', $userId, $isbn, $note);
+            $stmt->execute();
+        }
+        
+        $stmt->close();
+        return true;
+    } catch (\Exception $e) {
+        error_log("Wishlist migration error: " . $e->getMessage());
+        return false;
+    }
   }
 }

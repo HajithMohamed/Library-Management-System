@@ -2,560 +2,347 @@
 
 namespace App\Controllers;
 
+use App\Models\Book;
+use App\Models\BorrowRecord;
 use App\Models\User;
-use App\Models\Transaction;
-use App\Models\BookReservation;
-use App\Helpers\AuthHelper;
-use App\Services\UserService;
-use App\Services\BookService;
 
-class FacultyController
+class FacultyController extends BaseController
 {
+    private $bookModel;
+    private $borrowModel;
+    private $userModel;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->bookModel = new Book();
+        $this->borrowModel = new BorrowRecord();
+        $this->userModel = new User();
+    }
+
     public function dashboard()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->requireLogin(['Faculty']);
         
-        // Get user type and redirect if not faculty
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        $userId = $_SESSION['userId'];
         
-        // Redirect non-faculty users to their appropriate dashboards
-        if ($userType === 'Admin') {
-            header('Location: /admin/dashboard');
-            exit();
-        }
-        
-        if ($userType === 'Student' || $userType === 'User') {
-            header('Location: /user/dashboard');
-            exit();
-        }
-        
-        // Verify user is faculty
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
-        $user = $userModel->getUserById($userId);
-        
-        if (!$user) {
-            $_SESSION['error_message'] = 'User not found';
-            header('Location: /login');
-            exit();
-        }
-
-        $transactionModel = new Transaction();
-        
-        // Get borrowed books safely
-        try {
-            if (method_exists($transactionModel, 'getBorrowedBooks')) {
-                $borrowedBooks = $transactionModel->getBorrowedBooks($userId) ?? [];
-            } else {
-                $borrowedBooks = $transactionModel->getActiveTransactionsByUser($userId) ?? [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting borrowed books: " . $e->getMessage());
-            $borrowedBooks = [];
-        }
-        
-        // Get overdue books safely
-        try {
-            if (method_exists($transactionModel, 'getOverdueBooks')) {
-                $overdueBooks = $transactionModel->getOverdueBooks($userId) ?? [];
-            } else {
-                // Calculate overdue books manually
-                $overdueBooks = [];
-                foreach ($borrowedBooks as $book) {
-                    $dueDate = $book['dueDate'] ?? $book['returnDate'] ?? null;
-                    if ($dueDate && strtotime($dueDate) < time()) {
-                        $overdueBooks[] = $book;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting overdue books: " . $e->getMessage());
-            $overdueBooks = [];
-        }
-        
-        // Get transaction history safely
-        try {
-            if (method_exists($transactionModel, 'getTransactionsByUser')) {
-                $transactionHistory = $transactionModel->getTransactionsByUser($userId) ?? [];
-            } elseif (method_exists($transactionModel, 'getTransactionsByUserId')) {
-                $transactionHistory = $transactionModel->getTransactionsByUserId($userId) ?? [];
-            } else {
-                $transactionHistory = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting transaction history: " . $e->getMessage());
-            $transactionHistory = [];
-        }
-
-        // Get reserved books safely
-        try {
-            $bookReservationModel = new BookReservation();
-            if (method_exists($bookReservationModel, 'getReservationsByUser')) {
-                $reservedBooks = $bookReservationModel->getReservationsByUser($userId) ?? [];
-            } else {
-                $reservedBooks = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting reserved books: " . $e->getMessage());
-            $reservedBooks = [];
-        }
-
-        // Get notifications safely
-        try {
-            if (method_exists($userModel, 'getNotifications')) {
-                $notifications = $userModel->getNotifications($userId) ?? [];
-            } else {
-                $notifications = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting notifications: " . $e->getMessage());
-            $notifications = [];
-        }
-
-        // Calculate total fines safely
-        try {
-            $totalFines = UserService::calculateTotalFines($userId);
-        } catch (\Exception $e) {
-            error_log("Error calculating fines: " . $e->getMessage());
-            $totalFines = 0;
-        }
-        
-        // Initialize UserService for the view
-        $userService = new UserService();
-
-        // Ensure all borrowed books have required keys
-        foreach ($borrowedBooks as &$book) {
-            $book['title'] = $book['title'] ?? $book['bookName'] ?? 'Unknown';
-            $book['dueDate'] = $book['dueDate'] ?? $book['returnDate'] ?? 'N/A';
-        }
-        
-        // Ensure all transactions have required keys
-        foreach ($transactionHistory as &$transaction) {
-            $transaction['transactionId'] = $transaction['transactionId'] ?? $transaction['tid'] ?? 'N/A';
-            $transaction['title'] = $transaction['title'] ?? $transaction['bookName'] ?? 'Unknown';
-            $transaction['borrowDate'] = $transaction['borrowDate'] ?? $transaction['issueDate'] ?? 'N/A';
-            $transaction['returnDate'] = $transaction['returnDate'] ?? null;
-        }
-        
-        // Ensure notifications have required keys
-        foreach ($notifications as &$notification) {
-            $notification['message'] = $notification['message'] ?? $notification['content'] ?? '';
-            $notification['createdAt'] = $notification['createdAt'] ?? $notification['created_at'] ?? date('Y-m-d H:i:s');
-        }
-
-        // Calculate stats for dashboard
-        $stats = [
-            'borrowed_books' => count($borrowedBooks),
-            'overdue_books' => count($overdueBooks),
-            'total_fines' => $totalFines,
-            'reserved_books' => count($reservedBooks)
+        // Get faculty statistics
+        $userStats = [
+            'borrowed_books' => $this->borrowModel->getActiveBorrowCount($userId),
+            'overdue_books' => $this->borrowModel->getOverdueCount($userId),
+            'total_fines' => $this->borrowModel->getTotalFines($userId),
+            'max_books' => 5
         ];
-
-        // Load the view and pass the data
-        include __DIR__ . '/../views/faculty/dashboard.php';
+        
+        // Get recent activity
+        $recentActivity = $this->borrowModel->getRecentActivity($userId, 10);
+        
+        // Get user info
+        $user = $this->userModel->findById($userId);
+        
+        // Get borrowed books
+        $borrowedBooks = $this->borrowModel->getActiveBorrows($userId);
+        
+        // Get overdue books
+        $overdueBooks = array_filter($borrowedBooks, function($book) {
+            $dueDate = $book['dueDate'] ?? date('Y-m-d', strtotime($book['borrowDate'] . ' + 14 days'));
+            return strtotime($dueDate) < time();
+        });
+        
+        // Get reserved books (placeholder - implement if you have reservations table)
+        $reservedBooks = [];
+        
+        // Get notifications
+        $notifications = $this->userModel->getNotifications($userId);
+        
+        // Get transaction history
+        $transactionHistory = $this->borrowModel->getBorrowHistory($userId);
+        
+        // Get analytics stats
+        $stats = $this->getPersonalStats($userId);
+        
+        // Pass all data to view
+        $this->data['userStats'] = $userStats;
+        $this->data['recentActivity'] = $recentActivity;
+        $this->data['user'] = $user;
+        $this->data['borrowedBooks'] = $borrowedBooks;
+        $this->data['overdueBooks'] = $overdueBooks;
+        $this->data['reservedBooks'] = $reservedBooks;
+        $this->data['notifications'] = $notifications;
+        $this->data['transactionHistory'] = $transactionHistory;
+        $this->data['stats'] = $stats;
+        
+        $this->view('faculty/dashboard', $this->data);
+    }
+    
+    /**
+     * Get personal statistics for analytics
+     */
+    private function getPersonalStats($userId)
+    {
+        $stats = [
+            'total_books' => 0,
+            'reviews' => [
+                'total_reviews' => 0,
+                'avg_rating' => 0
+            ],
+            'categories' => [],
+            'monthly' => []
+        ];
+        
+        // Get total books borrowed
+        $sql = "SELECT COUNT(DISTINCT isbn) as total FROM transactions WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        $stats['total_books'] = $result['total'] ?? 0;
+        
+        // Get reviews stats (if book_reviews table exists)
+        $tableCheck = $this->db->query("SHOW TABLES LIKE 'book_reviews'");
+        if ($tableCheck->num_rows > 0) {
+            $sql = "SELECT COUNT(*) as total, AVG(rating) as avg_rating 
+                    FROM book_reviews WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stats['reviews']['total_reviews'] = $result['total'] ?? 0;
+            $stats['reviews']['avg_rating'] = $result['avg_rating'] ?? 0;
+        }
+        
+        // Get category distribution
+        $sql = "SELECT b.category, COUNT(*) as borrow_count 
+                FROM transactions t 
+                JOIN books b ON t.isbn = b.isbn 
+                WHERE t.userId = ? AND b.category IS NOT NULL 
+                GROUP BY b.category 
+                ORDER BY borrow_count DESC 
+                LIMIT 6";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $stats['categories'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Get monthly trend (last 6 months)
+        $sql = "SELECT DATE_FORMAT(borrowDate, '%Y-%m') as month, COUNT(*) as count 
+                FROM transactions 
+                WHERE userId = ? AND borrowDate >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                GROUP BY month 
+                ORDER BY month ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $stats['monthly'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        return $stats;
     }
 
     public function books()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->requireLogin(['Faculty']);
         
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $bookService = new BookService();
+        $searchTerm = $_GET['search'] ?? '';
+        $books = $this->bookModel->search($searchTerm);
         
-        // Get search parameters
-        $searchTerm = $_GET['q'] ?? '';
-        $category = $_GET['category'] ?? '';
-        $status = $_GET['status'] ?? '';
-        $sort = $_GET['sort'] ?? '';
+        $this->data['books'] = $books;
+        $this->data['searchTerm'] = $searchTerm;
         
-        // Get all books or search results
-        if (!empty($searchTerm) || !empty($category) || !empty($status)) {
-            $books = $bookService->searchBooks($searchTerm, $category, $status);
-            $totalBooks = count($books);
-        } else {
-            $booksData = $bookService->getAllBooks(1, 1000);
-            $books = $booksData['books'];
-            $totalBooks = $booksData['total'];
-        }
-        
-        // Apply sorting if requested
-        if (!empty($sort) && !empty($books)) {
-            switch ($sort) {
-                case 'title':
-                    usort($books, function($a, $b) {
-                        return strcmp($a['bookName'] ?? '', $b['bookName'] ?? '');
-                    });
-                    break;
-                case 'author':
-                    usort($books, function($a, $b) {
-                        return strcmp($a['authorName'] ?? '', $b['authorName'] ?? '');
-                    });
-                    break;
-                case 'available':
-                    usort($books, function($a, $b) {
-                        return ($b['available'] ?? 0) - ($a['available'] ?? 0);
-                    });
-                    break;
-            }
-        }
-        
-        // Get categories for filter dropdown
-        $categories = $bookService->getCategories();
-
-        include __DIR__ . '/../views/faculty/books.php';
-    }
-
-    public function search()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        // Redirect to books page with search parameters
-        $queryParams = http_build_query($_GET);
-        header('Location: /faculty/books?' . $queryParams);
-        exit;
+        $this->view('faculty/books', $this->data);
     }
 
     public function viewBook($params)
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
+        $this->requireLogin(['Faculty']);
+        
         $isbn = $params['isbn'] ?? '';
-        $bookService = new BookService();
-        $book = $bookService->getBookByIsbn($isbn);
-
+        $book = $this->bookModel->findByISBN($isbn);
+        
         if (!$book) {
-            $_SESSION['error_message'] = 'Book not found!';
-            header('Location: /faculty/books');
-            exit;
+            $_SESSION['error'] = 'Book not found';
+            $this->redirect('faculty/books');
+            return;
         }
-
-        include __DIR__ . '/../views/faculty/view-book.php';
-    }
-
-    public function reserve($params)
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $isbn = $params['isbn'] ?? '';
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-
-        try {
-            $bookService = new BookService();
-            $book = $bookService->getBookByIsbn($isbn);
-            
-            if (!$book) {
-                $_SESSION['error_message'] = 'Book not found!';
-                header('Location: /faculty/books');
-                exit;
-            }
-            
-            $reservationModel = new BookReservation();
-            
-            // Process based on availability
-            if (($book['available'] ?? 0) > 0) {
-                $reservationModel->createReservation($userId, $isbn);
-                $_SESSION['success_message'] = 'Book reserved successfully! Please visit the library to collect it within 24 hours.';
-            } else {
-                $reservationModel->createReservation($userId, $isbn);
-                $_SESSION['success_message'] = 'Book is currently unavailable. You have been added to the waiting list.';
-            }
-        } catch (\Exception $e) {
-            $_SESSION['error_message'] = 'An error occurred while processing your request. Please try again.';
-            error_log("Reservation error: " . $e->getMessage());
-        }
-
-        header('Location: /faculty/books');
-        exit;
-    }
-
-    public function borrowHistory()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
         
-        try {
-            if (method_exists($transactionModel, 'getTransactionsByUserId')) {
-                $transactions = $transactionModel->getTransactionsByUserId($userId);
-            } elseif (method_exists($transactionModel, 'getTransactionsByUser')) {
-                $transactions = $transactionModel->getTransactionsByUser($userId);
-            } else {
-                $transactions = [];
-            }
-        } catch (\Exception $e) {
-            error_log("Error getting borrow history: " . $e->getMessage());
-            $transactions = [];
-        }
-
-        include __DIR__ . '/../views/faculty/borrow-history.php';
+        $this->data['book'] = $book;
+        $this->view('faculty/book-details', $this->data);
     }
 
-    public function bookRequest()
+    public function reserve($params = [])
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
+        $this->requireLogin(['Faculty']);
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('faculty/books');
+            return;
         }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-            $bookTitle = $_POST['book_title'] ?? '';
-            $author = $_POST['author'] ?? '';
-            $isbn = $_POST['isbn'] ?? '';
-            $reason = $_POST['reason'] ?? '';
-
-            if (empty($bookTitle) || empty($author)) {
-                $_SESSION['error_message'] = 'Book title and author are required!';
-                header('Location: /faculty/book-request');
-                exit;
-            }
-
-            try {
-                $bookRequestModel = new \App\Models\BookRequest();
-                $bookRequestModel->createRequest($userId, $bookTitle, $author, $isbn, $reason);
-                $_SESSION['success_message'] = 'Book request submitted successfully!';
-            } catch (\Exception $e) {
-                $_SESSION['error_message'] = 'Failed to submit book request.';
-                error_log("Book request error: " . $e->getMessage());
-            }
-
-            header('Location: /faculty/dashboard');
-            exit;
+        
+        $isbn = $params['isbn'] ?? $_POST['isbn'] ?? '';
+        $userId = $_SESSION['userId'];
+        
+        if ($this->borrowModel->createReservation($userId, $isbn)) {
+            $_SESSION['success'] = 'Book reserved successfully';
         } else {
-            $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-            try {
-                $bookRequestModel = new \App\Models\BookRequest();
-                $requests = $bookRequestModel->getRequestsByUserId($userId);
-            } catch (\Exception $e) {
-                error_log("Error getting book requests: " . $e->getMessage());
-                $requests = [];
-            }
-            include __DIR__ . '/../views/faculty/book-request.php';
-        }
-    }
-
-    public function notifications()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        try {
-            $notificationModel = new \App\Models\Notification();
-            $notifications = $notificationModel->getNotificationsByUserId($userId);
-        } catch (\Exception $e) {
-            error_log("Error getting notifications: " . $e->getMessage());
-            $notifications = [];
-        }
-
-        include __DIR__ . '/../views/faculty/notifications.php';
-    }
-
-    public function profile()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'name' => $_POST['name'] ?? '',
-                'email' => $_POST['email'] ?? '',
-                'department' => $_POST['department'] ?? '',
-            ];
-
-            if (!empty($_POST['password'])) {
-                $data['password'] = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            }
-
-            try {
-                $userModel->updateUser($userId, $data);
-                $_SESSION['success_message'] = 'Profile updated successfully!';
-            } catch (\Exception $e) {
-                $_SESSION['error_message'] = 'Failed to update profile.';
-                error_log("Profile update error: " . $e->getMessage());
-            }
-
-            header('Location: /faculty/profile');
-            exit;
-        } else {
-            $user = $userModel->getUserById($userId);
-            include __DIR__ . '/../views/faculty/profile.php';
-        }
-    }
-
-    public function feedback()
-    {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
+            $_SESSION['error'] = 'Failed to reserve book';
         }
         
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $userModel = new User();
-        $user = $userModel->getUserById($userId);
-        
-        try {
-            $feedbackModel = new \App\Models\Feedback();
-
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $subject = $_POST['subject'] ?? '';
-                $message = $_POST['message'] ?? '';
-
-                if (empty($subject) || empty($message)) {
-                    $_SESSION['error_message'] = 'Subject and message are required.';
-                } else {
-                    if ($feedbackModel->createFeedback($userId, $subject, $message)) {
-                        $_SESSION['success_message'] = 'Feedback submitted successfully.';
-                        header('Location: /faculty/feedback');
-                        exit;
-                    } else {
-                        $_SESSION['error_message'] = 'Failed to submit feedback.';
-                    }
-                }
-            }
-
-            $feedbacks = $feedbackModel->getFeedbackByUserId($userId);
-        } catch (\Exception $e) {
-            error_log("Feedback error: " . $e->getMessage());
-            $feedbacks = [];
-        }
-
-        include __DIR__ . '/../views/faculty/feedback.php';
+        $this->redirect('faculty/books');
     }
 
     public function fines()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->requireLogin(['Faculty']);
         
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
+        $userId = $_SESSION['userId'];
         
-        // Get all fines for the user
-        $fines = $transactionModel->getFinesByUserId($userId) ?? [];
-        
-        // Calculate total fines
-        $totalFines = 0;
-        $pendingFines = 0;
-        $paidFines = 0;
-        
-        foreach ($fines as $fine) {
-            $amount = (float)($fine['fineAmount'] ?? 0);
-            $totalFines += $amount;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $borrowId = $_POST['borrow_id'] ?? 0;
+            $amount = $_POST['amount'] ?? 0;
             
-            $status = $fine['fineStatus'] ?? 'pending';
-            if ($status === 'paid') {
-                $paidFines += $amount;
+            if ($this->borrowModel->payFine($borrowId, $amount)) {
+                $_SESSION['success'] = 'Fine paid successfully';
             } else {
-                $pendingFines += $amount;
+                $_SESSION['error'] = 'Failed to process payment';
             }
         }
-
-        include __DIR__ . '/../views/faculty/fines.php';
+        
+        $fines = $this->borrowModel->getUserFines($userId);
+        
+        $this->data['fines'] = $fines;
+        $this->view('faculty/fines', $this->data);
     }
 
     public function returnBook()
     {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
-            header('Location: /login');
-            exit();
-        }
+        $this->requireLogin(['Faculty']);
         
-        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        if ($userType !== 'Faculty') {
-            $_SESSION['error_message'] = 'Access denied. Faculty access required.';
-            header('Location: /login');
-            exit();
-        }
-
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        $transactionModel = new Transaction();
-        
-        // Get borrowed books (not yet returned)
-        $borrowedBooks = $transactionModel->getBorrowedBooks($userId) ?? [];
-
-        // Handle return submission
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $transactionId = $_POST['transaction_id'] ?? '';
+            $borrowId = $_POST['borrow_id'] ?? 0;
             
-            if (!empty($transactionId)) {
-                try {
-                    $success = $transactionModel->returnBook($transactionId);
-                    
-                    if ($success) {
-                        $_SESSION['success_message'] = 'Book returned successfully!';
-                    } else {
-                        $_SESSION['error_message'] = 'Failed to return book. Please try again.';
-                    }
-                } catch (\Exception $e) {
-                    $_SESSION['error_message'] = 'An error occurred: ' . $e->getMessage();
-                    error_log("Return book error: " . $e->getMessage());
-                }
-                
-                header('Location: /faculty/return');
-                exit();
+            if ($this->borrowModel->returnBook($borrowId)) {
+                $_SESSION['success'] = 'Book returned successfully';
+            } else {
+                $_SESSION['error'] = 'Failed to return book';
             }
         }
+        
+        $userId = $_SESSION['userId'];
+        $borrowedBooks = $this->borrowModel->getActiveBorrows($userId);
+        
+        $this->data['borrowedBooks'] = $borrowedBooks;
+        $this->view('faculty/return', $this->data);
+    }
 
-        include __DIR__ . '/../views/faculty/return.php';
+    public function borrowHistory()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        $userId = $_SESSION['userId'];
+        $history = $this->borrowModel->getBorrowHistory($userId);
+        
+        $this->data['history'] = $history;
+        $this->view('faculty/borrow-history', $this->data);
+    }
+
+    public function profile()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        $userId = $_SESSION['userId'];
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $data = [
+                'email' => $_POST['email'] ?? '',
+                'phone' => $_POST['phone'] ?? '',
+                'address' => $_POST['address'] ?? '',
+                'department' => $_POST['department'] ?? ''
+            ];
+            
+            if ($this->userModel->updateProfile($userId, $data)) {
+                $_SESSION['success'] = 'Profile updated successfully';
+            } else {
+                $_SESSION['error'] = 'Failed to update profile';
+            }
+        }
+        
+        $user = $this->userModel->findById($userId);
+        
+        $this->data['user'] = $user;
+        $this->view('faculty/profile', $this->data);
+    }
+
+    public function search()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        $searchTerm = $_GET['q'] ?? '';
+        $category = $_GET['category'] ?? '';
+        
+        $books = $this->bookModel->advancedSearch($searchTerm, $category);
+        
+        $this->data['books'] = $books;
+        $this->data['searchTerm'] = $searchTerm;
+        $this->data['category'] = $category;
+        
+        $this->view('faculty/search', $this->data);
+    }
+
+    public function feedback()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Handle feedback submission
+            $feedback = $_POST['feedback'] ?? '';
+            $bookId = $_POST['book_id'] ?? 0;
+            
+            // Save feedback logic here
+            $_SESSION['success'] = 'Feedback submitted successfully';
+        }
+        
+        $this->view('faculty/feedback', $this->data);
+    }
+
+    public function bookRequest()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Handle book request
+            $bookTitle = $_POST['book_title'] ?? '';
+            $author = $_POST['author'] ?? '';
+            $reason = $_POST['reason'] ?? '';
+            
+            // Save book request logic here
+            $_SESSION['success'] = 'Book request submitted successfully';
+        }
+        
+        $this->view('faculty/book-request', $this->data);
+    }
+
+    public function notifications()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        $userId = $_SESSION['userId'];
+        
+        // Handle mark as read
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
+            $notificationId = $_POST['notification_id'] ?? 0;
+            if ($notificationId) {
+                $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
+                $stmt = $this->db->prepare($sql);
+                $stmt->bind_param('is', $notificationId, $userId);
+                $stmt->execute();
+            }
+            $this->redirect('faculty/notifications');
+            return;
+        }
+        
+        // Get all notifications for faculty
+        $notifications = $this->userModel->getNotifications($userId);
+        
+        $this->data['notifications'] = $notifications;
+        $this->view('faculty/notifications', $this->data);
     }
 }

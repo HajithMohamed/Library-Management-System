@@ -2,13 +2,15 @@
 $pageTitle = 'Dashboard';
 include APP_ROOT . '/views/layouts/header.php';
 
-// Get user stats (this would come from a service in a real implementation)
-$userStats = [
-    'borrowed_books' => 2,
+// Get user stats from controller
+$userStats = $userStats ?? [
+    'borrowed_books' => 0,
     'overdue_books' => 0,
     'total_fines' => 0,
     'max_books' => $_SESSION['userType'] === 'Faculty' ? 5 : 3
 ];
+
+$recentActivity = $recentActivity ?? [];
 ?>
 
 <style>
@@ -579,7 +581,7 @@ $userStats = [
                 </div>
                 <h5>Browse Books</h5>
                 <p>Search and browse available books in the library</p>
-                <a href="<?= BASE_URL ?>user/books" class="action-btn">
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/books" class="action-btn">
                     <i class="fas fa-search"></i>
                     <span>Browse Now</span>
                 </a>
@@ -591,7 +593,7 @@ $userStats = [
                 </div>
                 <h5>Return Books</h5>
                 <p>Return your borrowed books quickly and easily</p>
-                <a href="<?= BASE_URL ?>user/return" class="action-btn">
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/return" class="action-btn">
                     <i class="fas fa-undo"></i>
                     <span>Return Now</span>
                 </a>
@@ -603,7 +605,7 @@ $userStats = [
                 </div>
                 <h5>Pay Fines</h5>
                 <p>View and pay your outstanding library fines</p>
-                <a href="<?= BASE_URL ?>user/fines" class="action-btn">
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/fines" class="action-btn">
                     <i class="fas fa-money-bill-wave"></i>
                     <span>Pay Fines</span>
                 </a>
@@ -615,7 +617,7 @@ $userStats = [
                 </div>
                 <h5>Edit Profile</h5>
                 <p>Update your profile and account information</p>
-                <a href="<?= BASE_URL ?>user/profile" class="action-btn">
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/profile" class="action-btn">
                     <i class="fas fa-user-edit"></i>
                     <span>View Profile</span>
                 </a>
@@ -647,6 +649,7 @@ $userStats = [
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($recentActivity)): ?>
                             <tr>
                                 <td colspan="5">
                                     <div class="empty-state">
@@ -655,6 +658,25 @@ $userStats = [
                                     </div>
                                 </td>
                             </tr>
+                            <?php else: ?>
+                                <?php foreach ($recentActivity as $activity): ?>
+                                <tr>
+                                    <td><?= date('M d, Y', strtotime($activity['borrow_date'])) ?></td>
+                                    <td><?= htmlspecialchars($activity['title']) ?></td>
+                                    <td><?= htmlspecialchars($activity['author']) ?></td>
+                                    <td><?= $activity['return_date'] ? 'Returned' : 'Borrowed' ?></td>
+                                    <td>
+                                        <?php if ($activity['return_date']): ?>
+                                            <span style="color: #10b981; font-weight: 600;">✓ Returned</span>
+                                        <?php elseif (strtotime($activity['due_date']) < time()): ?>
+                                            <span style="color: #ef4444; font-weight: 600;">⚠ Overdue</span>
+                                        <?php else: ?>
+                                            <span style="color: #3b82f6; font-weight: 600;">📖 Active</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>

@@ -11,7 +11,7 @@ use App\Controllers\AdminController;
 session_start();
 
 // Define application paths (needed before including config)
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', dirname(__DIR__)); // Points to src/
 define('PUBLIC_ROOT', __DIR__);
 
 // FORCE DEBUG MODE - ENABLE ALL ERROR REPORTING
@@ -19,14 +19,14 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 ini_set('log_errors', 1);
-ini_set('error_log', APP_ROOT . '/logs/error.log');
+ini_set('error_log', dirname(APP_ROOT) . '/logs/error.log'); // Use project root for logs
 
 // Log startup
 error_log("=== Application Starting ===");
 error_log("APP_ROOT: " . APP_ROOT);
 error_log("PUBLIC_ROOT: " . PUBLIC_ROOT);
 
-// Include Composer autoloader - FIXED PATH (use root vendor, not src/vendor)
+// Include Composer autoloader - use root vendor
 $vendorPath = dirname(APP_ROOT) . '/vendor/autoload.php';
 if (file_exists($vendorPath)) {
   require_once $vendorPath;
@@ -36,21 +36,24 @@ if (file_exists($vendorPath)) {
   error_log("Please run 'composer install' in the project root.");
 }
 
-// Include configuration (this creates $mysqli)
+// Include configuration (this creates $mysqli and defines all constants)
 require_once APP_ROOT . '/config/config.php';
 error_log("Config loaded");
 
 // Include dbConnection for backwards compatibility (creates $conn alias)
-require_once APP_ROOT . '/config/dbConnection.php';
-error_log("DB Connection loaded");
+$dbConnectionPath = APP_ROOT . '/config/dbConnection.php';
+if (file_exists($dbConnectionPath)) {
+  require_once $dbConnectionPath;
+  error_log("DB Connection loaded");
+}
 
 // Verify connection
-if (!$mysqli || !($mysqli instanceof mysqli)) {
+if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
   error_log("ERROR: Database connection failed - mysqli not initialized");
   die("Database connection failed in index.php");
 }
 
-if (!$conn || !($conn instanceof mysqli)) {
+if (!isset($conn) || !($conn instanceof mysqli)) {
   error_log("ERROR: Database connection failed - conn not initialized");
   die("Database connection failed - conn alias not created");
 }
@@ -99,25 +102,25 @@ class Router
         return;
       }
     }
-    
+
     // Then try pattern matches for dynamic routes
     foreach ($this->routes as $route) {
       // Convert route pattern to regex
       $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '([^/]+)', $route['path']);
       $pattern = '#^' . $pattern . '$#';
-      
+
       if ($route['method'] === $method && preg_match($pattern, $path, $matches)) {
         error_log("Dynamic route matched: {$route['controller']}::{$route['action']}");
-        
+
         // Extract parameter names
         preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $route['path'], $paramNames);
-        
+
         // Build params array
         $params = [];
         for ($i = 0; $i < count($paramNames[1]); $i++) {
           $params[$paramNames[1][$i]] = $matches[$i + 1];
         }
-        
+
         $this->callController($route['controller'], $route['action'], $params);
         return;
       }
@@ -406,6 +409,10 @@ $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
 
+// User notifications route
+$router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
+$router->addRoute('POST', '/user/notifications', 'UserController', 'markNotificationRead');
+
 // Student routes
 $router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
 $router->addRoute('GET', '/student/profile', 'UserController', 'profile');
@@ -504,3 +511,4 @@ try {
 }
 
 error_log("=== Request Complete ===");
+
