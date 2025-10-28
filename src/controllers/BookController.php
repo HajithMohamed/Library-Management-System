@@ -810,13 +810,13 @@ public function userBooks()
           $updateStmt->close();
         }
 
-        header('Location: /user/return');
+        header('Location: /users/return');
         exit();
       }
     }
 
     // Load user return view
     $pageTitle = 'Return Books';
-    include APP_ROOT . '/views/user/return.php';
+    include APP_ROOT . '/views/users/return.php';
   }
 }
