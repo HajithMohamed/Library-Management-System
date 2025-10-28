@@ -99,25 +99,25 @@ class Router
         return;
       }
     }
-    
+
     // Then try pattern matches for dynamic routes
     foreach ($this->routes as $route) {
       // Convert route pattern to regex
       $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '([^/]+)', $route['path']);
       $pattern = '#^' . $pattern . '$#';
-      
+
       if ($route['method'] === $method && preg_match($pattern, $path, $matches)) {
         error_log("Dynamic route matched: {$route['controller']}::{$route['action']}");
-        
+
         // Extract parameter names
         preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $route['path'], $paramNames);
-        
+
         // Build params array
         $params = [];
         for ($i = 0; $i < count($paramNames[1]); $i++) {
           $params[$paramNames[1][$i]] = $matches[$i + 1];
         }
-        
+
         $this->callController($route['controller'], $route['action'], $params);
         return;
       }
@@ -504,3 +504,4 @@ try {
 }
 
 error_log("=== Request Complete ===");
+
