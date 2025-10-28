@@ -61,6 +61,12 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
+        // Redirect Faculty users to their own profile page
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/profile');
+            return;
+        }
+        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return $this->updateProfile();
         }
@@ -134,6 +140,12 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
+        // Redirect Faculty users to their own fines page
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/fines');
+            return;
+        }
+        
         $userId = $_SESSION['userId'];
         $fines = $this->borrowModel->getUserFines($userId);
         
@@ -147,6 +159,12 @@ class UserController extends BaseController
     public function payFine()
     {
         $this->requireLogin();
+        
+        // Redirect Faculty users to their own fines page
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/fines');
+            return;
+        }
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('user/fines');
@@ -163,5 +181,57 @@ class UserController extends BaseController
         }
         
         $this->redirect('user/fines');
+    }
+
+    /**
+     * Display user notifications
+     */
+    public function notifications()
+    {
+        $this->requireLogin();
+        
+        // Redirect Faculty users to their own notifications page
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/notifications');
+            return;
+        }
+        
+        $userId = $_SESSION['userId'];
+        
+        // Handle mark as read
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
+            $notificationId = $_POST['notification_id'] ?? 0;
+            $this->markNotificationRead($notificationId);
+            $this->redirect('user/notifications');
+            return;
+        }
+        
+        // Get all notifications
+        $notifications = $this->userModel->getNotifications($userId);
+        
+        $this->data['notifications'] = $notifications;
+        $this->view('users/notifications', $this->data);
+    }
+
+    /**
+     * Mark notification as read
+     */
+    public function markNotificationRead($notificationId = null)
+    {
+        $this->requireLogin();
+        
+        if (!$notificationId && isset($_POST['notification_id'])) {
+            $notificationId = $_POST['notification_id'];
+        }
+        
+        if ($notificationId) {
+            global $mysqli;
+            $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
+            $stmt = $mysqli->prepare($sql);
+            $stmt->bind_param('is', $notificationId, $_SESSION['userId']);
+            $stmt->execute();
+        }
+        
+        return true;
     }
 }

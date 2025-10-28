@@ -409,6 +409,10 @@ $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
 
+// User notifications route
+$router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
+$router->addRoute('POST', '/user/notifications', 'UserController', 'markNotificationRead');
+
 // Student routes
 $router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
 $router->addRoute('GET', '/student/profile', 'UserController', 'profile');

@@ -325,8 +325,24 @@ class FacultyController extends BaseController
         $this->requireLogin(['Faculty']);
         
         $userId = $_SESSION['userId'];
-        // Get notifications logic here
         
+        // Handle mark as read
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
+            $notificationId = $_POST['notification_id'] ?? 0;
+            if ($notificationId) {
+                $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
+                $stmt = $this->db->prepare($sql);
+                $stmt->bind_param('is', $notificationId, $userId);
+                $stmt->execute();
+            }
+            $this->redirect('faculty/notifications');
+            return;
+        }
+        
+        // Get all notifications for faculty
+        $notifications = $this->userModel->getNotifications($userId);
+        
+        $this->data['notifications'] = $notifications;
         $this->view('faculty/notifications', $this->data);
     }
 }
