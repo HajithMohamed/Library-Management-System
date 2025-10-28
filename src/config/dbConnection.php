@@ -1,16 +1,20 @@
 <?php
-// This file is now DEPRECATED
-// All database connections are handled in config.php using $mysqli
-// Keep this file for backwards compatibility, but it just sets aliases
+/**
+ * Database Connection Alias
+ * Creates $conn as an alias to $mysqli for backward compatibility
+ */
 
-if (!isset($mysqli)) {
-    die("Database connection not initialized. Include config.php first.");
+// Ensure mysqli is available from config.php
+if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
+    error_log("ERROR: dbConnection.php - mysqli not found from config.php");
+    die("Database connection not available");
 }
 
-// Create alias for backwards compatibility
+// Create alias
 $conn = $mysqli;
-$GLOBALS['conn'] = $mysqli;
 
-// Ensure UTF-8 encoding
-mysqli_set_charset($mysqli, 'utf8mb4');
+// Store in GLOBALS for easy access
+$GLOBALS['conn'] = $conn;
+
+error_log("Database connection alias \$conn created successfully");
 ?>
