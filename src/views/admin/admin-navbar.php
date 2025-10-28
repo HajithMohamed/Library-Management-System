@@ -233,6 +233,7 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            margin-bottom: 1rem;
         }
 
         .user-avatar {
@@ -244,25 +245,45 @@
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            flex-shrink: 0;
             font-size: 1.1rem;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .user-info {
             flex: 1;
+            overflow: hidden;
             transition: opacity 0.3s ease;
         }
 
         .user-name {
             font-weight: 600;
             font-size: 0.95rem;
-            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .user-role {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: rgba(255, 255, 255, 0.6);
-            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .sidebar.collapsed .user-info {
@@ -271,8 +292,55 @@
             overflow: hidden;
         }
 
+        /* Logout Button */
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        .logout-btn span {
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .logout-btn {
+            padding: 0.75rem;
+        }
+
+        .sidebar.collapsed .logout-btn span {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
         /* ========================================
-           MOBILE RESPONSIVE
+           RESPONSIVE STYLES
         ======================================== */
         
         @media (max-width: 768px) {
@@ -430,17 +498,27 @@
         <!-- Sidebar Footer -->
         <div class="sidebar-footer">
             <div class="user-profile">
-                <div class="user-avatar">
+                <a href="<?= BASE_URL ?>admin/profile" class="user-avatar" title="View Profile">
                     <?php 
                     $adminName = $_SESSION['userName'] ?? 'Admin';
-                    echo strtoupper(substr($adminName, 0, 1)); 
+                    $profileImage = $_SESSION['profileImage'] ?? ''; // Get profile image from session
+                    
+                    if (!empty($profileImage) && file_exists($profileImage)): 
                     ?>
-                </div>
+                        <img src="<?= htmlspecialchars($profileImage) ?>" alt="Profile">
+                    <?php else: ?>
+                        <?= strtoupper(substr($adminName, 0, 1)) ?>
+                    <?php endif; ?>
+                </a>
                 <div class="user-info">
                     <div class="user-name"><?= htmlspecialchars($adminName) ?></div>
                     <div class="user-role">Administrator</div>
                 </div>
             </div>
+            <a href="<?= BASE_URL ?>logout" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
         </div>
     </aside>
 

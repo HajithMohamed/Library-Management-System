@@ -20,23 +20,85 @@ class UserService
     }
 
     /**
-     * Calculate fine for overdue books
+     * Calculate total fines for a user
      */
-    public function calculateFine($borrowDate, $returnDate = null)
+    public static function calculateTotalFines($userId)
     {
-        $returnDate = $returnDate ?: date('Y-m-d');
-        $borrowTimestamp = strtotime($borrowDate);
-        $returnTimestamp = strtotime($returnDate);
-        
-        $daysDiff = ($returnTimestamp - $borrowTimestamp) / (60 * 60 * 24);
-        $maxDays = 14; // 2 weeks borrowing period
-        
-        if ($daysDiff > $maxDays) {
-            $overdueDays = $daysDiff - $maxDays;
-            return $overdueDays * 5; // 5 rupees per day fine
+        try {
+            global $mysqli;
+            
+            if (!$mysqli) {
+                return 0.00;
+            }
+            
+            $stmt = $mysqli->prepare("
+                SELECT SUM(fineAmount) as total_fines 
+                FROM transactions 
+                WHERE userId = ? AND fineStatus = 'pending'
+            ");
+            
+            if (!$stmt) {
+                error_log("Failed to prepare statement: " . $mysqli->error);
+                return 0.00;
+            }
+            
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (float)($row['total_fines'] ?? 0.00);
+            }
+            
+            return 0.00;
+        } catch (\Exception $e) {
+            error_log("Error calculating total fines: " . $e->getMessage());
+            return 0.00;
         }
-        
-        return 0;
+    }
+    
+    /**
+     * Calculate fine for a specific borrow date
+     */
+    public static function calculateFine($borrowDate, $returnDate = null)
+    {
+        try {
+            global $mysqli;
+            
+            // Get fine settings
+            $finePerDay = 5; // Default
+            $maxBorrowDays = 14; // Default
+            
+            if ($mysqli) {
+                $result = $mysqli->query("SELECT setting_name, setting_value FROM fine_settings WHERE setting_name IN ('fine_per_day', 'max_borrow_days')");
+                if ($result) {
+                    while ($row = $result->fetch_assoc()) {
+                        if ($row['setting_name'] === 'fine_per_day') {
+                            $finePerDay = (float)$row['setting_value'];
+                        }
+                        if ($row['setting_name'] === 'max_borrow_days') {
+                            $maxBorrowDays = (int)$row['setting_value'];
+                        }
+                    }
+                }
+            }
+            
+            $borrowDateTime = new \DateTime($borrowDate);
+            $currentDate = $returnDate ? new \DateTime($returnDate) : new \DateTime();
+            $dueDate = clone $borrowDateTime;
+            $dueDate->modify("+{$maxBorrowDays} days");
+            
+            if ($currentDate > $dueDate) {
+                $interval = $dueDate->diff($currentDate);
+                $overdueDays = $interval->days;
+                return $overdueDays * $finePerDay;
+            }
+            
+            return 0.00;
+        } catch (\Exception $e) {
+            error_log("Error calculating fine: " . $e->getMessage());
+            return 0.00;
+        }
     }
 
     /**

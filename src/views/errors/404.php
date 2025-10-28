@@ -1,452 +1,430 @@
 <?php
-$pageTitle = 'Page Not Found';
-include APP_ROOT . '/views/layouts/header.php';
+$pageTitle = '404 - Page Not Found';
 ?>
-
-<style>
-    :root {
-        --primary-gradient-start: #4338ca;
-        --primary-gradient-end: #5b21b6;
-        --text-primary: #ffffff;
-        --text-secondary: rgba(255, 255, 255, 0.7);
-        --glass-bg: rgba(255, 255, 255, 0.1);
-        --glass-border: rgba(255, 255, 255, 0.2);
-    }
-
-    .error-page {
-        min-height: calc(100vh - 200px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, var(--primary-gradient-start) 0%, var(--primary-gradient-end) 100%);
-        position: relative;
-        overflow: hidden;
-        padding: 2rem 1rem;
-    }
-
-    /* Animated background particles */
-    .stars {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .star {
-        position: absolute;
-        background: white;
-        border-radius: 50%;
-        animation: twinkling 8s ease-in-out infinite;
-    }
-
-    @keyframes twinkling {
-        0%, 100% { opacity: 0.3; transform: scale(1); }
-        50% { opacity: 0.9; transform: scale(1.2); }
-    }
-
-    /* Main content container with glassmorphism */
-    .error-content {
-        max-width: 800px;
-        width: 100%;
-        text-align: center;
-        color: var(--text-primary);
-        position: relative;
-        z-index: 2;
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 30px;
-        padding: 3rem 2rem;
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        animation: contentSlideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @keyframes contentSlideUp {
-        from {
-            opacity: 0;
-            transform: translateY(50px) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    /* Emoji animation */
-    .error-emoji {
-        font-size: clamp(3rem, 8vw, 5rem);
-        margin-bottom: 1.5rem;
-        display: inline-block;
-        animation: floating 4s ease-in-out infinite;
-        filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
-    }
-
-    @keyframes floating {
-        0%, 100% {
-            transform: translateY(0) rotate(-5deg);
-        }
-        25% {
-            transform: translateY(-15px) rotate(5deg);
-        }
-        50% {
-            transform: translateY(-25px) rotate(-5deg);
-        }
-        75% {
-            transform: translateY(-15px) rotate(5deg);
-        }
-    }
-
-    /* Responsive 404 number */
-    .error-number {
-        font-size: clamp(5rem, 15vw, 10rem);
-        font-weight: 900;
-        margin: 0;
-        background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        line-height: 1;
-        animation: gradientShift 3s ease-in-out infinite, glowing 2s ease-in-out infinite;
-        letter-spacing: -0.05em;
-    }
-
-    @keyframes gradientShift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-    }
-
-    @keyframes glowing {
-        0%, 100% {
-            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
-        }
-        50% {
-            filter: drop-shadow(0 0 40px rgba(255, 255, 255, 0.6));
-        }
-    }
-
-    /* Typography */
-    .error-title {
-        font-size: clamp(1.75rem, 5vw, 2.5rem);
-        font-weight: 700;
-        margin: 1.5rem 0 1rem;
-        animation: slideIn 0.6s ease-out 0.2s both;
-    }
-
-    .error-message {
-        font-size: clamp(1rem, 3vw, 1.25rem);
-        line-height: 1.7;
-        margin-bottom: 1.5rem;
-        opacity: 0.95;
-        animation: slideIn 0.6s ease-out 0.3s both;
-    }
-
-    .error-suggestion {
-        color: var(--text-secondary);
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-        margin-bottom: 2.5rem;
-        animation: slideIn 0.6s ease-out 0.4s both;
-    }
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Flexible button layout */
-    .error-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        justify-content: center;
-        animation: slideIn 0.6s ease-out 0.5s both;
-    }
-
-    .btn-error {
-        padding: 1rem 2rem;
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        position: relative;
-        overflow: hidden;
-        text-decoration: none;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .btn-error::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-    }
-
-    .btn-error:hover::before {
-        width: 300px;
-        height: 300px;
-    }
-
-    .btn-error i {
-        position: relative;
-        z-index: 1;
-        transition: transform 0.3s ease;
-    }
-
-    .btn-error span {
-        position: relative;
-        z-index: 1;
-    }
-
-    .btn-primary-error {
-        background: rgba(255, 255, 255, 0.15);
-        color: white;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        backdrop-filter: blur(10px);
-    }
-
-    .btn-primary-error:hover {
-        background: rgba(255, 255, 255, 0.25);
-        transform: translateY(-3px) scale(1.02);
-        border-color: rgba(255, 255, 255, 0.5);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    .btn-primary-error:hover i {
-        transform: translateX(3px);
-    }
-
-    .btn-secondary-error {
-        background: transparent;
-        color: white;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .btn-secondary-error:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.5);
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-secondary-error:hover i {
-        transform: translateX(-3px);
-    }
-
-    /* Meteor effects */
-    .meteor {
-        position: absolute;
-        width: 2px;
-        height: 80px;
-        background: linear-gradient(to bottom, rgba(255, 255, 255, 1), transparent);
-        opacity: 0;
-        transform: rotate(-45deg);
-        z-index: 1;
-    }
-
-    @keyframes meteor {
-        0% {
-            transform: translateX(0) translateY(0) rotate(-45deg);
-            opacity: 1;
-        }
-        70% {
-            opacity: 1;
-        }
-        100% {
-            transform: translateX(300px) translateY(300px) rotate(-45deg);
-            opacity: 0;
-        }
-    }
-
-    /* Tablet responsiveness */
-    @media (max-width: 768px) {
-        .error-content {
-            padding: 2.5rem 1.5rem;
-            border-radius: 20px;
-        }
-
-        .error-actions {
-            width: 100%;
-        }
-
-        .btn-error {
-            flex: 1 1 calc(50% - 0.5rem);
-            min-width: 140px;
-            justify-content: center;
-        }
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 540px) {
-        .error-page {
-            padding: 1rem;
-        }
-
-        .error-content {
-            padding: 2rem 1.25rem;
-        }
-
-        .error-emoji {
-            margin-bottom: 1rem;
-        }
-
-        .error-number {
-            margin-bottom: 0.5rem;
-        }
-
-        .error-title {
-            margin: 1rem 0 0.75rem;
-        }
-
-        .error-message {
-            margin-bottom: 1rem;
-        }
-
-        .error-suggestion {
-            margin-bottom: 2rem;
-        }
-
-        .error-actions {
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .btn-error {
-            width: 100%;
-            padding: 0.875rem 1.5rem;
-        }
-    }
-
-    /* Extra small screens */
-    @media (max-width: 360px) {
-        .error-content {
-            padding: 1.5rem 1rem;
-        }
-    }
-
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.15);
-        }
-    }
-
-    /* Reduced motion */
-    @media (prefers-reduced-motion: reduce) {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $pageTitle ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
         * {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-    }
-</style>
 
-<script>
-    // Create stars with varied sizes
-    function createStars() {
-        const starsContainer = document.createElement('div');
-        starsContainer.className = 'stars';
-        starsContainer.setAttribute('aria-hidden', 'true');
-        document.querySelector('.error-page').appendChild(starsContainer);
-
-        const starCount = window.innerWidth < 768 ? 30 : 60;
-        
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.className = 'star';
-            star.style.left = Math.random() * 100 + '%';
-            star.style.top = Math.random() * 100 + '%';
-            const size = Math.random() * 3 + 1;
-            star.style.width = size + 'px';
-            star.style.height = size + 'px';
-            star.style.animationDelay = Math.random() * 8 + 's';
-            star.style.animationDuration = (Math.random() * 4 + 6) + 's';
-            starsContainer.appendChild(star);
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
-    }
 
-    // Create meteors
-    function createMeteor() {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        
-        const meteor = document.createElement('div');
-        meteor.className = 'meteor';
-        meteor.setAttribute('aria-hidden', 'true');
-        meteor.style.left = Math.random() * 100 + '%';
-        meteor.style.top = Math.random() * 50 + '%';
-        document.querySelector('.error-page').appendChild(meteor);
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
-        const duration = 1.5 + Math.random() * 2;
-        meteor.style.animation = `meteor ${duration}s linear`;
+        /* Animated Background Elements */
+        .bg-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
 
-        meteor.addEventListener('animationend', () => {
-            meteor.remove();
-            setTimeout(createMeteor, Math.random() * 3000 + 2000);
-        });
-    }
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            animation: float-shapes 20s infinite ease-in-out;
+        }
 
-    // Initialize animations
-    window.addEventListener('load', () => {
-        createStars();
-        
-        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            for (let i = 0; i < 3; i++) {
-                setTimeout(() => createMeteor(), i * 2500);
+        .shape:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            right: -80px;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            width: 250px;
+            height: 250px;
+            bottom: -100px;
+            left: 50%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float-shapes {
+            0%, 100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+            25% {
+                transform: translate(30px, -30px) rotate(90deg);
+            }
+            50% {
+                transform: translate(-20px, 20px) rotate(180deg);
+            }
+            75% {
+                transform: translate(40px, 30px) rotate(270deg);
             }
         }
-    });
 
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-        const stars = document.querySelector('.stars');
-        if (stars) stars.remove();
-    });
-</script>
+        /* Particles */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
 
-<div class="error-page" role="main">
-    <div class="error-content">
-        <div class="error-emoji" role="img" aria-label="Astronaut">
-            👨‍🚀
-        </div>
-        <h1 class="error-number" aria-label="Error 404">404</h1>
-        <h2 class="error-title">Page Lost in Space</h2>
-        <p class="error-message">
-            Houston, we have a problem! The page you're looking for has drifted into deep space.
-        </p>
-        <p class="error-suggestion">
-            Don't worry though - our mission control team is here to guide you back to safety.
-        </p>
-        
-        <div class="error-actions">
-            <a href="<?= BASE_URL ?>" class="btn-error btn-primary-error">
-                <i class="fas fa-rocket" aria-hidden="true"></i>
-                <span>Return to Mission Control</span>
-            </a>
-            <a href="javascript:history.back()" class="btn-error btn-secondary-error">
-                <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                <span>Previous Coordinates</span>
-            </a>
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float-particle 15s infinite ease-in-out;
+        }
+
+        @keyframes float-particle {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        /* Error Container */
+        .error-container {
+            text-align: center;
+            color: white;
+            max-width: 700px;
+            position: relative;
+            z-index: 10;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 3rem 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .error-icon {
+            font-size: 8rem;
+            margin-bottom: 1.5rem;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+        }
+
+        @keyframes float {
+            0%, 100% { 
+                transform: translateY(0) rotate(0deg);
+            }
+            50% { 
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+
+        h1 {
+            font-size: clamp(5rem, 15vw, 8rem);
+            margin-bottom: 1rem;
+            font-weight: 900;
+            letter-spacing: -5px;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: glitch 3s infinite;
+        }
+
+        @keyframes glitch {
+            0%, 95%, 100% {
+                transform: translate(0);
+            }
+            97% {
+                transform: translate(-2px, 2px);
+            }
+            98% {
+                transform: translate(2px, -2px);
+            }
+        }
+
+        h2 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            margin-bottom: 2.5rem;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        /* Modern Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-modern {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-modern::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-modern:hover::before {
+            left: 100%;
+        }
+
+        .btn-modern:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-modern:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Feature Pills */
+        .feature-pills {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .pill:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .pill i {
+            font-size: 1.1rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .error-icon {
+                font-size: 5rem;
+            }
+
+            h1 {
+                letter-spacing: -3px;
+            }
+
+            .button-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn-modern {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .shape {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .glass-card {
+                padding: 1.5rem 1rem;
+                border-radius: 20px;
+            }
+
+            .feature-pills {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .pill {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Error Container -->
+    <div class="error-container">
+        <div class="glass-card">
+            <div class="error-icon">
+                <i class="fas fa-book-dead"></i>
+            </div>
+            <h1>404</h1>
+            <h2>Oops! Page Not Found</h2>
+            <p>The page you're looking for seems to have wandered off into the digital void. Don't worry, we'll help you find your way back!</p>
+            
+            <div class="button-group">
+                <a href="<?= BASE_URL ?>" class="btn-modern">
+                    <i class="fas fa-home"></i>
+                    <span>Go Home</span>
+                </a>
+                <a href="javascript:history.back()" class="btn-modern btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Go Back</span>
+                </a>
+            </div>
+
+            <div class="feature-pills">
+                <div class="pill">
+                    <i class="fas fa-book"></i>
+                    <span>Browse Library</span>
+                </div>
+                <div class="pill">
+                    <i class="fas fa-search"></i>
+                    <span>Search Books</span>
+                </div>
+                <div class="pill">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Get Help</span>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
+    <script>
+        // Generate floating particles
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = window.innerWidth > 768 ? 30 : 15;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 10 + 's';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            particlesContainer.appendChild(particle);
+        }
+
+        // Add click functionality to feature pills
+        document.querySelectorAll('.pill').forEach(pill => {
+            pill.style.cursor = 'pointer';
+            pill.addEventListener('click', function() {
+                const text = this.querySelector('span').textContent;
+                if (text.includes('Browse')) {
+                    window.location.href = '<?= BASE_URL ?>library';
+                } else if (text.includes('Search')) {
+                    window.location.href = '<?= BASE_URL ?>user/books';
+                } else if (text.includes('Help')) {
+                    window.location.href = '<?= BASE_URL ?>contact';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

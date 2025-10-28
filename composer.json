@@ -4,7 +4,8 @@
     "type": "project",
     "require": {
         "phpmailer/phpmailer": "^7.0",
-        "vlucas/phpdotenv": "^5.5"
+        "vlucas/phpdotenv": "^5.5",
+        "picqer/php-barcode-generator": "^3.2"
     },
     "autoload": {
         "psr-4": {

@@ -1,671 +1,790 @@
 <?php
 // Session checks, authentication, etc.
 $pageTitle = 'Notifications Management';
-include APP_ROOT . '/views/layouts/admin-header.php';
+include APP_ROOT . '/views/admin/admin-navbar.php';
+
+// Safe extraction of variables with defaults
+$notifications = $notifications ?? [];
+$currentType = $currentType ?? null;
+$unreadOnly = $unreadOnly ?? false;
+$totalNotifications = count($notifications);
+$unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
 ?>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+        overflow-x: hidden;
+    }
+
+    .admin-layout {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    /* Main Content Area */
+    .main-content {
+        flex: 1;
+        margin-left: 280px;
+        transition: margin-left 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .sidebar.collapsed ~ .main-content {
+        margin-left: 80px;
+    }
+
+    /* Content Wrapper */
+    .content-wrapper {
+        padding: 2.5rem;
+        flex: 1;
+    }
+
+    /* Page Header - Dashboard Style */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .page-header-left h1 {
+        font-size: 2rem;
+        margin: 0 0 0.5rem 0;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .breadcrumb a {
+        color: #64748b;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #667eea;
+    }
+
+    .breadcrumb-separator {
+        color: #cbd5e1;
+    }
+
+    .breadcrumb .active {
+        color: #0f172a;
+        font-weight: 500;
+    }
+
+    /* Two Column Layout */
+    .notifications-layout {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    @media (max-width: 1200px) {
+        .notifications-layout {
+            grid-template-columns: 1fr;
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            overflow-x: hidden;
-        }
-
-        .admin-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Main Content Area */
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            transition: margin-left 0.3s ease;
-            min-height: 100vh;
-        }
-
-        .sidebar.collapsed ~ .main-content {
-            margin-left: 80px;
-        }
-
-        /* Content Wrapper */
-        .content-wrapper {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Page Header */
-        .page-header {
-            background: white;
-            padding: 2rem;
-            border-radius: 16px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid;
-            border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
-        }
-
-        .page-header-content h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .page-header-content h1 i {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .page-header-content p {
-            color: #64748b;
-            font-size: 0.95rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            font-size: 0.95rem;
-        }
-
-        .btn-secondary {
-            background: #64748b;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #475569;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(100, 116, 139, 0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
-        }
-
-        .btn-info {
-            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-            color: white;
-        }
-
-        .btn-info:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
-        }
-
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-
-        .btn-block {
-            width: 100%;
-            justify-content: center;
-        }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-        }
-
-        .stat-card.warning::before {
-            background: linear-gradient(90deg, #f59e0b, #d97706);
-        }
-
-        .stat-card.success::before {
-            background: linear-gradient(90deg, #10b981, #059669);
-        }
-
-        .stat-card.danger::before {
-            background: linear-gradient(90deg, #ef4444, #dc2626);
-        }
-
-        .stat-card.info::before {
-            background: linear-gradient(90deg, #06b6d4, #0891b2);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .stat-info h4 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-info p {
-            color: #64748b;
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        .stat-icon {
-            width: 70px;
-            height: 70px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-        }
-
-        .stat-card.warning .stat-icon {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            color: #92400e;
-        }
-
-        .stat-card.success .stat-icon {
-            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            color: #065f46;
-        }
-
-        .stat-card.danger .stat-icon {
-            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-            color: #991b1b;
-        }
-
-        .stat-card.info .stat-icon {
-            background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
-            color: #164e63;
-        }
-
-        /* Card Styles */
-        .card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-            padding: 1.75rem;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .card-header h5 {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .card-header h5 i {
-            color: #667eea;
-        }
-
-        .card-body {
-            padding: 2rem;
-        }
-
-        /* Form Styles */
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #1e293b;
-            font-size: 0.95rem;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.875rem 1.125rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            background: #f8fafc;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .form-check {
-            display: flex;
-            align-items: center;
-            margin-bottom: 0.5rem;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-radius: 10px;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
-
-        .form-check:hover {
-            border-color: #667eea;
-        }
-
-        .form-check-input {
-            width: 20px;
-            height: 20px;
-            margin-right: 0.75rem;
-            cursor: pointer;
-            accent-color: #667eea;
-        }
-
-        .form-check-label {
-            cursor: pointer;
-            user-select: none;
-            font-weight: 500;
-            color: #1e293b;
-        }
-
-        /* Badge */
-        .badge {
-            padding: 0.375rem 0.75rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .bg-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .bg-success {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .bg-warning {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-
-        .bg-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .bg-info {
-            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-            color: white;
-        }
-
-        .bg-secondary {
-            background: #64748b;
-            color: white;
-        }
-
-        /* Notification Item */
-        .notification-item {
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .notification-item:hover {
-            transform: translateX(4px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .notification-item.unread {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-color: #667eea;
-            border-left: 4px solid #667eea;
-        }
-
-        .notification-item.read {
-            background: #f8fafc;
-        }
-
-        .notification-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 1rem;
-        }
-
-        .notification-title {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex: 1;
-        }
-
-        .notification-title h6 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin: 0;
-        }
-
-        .notification-title.unread h6 {
-            font-weight: 700;
-        }
-
-        .notification-message {
-            color: #475569;
-            line-height: 1.6;
-            margin-bottom: 0.75rem;
-        }
-
-        .notification-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            color: #64748b;
-            font-size: 0.85rem;
-        }
-
-        .notification-meta i {
-            color: #667eea;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #64748b;
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.3;
-        }
-
-        .empty-state h5 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-
-        /* Row and Column System */
-        .row {
-            display: flex;
-            flex-wrap: wrap;
-            margin: 0 -1rem;
-        }
-
-        .col-12 { width: 100%; padding: 0 1rem; }
-        .col-md-3 { width: 25%; padding: 0 1rem; }
-        .col-md-4 { width: 33.333%; padding: 0 1rem; }
-
-        .mb-3 { margin-bottom: 1rem; }
-        .mb-4 { margin-bottom: 2rem; }
-        .mb-0 { margin-bottom: 0; }
-        .ms-2 { margin-left: 0.5rem; }
-        .ms-3 { margin-left: 1rem; }
-        .me-2 { margin-right: 0.5rem; }
-
-        .d-flex { display: flex; }
-        .justify-content-between { justify-content: space-between; }
-        .align-items-center { align-items: center; }
-        .align-items-start { align-items: flex-start; }
-        .flex-grow-1 { flex-grow: 1; }
-
-        .text-muted { color: #64748b; }
-        .text-success { color: #10b981; }
-        .text-danger { color: #ef4444; }
-        .text-warning { color: #f59e0b; }
-        .text-info { color: #06b6d4; }
-        .text-secondary { color: #64748b; }
-        .text-center { text-align: center; }
-
-        .fw-bold { font-weight: 700; }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .main-content {
-                margin-left: 0;
-            }
-
-            .sidebar.collapsed ~ .main-content {
-                margin-left: 0;
-            }
-
-            .content-wrapper {
-                padding: 1rem;
-            }
-
-            .page-header {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: flex-start;
-                padding: 1.5rem;
-            }
-
-            .page-header-content h1 {
-                font-size: 1.5rem;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .col-md-3,
-            .col-md-4 {
-                width: 100%;
-            }
-
-            .card-body {
-                padding: 1.5rem;
-            }
-
-            .btn-block {
-                width: 100%;
-            }
-
-            .notification-header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        }
-    </style>
-
-    <div class="admin-layout">
-        <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
         
-        <main class="main-content">
-            <div class="content-wrapper">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <div class="page-header-content">
-                        <h1>
-                            <i class="fas fa-bell"></i>
-                            Notifications Management
-                        </h1>
-                        <p>Monitor and manage all system notifications</p>
-                    </div>
-                    <a href="<?= BASE_URL ?>admin/dashboard" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Dashboard
-                    </a>
-                </div>
+        .sidebar-panel {
+            order: -1;
+        }
+    }
 
-                <!-- Notification Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card warning">
-                        <div class="stat-content">
-                            <div class="stat-info">
-                                <h4><?= count(array_filter($notifications, fn($n) => $n['type'] === 'overdue')) ?></h4>
-                                <p>Overdue</p>
-                            </div>
-                            <div class="stat-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="stat-content">
-                            <div class="stat-info">
-                                <h4><?= count(array_filter($notifications, fn($n) => $n['type'] === 'fine_paid')) ?></h4>
-                                <p>Fines Paid</p>
-                            </div>
-                            <div class="stat-icon">
-                                <i class="fas fa-money-bill-wave"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stat-card danger">
-                        <div class="stat-content">
-                            <div class="stat-info">
-                                <h4><?= count(array_filter($notifications, fn($n) => $n['type'] === 'out_of_stock')) ?></h4>
-                                <p>Out of Stock</p>
-                            </div>
-                            <div class="stat-icon">
-                                <i class="fas fa-box-open"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stat-card info">
-                        <div class="stat-content">
-                            <div class="stat-info">
-                                <h4><?= count(array_filter($notifications, fn($n) => !$n['isRead'])) ?></h4>
-                                <p>Unread</p>
-                            </div>
-                            <div class="stat-icon">
-                                <i class="fas fa-envelope"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    /* Notifications Panel (Left) */
+    .notifications-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
 
-                <!-- Quick Actions -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-bolt"></i> Quick Actions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3 mb-3">
-                                <button type="button" class="btn btn-success btn-block" onclick="markAllAsRead()">
-                                    <i class="fas fa-check-double"></i> Mark All as Read
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <button type="button" class="btn btn-warning btn-block" onclick="checkOverdueNotifications()">
-                                    <i class="fas fa-sync"></i> Check Overdue
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <button type="button" class="btn btn-info btn-block" onclick="checkOutOfStockNotifications()">
-                                    <i class="fas fa-search"></i> Check Stock
-                                </button>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <button type="button" class="btn btn-danger btn-block" onclick="clearOldNotifications()">
-                                    <i class="fas fa-trash"></i> Clear Old
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    /* Filter Card */
+    .filter-card {
+        background: white;
+        border-radius: 18px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        transition: all 0.3s ease;
+    }
 
-                <!-- Filters -->
-                <div class="card">
-                    <div class="card-body">
-                        <form method="GET" class="row">
-                            <div class="col-md-3 mb-3">
+    .filter-card:hover {
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08), 0 16px 24px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-card h3 {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        letter-spacing: -0.01em;
+    }
+
+    .filter-card h3 i {
+        color: #667eea;
+        font-size: 1.25rem;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border-radius: 10px;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: #334155;
+        font-size: 0.9rem;
+        letter-spacing: -0.01em;
+    }
+
+    .form-control {
+        padding: 0.875rem 1.125rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: #f8fafc;
+        font-weight: 500;
+        color: #1e293b;
+        cursor: pointer;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .form-control:hover {
+        border-color: #cbd5e1;
+        background: white;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.875rem 1.125rem;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .form-check:hover {
+        border-color: #667eea;
+        background: white;
+    }
+
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #667eea;
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        font-weight: 600;
+        color: #475569;
+        font-size: 0.95rem;
+    }
+
+    /* Notifications List Card */
+    .notifications-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .notifications-card:hover {
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08), 0 16px 24px rgba(0, 0, 0, 0.05);
+    }
+
+    .notifications-header {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 2px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .notifications-header h3 {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        letter-spacing: -0.01em;
+    }
+
+    .notifications-header i {
+        color: #667eea;
+        font-size: 1.5rem;
+        animation: bellRing 3s ease-in-out infinite;
+    }
+
+    @keyframes bellRing {
+        0%, 100% {
+            transform: rotate(0deg);
+        }
+        10%, 30% {
+            transform: rotate(-10deg);
+        }
+        20%, 40% {
+            transform: rotate(10deg);
+        }
+        50% {
+            transform: rotate(0deg);
+        }
+    }
+
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: inline-block;
+        letter-spacing: 0.3px;
+    }
+
+    .badge-primary {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .notifications-body {
+        max-height: calc(100vh - 400px);
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: #fafbfc;
+    }
+
+    .notifications-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .notifications-body::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+
+    .notifications-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+        border-radius: 10px;
+    }
+
+    .notifications-body::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+    }
+
+    /* Notification Item */
+    .notification-item {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .notification-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+    }
+
+    .notification-item:hover {
+        transform: translateX(8px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+        border-color: #667eea;
+    }
+
+    .notification-item:hover::before {
+        transform: scaleY(1);
+    }
+
+    .notification-item.unread {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-color: #667eea;
+        border-left-width: 4px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .notification-item.unread::after {
+        content: '';
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 10px;
+        height: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(1.2);
+        }
+    }
+
+    .notification-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+
+    .notification-title-section {
+        flex: 1;
+    }
+
+    .notification-title-section h6 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.625rem;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        line-height: 1.4;
+    }
+
+    .notification-title-section h6 i {
+        font-size: 1.15rem;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+
+    .notification-title-section h6 i.fa-exclamation-triangle {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
+        color: #dc2626;
+    }
+
+    .notification-title-section h6 i.fa-money-bill-wave {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+        color: #059669;
+    }
+
+    .notification-title-section h6 i.fa-box-open {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+        color: #d97706;
+    }
+
+    .notification-title-section h6 i.fa-cog {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(8, 145, 178, 0.15) 100%);
+        color: #0891b2;
+    }
+
+    .notification-title-section h6 i.fa-bell {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+        color: #f59e0b;
+    }
+
+    .notification-title-section h6 i.fa-check-circle {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+        color: #10b981;
+    }
+
+    .notification-title-section h6 i.fa-info-circle {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+        color: #6366f1;
+    }
+
+    .notification-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .badge-danger {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #991b1b;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-warning {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+    }
+
+    .badge-info {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        box-shadow: 0 2px 4px rgba(6, 182, 212, 0.2);
+    }
+
+    .badge-success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+    }
+
+    .badge-secondary {
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        color: #475569;
+        box-shadow: 0 2px 4px rgba(71, 85, 105, 0.15);
+    }
+
+    .notification-message {
+        color: #475569;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%);
+        border-radius: 10px;
+        border-left: 3px solid #e2e8f0;
+    }
+
+    .notification-item.unread .notification-message {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(240, 249, 255, 0.8) 50%);
+        border-left-color: #667eea;
+    }
+
+    .notification-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        font-size: 0.85rem;
+        color: #94a3b8;
+        padding: 0.75rem 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .notification-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-weight: 500;
+    }
+
+    .notification-meta i {
+        color: #cbd5e1;
+    }
+
+    /* Sidebar Panel (Right) */
+    .sidebar-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        position: sticky;
+        top: 2rem;
+    }
+
+    /* Stats Card */
+    .stats-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(226, 232, 240, 0.6);
+    }
+
+    .stats-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+
+    .stats-card h3 i {
+        color: #667eea;
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.875rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+
+    .stat-label {
+        font-weight: 600;
+        color: #475569;
+        font-size: 0.9rem;
+    }
+
+    .stat-value {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: #0f172a;
+    }
+
+    .stat-value.unread {
+        color: #667eea;
+    }
+
+    /* Actions Card */
+    .actions-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(226, 232, 240, 0.6);
+    }
+
+    .actions-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+
+    .actions-card h3 i {
+        color: #667eea;
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.75rem 1.25rem;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+    }
+
+    .btn-info {
+        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    }
+
+    .btn-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-block {
+        width: 100%;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        font-size: 5rem;
+        opacity: 0.2;
+        margin-bottom: 2rem;
+        display: block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .empty-state h5 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    /* Read Status Button */
+    .read-status {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .read-status.read {
+        color: #10b981;
+    }
+
+    .read-status.unread {
+        color: #667eea;
+    }
+</style>
+
+<main class="main-content">
+    <div class="content-wrapper">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>Notifications Management</h1>
+                <div class="breadcrumb">
+                    <a href="<?= BASE_URL ?>admin/dashboard">Home</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="active">Notifications</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="notifications-layout">
+            <!-- Left Panel - Notifications -->
+            <div class="notifications-panel">
+                <!-- Filter Card -->
+                <div class="filter-card">
+                    <h3><i class="fas fa-filter"></i> Filter Notifications</h3>
+                    <form method="GET" action="">
+                        <div class="filter-row">
+                            <div class="form-group">
                                 <label for="type" class="form-label">Type</label>
                                 <select class="form-control" id="type" name="type">
                                     <option value="">All Types</option>
@@ -677,7 +796,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     <option value="approval" <?= $currentType === 'approval' ? 'selected' : '' ?>>Approval</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 mb-3">
+                            <div class="form-group">
                                 <label for="priority" class="form-label">Priority</label>
                                 <select class="form-control" id="priority" name="priority">
                                     <option value="">All Priorities</option>
@@ -686,66 +805,64 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     <option value="low">Low</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label" style="opacity: 0;">Unread</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="unread" name="unread" 
-                                           <?= $unreadOnly ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="unread">
-                                        Unread Only
-                                    </label>
-                                </div>
+                        </div>
+                        <div class="filter-row">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="unread" name="unread" 
+                                       <?= $unreadOnly ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="unread">
+                                    Unread Only
+                                </label>
                             </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label" style="opacity: 0;">Filter</label>
-                                <button type="submit" class="btn btn-primary btn-block">
-                                    <i class="fas fa-filter"></i> Apply Filters
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Apply Filters
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
                 <!-- Notifications List -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5>
-                            <i class="fas fa-list"></i> Notifications
-                            <span class="badge bg-primary ms-2"><?= count($notifications) ?> records</span>
-                        </h5>
+                <div class="notifications-card">
+                    <div class="notifications-header">
+                        <h3>
+                            <i class="fas fa-bell"></i> Notifications
+                        </h3>
+                        <span class="badge badge-primary"><?= $totalNotifications ?> total</span>
                     </div>
-                    <div class="card-body">
+                    <div class="notifications-body">
                         <?php if (!empty($notifications)): ?>
                             <?php foreach ($notifications as $notification): ?>
-                                <div class="notification-item <?= $notification['isRead'] ? 'read' : 'unread' ?>">
-                                    <div class="notification-header">
-                                        <div class="notification-title <?= $notification['isRead'] ? '' : 'unread' ?>">
-                                            <?php
-                                            $typeIcons = [
-                                                'overdue' => 'fas fa-exclamation-triangle text-danger',
-                                                'fine_paid' => 'fas fa-money-bill-wave text-success',
-                                                'out_of_stock' => 'fas fa-box-open text-warning',
-                                                'system' => 'fas fa-cog text-info',
-                                                'reminder' => 'fas fa-bell text-warning',
-                                                'approval' => 'fas fa-check-circle text-success'
-                                            ];
-                                            $priorityColors = [
-                                                'high' => 'danger',
-                                                'medium' => 'warning',
-                                                'low' => 'info'
-                                            ];
-                                            ?>
-                                            <i class="<?= $typeIcons[$notification['type']] ?? 'fas fa-info-circle text-secondary' ?>"></i>
-                                            <div>
-                                                <h6><?= htmlspecialchars($notification['title']) ?></h6>
-                                                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
-                                                    <span class="badge bg-<?= $priorityColors[$notification['priority']] ?? 'secondary' ?>">
-                                                        <?= ucfirst($notification['priority']) ?>
-                                                    </span>
-                                                    <span class="badge bg-secondary">
-                                                        <?= ucfirst(str_replace('_', ' ', $notification['type'])) ?>
-                                                    </span>
-                                                </div>
+                                <div class="notification-item <?= $notification['isRead'] ? '' : 'unread' ?>">
+                                    <div class="notification-header-row">
+                                        <div class="notification-title-section">
+                                            <h6>
+                                                <?php
+                                                $typeIcons = [
+                                                    'overdue' => 'fas fa-exclamation-triangle',
+                                                    'fine_paid' => 'fas fa-money-bill-wave',
+                                                    'out_of_stock' => 'fas fa-box-open',
+                                                    'system' => 'fas fa-cog',
+                                                    'reminder' => 'fas fa-bell',
+                                                    'approval' => 'fas fa-check-circle'
+                                                ];
+                                                ?>
+                                                <i class="<?= $typeIcons[$notification['type']] ?? 'fas fa-info-circle' ?>"></i>
+                                                <?= htmlspecialchars($notification['title']) ?>
+                                            </h6>
+                                            <div class="notification-badges">
+                                                <?php
+                                                $priorityColors = [
+                                                    'high' => 'danger',
+                                                    'medium' => 'warning',
+                                                    'low' => 'info'
+                                                ];
+                                                ?>
+                                                <span class="badge badge-<?= $priorityColors[$notification['priority']] ?? 'secondary' ?>">
+                                                    <?= ucfirst($notification['priority']) ?>
+                                                </span>
+                                                <span class="badge badge-secondary">
+                                                    <?= ucfirst(str_replace('_', ' ', $notification['type'])) ?>
+                                                </span>
                                             </div>
                                         </div>
                                         <div>
@@ -755,7 +872,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                                     <i class="fas fa-check"></i> Mark Read
                                                 </button>
                                             <?php else: ?>
-                                                <span class="text-success" style="font-weight: 600;">
+                                                <span class="read-status read">
                                                     <i class="fas fa-check-circle"></i> Read
                                                 </span>
                                             <?php endif; ?>
@@ -787,67 +904,124 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         <?php endif; ?>
                     </div>
                 </div>
-                 
             </div>
-            <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
-        </main>
+
+            <!-- Right Panel - Stats & Actions -->
+            <div class="sidebar-panel">
+                <!-- Stats Card -->
+                <div class="stats-card">
+                    <h3><i class="fas fa-chart-bar"></i> Statistics</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Notifications</span>
+                        <span class="stat-value"><?= $totalNotifications ?></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Unread</span>
+                        <span class="stat-value unread"><?= $unreadCount ?></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Read</span>
+                        <span class="stat-value"><?= $totalNotifications - $unreadCount ?></span>
+                    </div>
+                </div>
+
+                <!-- Actions Card -->
+                <div class="actions-card">
+                    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-success btn-block" onclick="markAllAsRead()">
+                            <i class="fas fa-check-double"></i> Mark All Read
+                        </button>
+                        <button type="button" class="btn btn-warning btn-block" onclick="checkOverdueNotifications()">
+                            <i class="fas fa-exclamation-triangle"></i> Check Overdue
+                        </button>
+                        <button type="button" class="btn btn-info btn-block" onclick="checkOutOfStockNotifications()">
+                            <i class="fas fa-box-open"></i> Check Stock
+                        </button>
+                        <button type="button" class="btn btn-danger btn-block" onclick="clearOldNotifications()">
+                            <i class="fas fa-trash-alt"></i> Clear Old (30d+)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+</main>
 
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+<script>
+    function markAsRead(notificationId) {
+        if (confirm('Mark this notification as read?')) {
+            // AJAX implementation here
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?= BASE_URL ?>admin/notifications/mark-read';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'notificationId';
+            input.value = notificationId;
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
         }
+    }
 
-        function markAsRead(notificationId) {
-            if (confirm('Mark this notification as read?')) {
-                // Implementation for marking as read
-                alert('Marking notification #' + notificationId + ' as read...');
-                // You can implement AJAX call here
-                // After success, reload or update the UI
-                window.location.reload();
-            }
+    function markAllAsRead() {
+        if (confirm('Mark all notifications as read?')) {
+            window.location.href = '<?= BASE_URL ?>admin/notifications/mark-all-read';
         }
+    }
 
-        function markAllAsRead() {
-            if (confirm('Mark all notifications as read?')) {
-                alert('Mark all as read feature coming soon!');
-            }
+    function checkOverdueNotifications() {
+        if (confirm('Check for overdue notifications?')) {
+            window.location.href = '<?= BASE_URL ?>admin/notifications/check-overdue';
         }
+    }
 
-        function checkOverdueNotifications() {
-            if (confirm('Check for overdue notifications?')) {
-                alert('Checking overdue notifications...');
-            }
+    function checkOutOfStockNotifications() {
+        if (confirm('Check for out of stock notifications?')) {
+            window.location.href = '<?= BASE_URL ?>admin/notifications/check-stock';
         }
+    }
 
-        function checkOutOfStockNotifications() {
-            if (confirm('Check for out of stock notifications?')) {
-                alert('Checking out of stock notifications...');
-            }
+    function clearOldNotifications() {
+        if (confirm('Clear notifications older than 30 days? This cannot be undone.')) {
+            window.location.href = '<?= BASE_URL ?>admin/notifications/clear-old';
         }
+    }
 
-        function clearOldNotifications() {
-            if (confirm('Clear notifications older than 30 days?')) {
-                alert('Clearing old notifications...');
-            }
-        }
-
-        // Auto-refresh notifications every 30 seconds
-        setInterval(function() {
+    // Auto-refresh notifications every 60 seconds
+    let autoRefreshInterval;
+    
+    function startAutoRefresh() {
+        autoRefreshInterval = setInterval(function() {
             if (window.location.pathname.includes('notifications')) {
                 console.log('Auto-refreshing notifications...');
-                // You can implement AJAX refresh here
+                // Uncomment for AJAX refresh
+                // location.reload();
             }
-        }, 30000);
+        }, 60000);
+    }
 
-        // Load sidebar state
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            if (sidebarCollapsed && sidebar) {
-                sidebar.classList.add('collapsed');
-            }
-        });
-    </script>
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    }
+
+    // Start auto-refresh on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        startAutoRefresh();
+    });
+
+    // Stop auto-refresh when page is hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+</script>

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ dev, main, master,enhancement ]
+    branches: [ dev, main, master, enhancement  ]
   pull_request:
-    branches: [ dev, main, master,enhancement ]
+    branches: [ dev, main, master, enhancement ]
 
 jobs:
   build-test:
@@ -25,38 +25,57 @@ jobs:
           --health-retries=10
 
     steps:
+      # 🧾 Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 🐘 Setup PHP 8.2 (not 8.1)
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.2'
           tools: composer
+          extensions: mysqli, pdo_mysql
           coverage: none
 
+      # 🧰 Install MySQL client
       - name: Install MySQL client
         run: sudo apt-get update && sudo apt-get install -y mysql-client
 
+      # ⏳ Wait for MySQL service to become healthy
       - name: Wait for MySQL
         run: |
           for i in {1..30}; do
             if mysqladmin ping -h 127.0.0.1 -proot --silent; then
-              echo "MySQL is up"; break; fi; sleep 2; done
+              echo "✅ MySQL is up";
+              break;
+            fi;
+            echo "Waiting for MySQL...";
+            sleep 2;
+          done
 
+      # 🗃️ Import your schema files
       - name: Import schema
         run: |
           mysql -h 127.0.0.1 -uroot -proot integrated_library_system < docker/mysql/library.sql
-          # Optional: apply additional migrations if needed
-          mysql -h 127.0.0.1 -uroot -proot integrated_library_system < database_migration.sql || true
+          if [ -f database_migration.sql ]; then
+            mysql -h 127.0.0.1 -uroot -proot integrated_library_system < database_migration.sql
+          fi
 
-      - name: Install Composer deps (root)
-        run: composer install --no-interaction --no-progress --prefer-dist
+      # 🎵 Install Composer dependencies
+      - name: Install Composer dependencies
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist
+        env:
+          COMPOSER_ALLOW_SUPERUSER: 1
+          COMPOSER_MEMORY_LIMIT: -1
 
-      - name: PHP lint
+      # 🧪 PHP Syntax Check (Lint)
+      - name: PHP Lint
         run: |
           find src -type f -name "*.php" -print0 | xargs -0 -n1 php -l
 
+      # 🚀 Basic Smoke Test - Check Autoload & DB Connection
       - name: Smoke test - autoloader and DB connect
         env:
           DB_HOST: 127.0.0.1
@@ -65,14 +84,12 @@ jobs:
           DB_PASSWORD: root
           DB_NAME: integrated_library_system
         run: |
-          php -r "require 'vendor/autoload.php'; echo 'Autoload OK' . PHP_EOL;"
+          php -r "require 'vendor/autoload.php'; echo '✅ Autoload OK' . PHP_EOL;"
           php -r "
             try {
               require 'src/config/dbConnection.php';
-              echo (isset(\$conn) && \$conn) ? 'DB OK' . PHP_EOL : 'DB FAIL' . PHP_EOL;
+              echo (isset(\$conn) && \$conn) ? '✅ DB OK' . PHP_EOL : '❌ DB FAIL' . PHP_EOL;
             } catch (Exception \$e) {
-              echo 'DB FAIL: ' . \$e->getMessage() . PHP_EOL;
+              echo '❌ DB FAIL: ' . \$e->getMessage() . PHP_EOL;
             }
           "
-
-
