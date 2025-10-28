@@ -809,6 +809,6 @@ class BookController
         
         // Load user return view
         $pageTitle = 'Return Books';
-        include APP_ROOT . '/views/user/return.php';
+        include APP_ROOT . '/views/users/return.php';
     }
 }
