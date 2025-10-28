@@ -811,4 +811,207 @@ class BookController
         $pageTitle = 'Return Books';
         include APP_ROOT . '/views/user/return.php';
     }
+    
+    /**
+     * Public book preview for guests
+     */
+    public function publicPreview($isbn) {
+        try {
+            require_once __DIR__ . '/../config/dbConnection.php';
+            
+            $stmt = $pdo->prepare("SELECT * FROM books WHERE isbn = ?");
+            $stmt->execute([$isbn]);
+            $book = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$book) {
+                header("Location: /index.php?route=error&msg=Book not found");
+                exit;
+            }
+            
+            // Truncate description for teaser
+            $book['teaser'] = substr($book['description'] ?? '', 0, 100) . '...';
+            
+            // Check if in session wishlist
+            $inWishlist = false;
+            if (isset($_SESSION['guest_wishlist'])) {
+                $inWishlist = in_array($isbn, $_SESSION['guest_wishlist']);
+            }
+            
+            require_once __DIR__ . '/../../views/public/book-preview.php';
+            
+        } catch (PDOException $e) {
+            error_log("Preview error: " . $e->getMessage());
+            header("Location: /index.php?route=error&msg=Database error");
+            exit;
+        }
+    }
+
+    /**
+     * Guest wishlist management (AJAX endpoint)
+     */
+    public function guestWishlist() {
+        require_once __DIR__ . '/../Helpers/SessionHelper.php';
+        
+        header('Content-Type: application/json');
+        
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $action = $_GET['action'] ?? 'add';
+            $isbn = $data['isbn'] ?? '';
+            
+            if (empty($isbn)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid ISBN']);
+                exit;
+            }
+            
+            try {
+                require_once __DIR__ . '/../config/dbConnection.php';
+                
+                if ($action === 'add') {
+                    $stmt = $pdo->prepare("INSERT INTO guest_wishlist (isbn) VALUES (?)");
+                    $stmt->execute([$isbn]);
+                    $_SESSION['guest_wishlist'][] = $isbn;
+                    echo json_encode(['success' => true, 'message' => 'Book added to wishlist']);
+                } elseif ($action === 'remove') {
+                    $stmt = $pdo->prepare("DELETE FROM guest_wishlist WHERE isbn = ?");
+                    $stmt->execute([$isbn]);
+                    $_SESSION['guest_wishlist'] = array_diff($_SESSION['guest_wishlist'], [$isbn]);
+                    echo json_encode(['success' => true, 'message' => 'Book removed from wishlist']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Invalid action']);
+                }
+                
+            } catch (PDOException $e) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                error_log("Wishlist error: " . $e->getMessage());
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request']);
+        }
+        exit;
+    }
+
+    /**
+     * Faculty book reservations management
+     */
+    public function manageReservation() {
+        if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Faculty') {
+            header("Location: /index.php?route=login");
+            exit;
+        }
+        
+        $action = $_GET['action'] ?? $_POST['action'] ?? '';
+        $isbn = $_POST['isbn'] ?? $_GET['isbn'] ?? '';
+        $userId = $_SESSION['userId'];
+        
+        try {
+            require_once __DIR__ . '/../config/dbConnection.php';
+            
+            switch ($action) {
+                case 'add':
+                    // Check if book is available
+                    $stmt = $pdo->prepare("SELECT available FROM books WHERE isbn = ?");
+                    $stmt->execute([$isbn]);
+                    $book = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($book && $book['available'] == 0) {
+                        // Add reservation
+                        $expiryDate = date('Y-m-d H:i:s', strtotime('+7 days'));
+                        $stmt = $pdo->prepare("
+                            INSERT INTO book_reservations 
+                            (userId, isbn, reservationStatus, expiryDate, createdAt) 
+                            VALUES (?, ?, 'Active', ?, NOW())
+                        ");
+                        $stmt->execute([$userId, $isbn, $expiryDate]);
+                        
+                        $_SESSION['success'] = "Book reserved! You'll be notified when available.";
+                    } else {
+                        $_SESSION['error'] = "This book is currently available for borrowing.";
+                    }
+                    break;
+                    
+                case 'cancel':
+                    $stmt = $pdo->prepare("
+                        UPDATE book_reservations 
+                        SET reservationStatus = 'Cancelled' 
+                        WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'
+                    ");
+                    $stmt->execute([$userId, $isbn]);
+                    $_SESSION['success'] = "Reservation cancelled.";
+                    break;
+            }
+            
+            header("Location: /index.php?route=faculty-dashboard");
+            
+        } catch (PDOException $e) {
+            error_log("Reservation error: " . $e->getMessage());
+            $_SESSION['error'] = "Database error. Please try again.";
+            header("Location: /index.php?route=faculty-dashboard");
+        }
+        exit;
+    }
+
+    public function getReservationQueue($isbn) {
+        try {
+            require_once __DIR__ . '/../config/dbConnection.php';
+            
+            $stmt = $pdo->prepare("
+                SELECT 
+                    br.*,
+                    u.emailId,
+                    ROW_NUMBER() OVER (ORDER BY br.createdAt) as queue_position
+                FROM book_reservations br
+                JOIN users u ON br.userId = u.userId
+                WHERE br.isbn = ? AND br.reservationStatus = 'Active'
+                ORDER BY br.createdAt
+            ");
+            $stmt->execute([$isbn]);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (PDOException $e) {
+            error_log("Queue fetch error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function notifyNextInQueue($isbn) {
+        try {
+            require_once __DIR__ . '/../config/dbConnection.php';
+            require_once __DIR__ . '/../Services/NotificationService.php';
+            
+            // Get first person in queue
+            $stmt = $pdo->prepare("
+                SELECT userId, id 
+                FROM book_reservations 
+                WHERE isbn = ? AND reservationStatus = 'Active' 
+                ORDER BY createdAt 
+                LIMIT 1
+            ");
+            $stmt->execute([$isbn]);
+            $reservation = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($reservation) {
+                // Update status
+                $stmt = $pdo->prepare("
+                    UPDATE book_reservations 
+                    SET reservationStatus = 'Notified', notifiedAt = NOW() 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$reservation['id']]);
+                
+                // Send notification
+                $notificationService = new NotificationService($pdo);
+                $notificationService->create(
+                    $reservation['userId'],
+                    'Reserved Book Available',
+                    "Your reserved book (ISBN: $isbn) is now available. Please borrow within 48 hours.",
+                    'reservation'
+                );
+            }
+            
+        } catch (PDOException $e) {
+            error_log("Queue notification error: " . $e->getMessage());
+        }
+    }
 }

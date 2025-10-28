@@ -60,6 +60,12 @@ class AuthController
         $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
         $_SESSION['emailId'] = $user['emailId'];
 
+        // Migrate wishlist to favorites if exists
+        if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
+          $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
+          unset($_SESSION['guest_wishlist']);
+        }
+
         $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
         $this->authHelper->redirectByUserType();
       } else {
@@ -461,5 +467,26 @@ class AuthController
       header('Content-Type: application/json');
       echo json_encode($status);
       exit();
+  }
+
+  /**
+   * Migrate wishlist to favorites
+   */
+  private function migrateWishlistToFavorites($userId, $wishlist)
+  {
+    try {
+        require_once __DIR__ . '/../config/dbConnection.php';
+        
+        $stmt = $pdo->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
+        
+        foreach ($wishlist as $isbn) {
+            $stmt->execute([$userId, $isbn, 'Migrated from guest wishlist']);
+        }
+        
+        return true;
+    } catch (PDOException $e) {
+        error_log("Wishlist migration error: " . $e->getMessage());
+        return false;
+    }
   }
 }

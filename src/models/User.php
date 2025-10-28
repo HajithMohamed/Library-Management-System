@@ -2,27 +2,14 @@
 
 namespace App\Models;
 
-class User
+class User extends BaseModel
 {
-    private $db;      // Database connection property
-    private $conn;    // Alternative property name
+    protected $table = 'users';
     
     public function __construct()
     {
-        // Initialize database connection
-        global $mysqli;
-        global $conn;
-        
-        // Support both $mysqli and $conn naming conventions
-        if (isset($mysqli)) {
-            $this->db = $mysqli;
-            $this->conn = $mysqli;
-        } elseif (isset($conn)) {
-            $this->db = $conn;
-            $this->conn = $conn;
-        } else {
-            throw new \Exception("Database connection not available");
-        }
+        // Call parent constructor to initialize $db from BaseModel
+        parent::__construct();
     }
     
     /**
@@ -467,6 +454,85 @@ class User
         
         error_log("User not found: " . $userId);
         return false;
+    }
+
+    public function updateProfile($userId, $data)
+    {
+        $fields = [];
+        $values = [];
+        $types = '';
+
+        if (isset($data['email'])) {
+            $fields[] = "emailId = ?";
+            $values[] = $data['email'];
+            $types .= 's';
+        }
+        
+        if (isset($data['phone'])) {
+            $fields[] = "phoneNumber = ?";
+            $values[] = $data['phone'];
+            $types .= 's';
+        }
+        
+        if (isset($data['address'])) {
+            $fields[] = "address = ?";
+            $values[] = $data['address'];
+            $types .= 's';
+        }
+
+        if (isset($data['department'])) {
+            $fields[] = "department = ?";
+            $values[] = $data['department'];
+            $types .= 's';
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $values[] = $userId;
+        $types .= 's';
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . ", updatedAt = NOW() WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param($types, ...$values);
+        
+        return $stmt->execute();
+    }
+
+    public function changePassword($userId, $currentPassword, $newPassword)
+    {
+        // Verify current password
+        $sql = "SELECT password FROM {$this->table} WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        
+        if (!$result || !password_verify($currentPassword, $result['password'])) {
+            return false;
+        }
+        
+        // Update password
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $sql = "UPDATE {$this->table} SET password = ?, updatedAt = NOW() WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('ss', $hashedPassword, $userId);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Find user by ID (using userId column)
+     */
+    public function findById($userId)
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE userId = ? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_assoc();
     }
 }
 ?>
