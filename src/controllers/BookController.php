@@ -540,42 +540,37 @@ class BookController
   }
 
   /**
-   * Display books for users (public/student view)
-   * NOTE: Faculty users will be redirected to /faculty/books
-   */
-  public function userBooks()
-  {
-    // Check if logged in user and redirect based on type
+ * Display books for users (public/student view)
+ * NOTE: Faculty users will be redirected to /faculty/books
+ */
+public function userBooks()
+{
+    // Ensure the user is logged in
     if (!isset($_SESSION['userType']) && !isset($_SESSION['user_type'])) {
-      header('Location: /login');
-      exit();
+        header('Location: /login');
+        exit();
     }
 
     $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
 
-    // Handle redirects - these should be for DIFFERENT routes coming to this method
-    // Remove these redirects if /user/books is already calling userBooks()
-
+    // Redirect other roles to their specific routes
     if ($userType === 'Faculty') {
-      header('Location: /faculty/books');
-      exit();
+        header('Location: /faculty/books');
+        exit();
     }
+
     if ($userType === 'Admin') {
-      header('Location: /admin/books');
-      exit();
-    }
-    if ($userType === "Student") {
-      header("Location: /user/books");
-      exit();
+        header('Location: /admin/books');
+        exit();
     }
 
-
+    // Database connection
     global $mysqli;
     if (!$mysqli) {
-      die("Database connection failed");
+        die("Database connection failed");
     }
 
-    // Fetch all available books
+    // Fetch available books
     $sql = "SELECT
                 isbn,
                 bookName,
@@ -593,18 +588,16 @@ class BookController
     $result = $mysqli->query($sql);
 
     if (!$result) {
-      error_log("SQL Error in userBooks: " . $mysqli->error);
-      die("Error fetching books: " . $mysqli->error);
+        error_log("SQL Error in userBooks: " . $mysqli->error);
+        die("Error fetching books: " . $mysqli->error);
     }
 
     $books = [];
     while ($row = $result->fetch_assoc()) {
-      // Add 'image' alias for backward compatibility
-      $row['image'] = $row['bookImage'];
-      // Add missing columns with default values
-      $row['isSpecial'] = 0;
-      $row['specialBadge'] = null;
-      $books[] = $row;
+        $row['image'] = $row['bookImage']; // backward compatibility alias
+        $row['isSpecial'] = 0;
+        $row['specialBadge'] = null;
+        $books[] = $row;
     }
     $result->free();
 
@@ -614,11 +607,11 @@ class BookController
     $totalBorrowed = 0;
 
     foreach ($books as $book) {
-      $totalAvailable += ($book['available'] ?? 0);
-      $totalBorrowed += ($book['borrowed'] ?? 0);
+        $totalAvailable += ($book['available'] ?? 0);
+        $totalBorrowed += ($book['borrowed'] ?? 0);
     }
 
-    // Get categories for filter dropdown
+    // Get distinct publisher names for filtering
     $categories = [];
     $publisherSql = "SELECT DISTINCT publisherName
                      FROM books
@@ -626,38 +619,41 @@ class BookController
                      ORDER BY publisherName ASC";
 
     $publisherResult = $mysqli->query($publisherSql);
-
     if ($publisherResult) {
-      while ($row = $publisherResult->fetch_assoc()) {
-        if (!empty($row['publisherName'])) {
-          $categories[] = $row['publisherName'];
+        while ($row = $publisherResult->fetch_assoc()) {
+            if (!empty($row['publisherName'])) {
+                $categories[] = $row['publisherName'];
+            }
         }
-      }
-      $publisherResult->free();
+        $publisherResult->free();
     }
 
     $pageTitle = 'Available Books';
 
-    // Determine which view to load based on user type
+    // View paths
     $userViewPath = APP_ROOT . '/views/users/books.php';
     $facultyViewPath = APP_ROOT . '/views/faculty/books.php';
+    // $fallbackViewPath = APP_ROOT . '/views/shared/books.php'; // optional fallback
 
-    var_dump($userViewPath);
+    // Debug (optional)
+    // var_dump($userViewPath);
 
-    if ($userType === "Student" && file_exists($userViewPath)) {
-      include $userViewPath;
-    } elseif ($userType === "Faculty" && file_exists($facultyViewPath)) {
-      include $facultyViewPath;
-    } elseif ($userType === "Admin") {
-      // Add admin view path if needed
-      die("Admin books view not implemented");
+    // Load appropriate view
+    if ($userType === "Faculty" && file_exists($facultyViewPath)) {
+        include $facultyViewPath;
+    } elseif (file_exists($userViewPath)) {
+        include $userViewPath; // for regular users (students, members, etc.)
+    } elseif (file_exists($fallbackViewPath)) {
+        include $fallbackViewPath; // fallback if others not found
     } else {
-      error_log("ERROR: No books view found for user type: {$userType}");
-      error_log("Checked paths: {$userViewPath}, {$facultyViewPath}");
-      error_log("APP_ROOT: " . APP_ROOT);
-      die("Books view template not found for your user type");
+        // Graceful error message instead of die()
+        http_response_code(404);
+        echo "<h2>Books view template not found for your user type.</h2>";
+        echo "<p>Expected path: <code>{$userViewPath}</code></p>";
+        exit();
     }
-  }
+}
+
 
   /**
    * Search books (API endpoint)
