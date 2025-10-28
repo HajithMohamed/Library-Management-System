@@ -381,6 +381,38 @@ $readNotifications = array_filter($notifications, fn($n) => $n['isRead']);
         box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     }
     
+    /* Back Button */
+    .back-button {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .back-button:hover {
+        background: #667eea;
+        color: white;
+        transform: translateX(-5px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+    
+    .back-button i {
+        transition: transform 0.3s ease;
+    }
+    
+    .back-button:hover i {
+        transform: translateX(-3px);
+    }
+    
     /* Empty State */
     .empty-state {
         text-align: center;
@@ -480,6 +512,10 @@ $readNotifications = array_filter($notifications, fn($n) => $n['isRead']);
                     <p>Stay updated with your library activities</p>
                 </div>
                 <div class="header-stats">
+                    <a href="<?= BASE_URL ?>faculty/dashboard" class="back-button">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Dashboard</span>
+                    </a>
                     <?php if (count($unreadNotifications) > 0): ?>
                         <div class="stat-badge unread">
                             <i class="fas fa-circle"></i>

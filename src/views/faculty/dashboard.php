@@ -516,10 +516,6 @@ $transactionHistory = $transactionHistory ?? [];
                 <i class="fas fa-history"></i>
                 Borrow History
             </a>
-            <a href="/faculty/book-request" class="action-btn secondary">
-                <i class="fas fa-plus-circle"></i>
-                Request New Book
-            </a>
             <a href="/faculty/return" class="action-btn secondary">
                 <i class="fas fa-undo"></i>
                 Return Books
