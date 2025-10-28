@@ -5,30 +5,7 @@ if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
     exit();
 }
 
-$pageTitle = 'Faculty Dashboard';
 include APP_ROOT . '/views/layouts/header.php';
-
-// Get data passed from controller
-$userStats = $userStats ?? [
-    'borrowed_books' => 0,
-    'overdue_books' => 0,
-    'total_fines' => 0,
-    'max_books' => 5
-];
-
-$stats = $stats ?? [
-    'total_books' => 0,
-    'reviews' => ['total_reviews' => 0, 'avg_rating' => 0],
-    'categories' => [],
-    'monthly' => []
-];
-
-$user = $user ?? ['username' => $_SESSION['username'] ?? 'Faculty Member'];
-$borrowedBooks = $borrowedBooks ?? [];
-$overdueBooks = $overdueBooks ?? [];
-$reservedBooks = $reservedBooks ?? [];
-$notifications = $notifications ?? [];
-$transactionHistory = $transactionHistory ?? [];
 ?>
 
 <style>
@@ -390,58 +367,12 @@ $transactionHistory = $transactionHistory ?? [];
         color: white;
     }
     
-    .faculty-analytics {
-        background: white;
-        border-radius: 20px;
-        padding: 30px;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    .faculty-analytics h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .charts-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 30px;
-        margin-top: 30px;
-    }
-    
-    .chart-card {
-        background: white;
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    .chart-card h3 {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
     @media (max-width: 768px) {
         .stats-grid {
             grid-template-columns: 1fr;
         }
         
         .content-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .charts-container {
             grid-template-columns: 1fr;
         }
         
@@ -516,53 +447,14 @@ $transactionHistory = $transactionHistory ?? [];
                 <i class="fas fa-history"></i>
                 Borrow History
             </a>
+            <a href="/faculty/book-request" class="action-btn secondary">
+                <i class="fas fa-plus-circle"></i>
+                Request New Book
+            </a>
             <a href="/faculty/return" class="action-btn secondary">
                 <i class="fas fa-undo"></i>
                 Return Books
             </a>
-        </div>
-    </div>
-
-    <!-- Analytics Section -->
-    <div class="faculty-analytics">
-        <h2>📊 My Reading Analytics</h2>
-        
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">📚</div>
-                <div class="stat-value"><?php echo $stats['total_books'] ?? 0; ?></div>
-                <div class="stat-label">Books Read</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">⭐</div>
-                <div class="stat-value"><?php echo number_format($stats['reviews']['avg_rating'] ?? 0, 1); ?></div>
-                <div class="stat-label">Avg Rating Given</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">✍️</div>
-                <div class="stat-value"><?php echo $stats['reviews']['total_reviews'] ?? 0; ?></div>
-                <div class="stat-label">Reviews Written</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">📖</div>
-                <div class="stat-value"><?php echo count($stats['categories'] ?? []); ?></div>
-                <div class="stat-label">Categories Explored</div>
-            </div>
-        </div>
-        
-        <div class="charts-container">
-            <div class="chart-card">
-                <h3>Reading by Category (Last 30 Days)</h3>
-                <canvas id="categoryChart" height="300"></canvas>
-            </div>
-            
-            <div class="chart-card">
-                <h3>Reading Trend (Last 6 Months)</h3>
-                <canvas id="trendChart" height="300"></canvas>
-            </div>
         </div>
     </div>
 
@@ -682,62 +574,7 @@ $transactionHistory = $transactionHistory ?? [];
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-// Category Chart
-const categoryData = <?php echo json_encode($stats['categories'] ?? []); ?>;
-if (categoryData.length > 0) {
-    const categoryLabels = categoryData.map(d => d.category);
-    const categoryCounts = categoryData.map(d => parseInt(d.borrow_count));
-    
-    new Chart(document.getElementById('categoryChart'), {
-        type: 'doughnut',
-        data: {
-            labels: categoryLabels,
-            datasets: [{
-                data: categoryCounts,
-                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'right' } }
-        }
-    });
-}
-
-// Trend Chart
-const trendData = <?php echo json_encode($stats['monthly'] ?? []); ?>;
-if (trendData.length > 0) {
-    const trendLabels = trendData.map(d => {
-        const [year, month] = d.month.split('-');
-        return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    });
-    const trendCounts = trendData.map(d => parseInt(d.count));
-    
-    new Chart(document.getElementById('trendChart'), {
-        type: 'line',
-        data: {
-            labels: trendLabels,
-            datasets: [{
-                label: 'Books Borrowed',
-                data: trendCounts,
-                borderColor: '#36A2EB',
-                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: true } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-}
-
 function handleQuickSearch(event) {
     if (event.key === 'Enter') {
         event.preventDefault();
