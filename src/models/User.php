@@ -4,483 +4,469 @@ namespace App\Models;
 
 class User
 {
-    private $conn;
-    private $lastGeneratedUserId;
+    private $db;      // Database connection property
+    private $conn;    // Alternative property name
     
-    private function hasColumn($column)
-    {
-        $sql = "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $column);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        return (bool)$result->fetch_row();
-    }
-
     public function __construct()
     {
+        // Initialize database connection
+        global $mysqli;
         global $conn;
-        $this->conn = $conn;
+        
+        // Support both $mysqli and $conn naming conventions
+        if (isset($mysqli)) {
+            $this->db = $mysqli;
+            $this->conn = $mysqli;
+        } elseif (isset($conn)) {
+            $this->db = $conn;
+            $this->conn = $conn;
+        } else {
+            throw new \Exception("Database connection not available");
+        }
     }
-
+    
     /**
      * Get user by ID
      */
     public function getUserById($userId)
     {
-        $sql = "SELECT * FROM users WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_assoc();
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE userId = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_assoc();
+        } catch (\Exception $e) {
+            error_log("Error getting user by ID: " . $e->getMessage());
+            return null;
+        }
     }
-
+    
     /**
      * Get user by email
      */
     public function getUserByEmail($email)
     {
-        $sql = "SELECT * FROM users WHERE emailId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_assoc();
-    }
-
-    /**
-     * Generate a unique user ID
-     */
-    public function generateUserId()
-    {
-        $prefix = 'STU';
-        $year = date('Y');
-        
-        // Get the next available ID number for this year
-        $sql = "SELECT COUNT(*) as count FROM users WHERE userId LIKE ?";
-        $pattern = $prefix . $year . '%';
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $pattern);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-        
-        $nextNumber = $row['count'] + 1;
-        
-        // Format as STU2024001, STU2024002, etc.
-        return $prefix . $year . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Create a new user with auto-generated user ID
-     */
-    public function createUser($data)
-    {
-        // Generate unique user ID
-        $data['userId'] = $this->generateUserId();
-        
-        // Assign nullable values to variables first (required for bind_param by reference)
-        $profileImage = $data['profileImage'] ?? null;
-        
-        if ($this->hasColumn('profileImage')) {
-            $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, profileImage, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('ssssssssssiss', 
-                $data['userId'], 
-                $data['username'],
-                $data['password'], 
-                $data['userType'], 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $profileImage,
-                $data['isVerified'], 
-                $data['otp'], 
-                $data['otpExpiry']
-            );
-        } else {
-            $sql = "INSERT INTO users (userId, username, password, userType, gender, dob, emailId, phoneNumber, address, isVerified, otp, otpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('sssssssssiss', 
-                $data['userId'], 
-                $data['username'],
-                $data['password'], 
-                $data['userType'], 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $data['isVerified'], 
-                $data['otp'], 
-                $data['otpExpiry']
-            );
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_assoc();
+        } catch (\Exception $e) {
+            error_log("Error getting user by email: " . $e->getMessage());
+            return null;
         }
-        
-        $result = $stmt->execute();
-        
-        // Store the generated user ID for later retrieval
-        if ($result) {
-            $this->lastGeneratedUserId = $data['userId'];
-        }
-        
-        return $result;
     }
-
+    
     /**
-     * Get the last generated user ID
-     */
-    public function getLastGeneratedUserId()
-    {
-        return $this->lastGeneratedUserId ?? null;
-    }
-
-    /**
-     * Update user information
+     * Update user
      */
     public function updateUser($userId, $data)
     {
-        // Assign nullable values to variables first
-        $profileImage = $data['profileImage'] ?? null;
-        
-        if ($this->hasColumn('profileImage')) {
-            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ?, profileImage = COALESCE(?, profileImage) WHERE userId = ?";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('sssssss', 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $profileImage,
-                $userId
-            );
-        } else {
-            $sql = "UPDATE users SET gender = ?, dob = ?, emailId = ?, phoneNumber = ?, address = ? WHERE userId = ?";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param('ssssss', 
-                $data['gender'], 
-                $data['dob'], 
-                $data['emailId'], 
-                $data['phoneNumber'], 
-                $data['address'], 
-                $userId
-            );
+        try {
+            $fields = [];
+            $values = [];
+            $types = "";
+            
+            // Build dynamic UPDATE query based on provided data
+            if (isset($data['name'])) {
+                $fields[] = "name = ?";
+                $values[] = $data['name'];
+                $types .= "s";
+            }
+            if (isset($data['email'])) {
+                $fields[] = "email = ?";
+                $values[] = $data['email'];
+                $types .= "s";
+            }
+            if (isset($data['password'])) {
+                $fields[] = "password = ?";
+                $values[] = $data['password'];
+                $types .= "s";
+            }
+            if (isset($data['department'])) {
+                $fields[] = "department = ?";
+                $values[] = $data['department'];
+                $types .= "s";
+            }
+            
+            if (empty($fields)) {
+                return false;
+            }
+            
+            $query = "UPDATE users SET " . implode(", ", $fields) . " WHERE userId = ?";
+            $values[] = $userId;
+            $types .= "s";
+            
+            $stmt = $this->db->prepare($query);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param($types, ...$values);
+            
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating user: " . $e->getMessage());
+            return false;
         }
-        
-        return $stmt->execute();
     }
-
+    
     /**
-     * Update user password
+     * Get notifications for a user
      */
-    public function updatePassword($userId, $newPassword)
+    public function getNotifications($userId)
     {
-        $sql = "UPDATE users SET password = ? WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('ss', $newPassword, $userId);
-        
-        return $stmt->execute();
-    }
-
-    /**
-     * Update user password (alias for updatePassword)
-     */
-    public function updateUserPassword($userId, $newPassword)
-    {
-        return $this->updatePassword($userId, $newPassword);
-    }
-
-    /**
-     * Update user OTP
-     */
-    public function updateUserOtp($userId, $otp, $otpExpiry)
-    {
-        $sql = "UPDATE users SET otp = ?, otpExpiry = ? WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('sss', $otp, $otpExpiry, $userId);
-        
-        return $stmt->execute();
-    }
-
-    /**
-     * Verify user account
-     */
-    public function verifyUser($userId, $otp)
-    {
-        $sql = "UPDATE users SET isVerified = 1, otp = NULL, otpExpiry = NULL WHERE userId = ? AND otp = ? AND otpExpiry > NOW()";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('ss', $userId, $otp);
-        $stmt->execute();
-        
-        return $stmt->affected_rows > 0;
-    }
-
-    /**
-     * Set OTP for user
-     */
-    public function setOTP($userId, $otp, $expiry)
-    {
-        $sql = "UPDATE users SET otp = ?, otpExpiry = ? WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('sss', $otp, $expiry, $userId);
-        
-        return $stmt->execute();
-    }
-
-    /**
-     * Delete user
-     */
-    public function deleteUser($userId)
-    {
-        // Check if user has active transactions
-        $sql = "SELECT COUNT(*) as count FROM transactions WHERE userId = ? AND returnDate IS NULL";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-        
-        if ($row['count'] > 0) {
-            return false; // Cannot delete user with active transactions
+        try {
+            // Check if table exists first
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'notifications'");
+            if ($tableCheck->num_rows === 0) {
+                return [];
+            }
+            
+            $stmt = $this->db->prepare("SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC LIMIT 10");
+            
+            if (!$stmt) {
+                return [];
+            }
+            
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $notifications = [];
+            while ($row = $result->fetch_assoc()) {
+                $notifications[] = [
+                    'id' => $row['id'] ?? $row['notificationId'] ?? null,
+                    'message' => $row['message'] ?? $row['content'] ?? '',
+                    'content' => $row['message'] ?? $row['content'] ?? '',
+                    'createdAt' => $row['createdAt'] ?? $row['created_at'] ?? date('Y-m-d H:i:s'),
+                    'created_at' => $row['createdAt'] ?? $row['created_at'] ?? date('Y-m-d H:i:s'),
+                    'isRead' => $row['isRead'] ?? $row['is_read'] ?? 0
+                ];
+            }
+            
+            return $notifications;
+        } catch (\Exception $e) {
+            error_log("Error getting notifications: " . $e->getMessage());
+            return [];
         }
-        
-        $sql = "DELETE FROM users WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        
-        return $stmt->execute();
     }
-
+    
     /**
-     * Get all users
+     * Check if user exists by email
      */
-    public function getAllUsers($limit = 100)
+    public function emailExists($email)
     {
-        $sql = "SELECT userId, userType, gender, dob, emailId, phoneNumber, address, isVerified FROM users ORDER BY userId ASC LIMIT ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('i', $limit);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_all(MYSQLI_ASSOC);
+        try {
+            $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE email = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'] > 0;
+            }
+            
+            return false;
+        } catch (\Exception $e) {
+            error_log("Error checking email existence: " . $e->getMessage());
+            return false;
+        }
     }
-
-    /**
-     * Search users
-     */
-    public function searchUsers($search)
-    {
-        $sql = "SELECT userId, userType, gender, dob, emailId, phoneNumber, address, isVerified 
-                FROM users 
-                WHERE userId LIKE ? OR emailId LIKE ? OR phoneNumber LIKE ? 
-                ORDER BY userId ASC";
-        
-        $searchTerm = "%{$search}%";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        return $result->fetch_all(MYSQLI_ASSOC);
-    }
-
-    /**
-     * Get user statistics
-     */
-    public function getUserStats()
-    {
-        $sql = "SELECT 
-                    COUNT(*) as total_users,
-                    COUNT(CASE WHEN userType = 'Student' THEN 1 END) as students,
-                    COUNT(CASE WHEN userType = 'Faculty' THEN 1 END) as faculty,
-                    COUNT(CASE WHEN userType = 'Admin' THEN 1 END) as admins,
-                    COUNT(CASE WHEN isVerified = 1 THEN 1 END) as verified_users
-                FROM users";
-        
-        $result = $this->conn->query($sql);
-        return $result->fetch_assoc();
-    }
-
+    
     /**
      * Get user by username
      */
     public function getUserByUsername($username)
     {
-        $sql = "SELECT * FROM users WHERE username = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $username);
+        global $mysqli;
+        
+        if (!$mysqli) {
+            return null;
+        }
+        
+        $stmt = $mysqli->prepare("SELECT * FROM users WHERE username = ?");
+        
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . $mysqli->error);
+            return null;
+        }
+        
+        $stmt->bind_param("s", $username);
         $stmt->execute();
         $result = $stmt->get_result();
         
-        return $result->fetch_assoc();
+        if ($row = $result->fetch_assoc()) {
+            return $row;
+        }
+        
+        return null;
     }
-
+    
     /**
-     * Authenticate user by username
+     * Check if username already exists
      */
-    public function authenticateByUsername($username, $password)
+    public function usernameExists($username, $excludeUserId = null)
     {
-        $user = $this->getUserByUsername($username);
+        global $mysqli;
         
-        if (!$user) {
+        if (!$mysqli) {
             return false;
         }
         
-        // Check if user is verified
-        if (!$user['isVerified']) {
+        if ($excludeUserId) {
+            $stmt = $mysqli->prepare("SELECT userId FROM users WHERE username = ? AND userId != ?");
+            $stmt->bind_param("ss", $username, $excludeUserId);
+        } else {
+            $stmt = $mysqli->prepare("SELECT userId FROM users WHERE username = ?");
+            $stmt->bind_param("s", $username);
+        }
+        
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . $mysqli->error);
             return false;
         }
         
-        // Verify password
-        if (password_verify($password, $user['password'])) {
-            return $user;
-        }
+        $stmt->execute();
+        $result = $stmt->get_result();
         
-        return false;
+        return $result->num_rows > 0;
     }
-
-    /**
-     * Authenticate user by user ID (kept for backward compatibility)
-     */
-    public function authenticate($userId, $password)
-    {
-        $user = $this->getUserById($userId);
-        
-        if (!$user) {
-            return false;
-        }
-        
-        // Check if user is verified
-        if (!$user['isVerified']) {
-            return false;
-        }
-        
-        // Verify password
-        if (password_verify($password, $user['password'])) {
-            return $user;
-        }
-        
-        return false;
-    }
-
+    
     /**
      * Validate user data for signup
      */
-    public function validateUserData($data, $isUpdate = false)
+    public function validateUserData($data)
     {
         $errors = [];
         
-        if (!$isUpdate) {
-            if (empty($data['username'])) {
-                $errors[] = 'Username is required';
-            } elseif (strlen($data['username']) < 3) {
-                $errors[] = 'Username must be at least 3 characters';
-            } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $data['username'])) {
-                $errors[] = 'Username can only contain letters, numbers, and underscores';
-            }
-            
-            if (empty($data['password'])) {
-                $errors[] = 'Password is required';
-            } elseif (strlen($data['password']) < 6) {
-                $errors[] = 'Password must be at least 6 characters';
-            }
+        // Validate username
+        if (empty($data['username'])) {
+            $errors[] = 'Username is required';
+        } elseif (strlen($data['username']) < 3) {
+            $errors[] = 'Username must be at least 3 characters';
+        } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $data['username'])) {
+            $errors[] = 'Username can only contain letters, numbers, and underscores';
         }
         
-        // User type will be automatically set to 'Student' for signup
-        // No need to validate userType for signup
+        // Validate password
+        if (empty($data['password'])) {
+            $errors[] = 'Password is required';
+        } elseif (strlen($data['password']) < 6) {
+            $errors[] = 'Password must be at least 6 characters';
+        }
         
+        // Validate email
         if (empty($data['emailId'])) {
             $errors[] = 'Email is required';
         } elseif (!filter_var($data['emailId'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Invalid email format';
         }
         
+        // Validate phone number
         if (empty($data['phoneNumber'])) {
             $errors[] = 'Phone number is required';
-        } elseif (!preg_match('/^[\+]?[\d\s\-\(\)]{10,15}$/', $data['phoneNumber'])) {
-            $errors[] = 'Phone number must be 10-15 digits and may include +, spaces, hyphens, or parentheses';
+        } elseif (!preg_match('/^[0-9]{10}$/', $data['phoneNumber'])) {
+            $errors[] = 'Phone number must be 10 digits';
         }
         
+        // Validate gender
         if (empty($data['gender'])) {
             $errors[] = 'Gender is required';
         } elseif (!in_array($data['gender'], ['Male', 'Female', 'Other'])) {
-            $errors[] = 'Invalid gender';
+            $errors[] = 'Invalid gender selection';
         }
         
+        // Validate date of birth
         if (empty($data['dob'])) {
             $errors[] = 'Date of birth is required';
+        } elseif (strtotime($data['dob']) > strtotime('-13 years')) {
+            $errors[] = 'You must be at least 13 years old';
         }
         
+        // Validate address
         if (empty($data['address'])) {
             $errors[] = 'Address is required';
+        } elseif (strlen($data['address']) < 10) {
+            $errors[] = 'Address must be at least 10 characters';
         }
         
         return $errors;
     }
-
+    
     /**
-     * Check if user ID exists
+     * Create a new user
      */
-    public function userIdExists($userId)
+    public function createUser($data)
     {
-        $sql = "SELECT COUNT(*) as count FROM users WHERE userId = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
+        global $mysqli;
         
-        return $row['count'] > 0;
-    }
-
-    /**
-     * Check if username exists
-     */
-    public function usernameExists($username, $excludeUserId = null)
-    {
-        $sql = "SELECT COUNT(*) as count FROM users WHERE username = ?";
-        $params = [$username];
-        
-        if ($excludeUserId) {
-            $sql .= " AND userId != ?";
-            $params[] = $excludeUserId;
+        if (!$mysqli) {
+            error_log("Database connection not available");
+            return false;
         }
         
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
+        // Generate a unique user ID (e.g., STU2024001, FAC2024001)
+        $userId = $this->generateUserId($data['userType']);
         
-        return $row['count'] > 0;
-    }
-
-    /**
-     * Check if email exists
-     */
-    public function emailExists($email, $excludeUserId = null)
-    {
-        $sql = "SELECT COUNT(*) as count FROM users WHERE emailId = ?";
-        $params = [$email];
+        $stmt = $mysqli->prepare("
+            INSERT INTO users (
+                userId, username, password, userType, gender, dob, 
+                emailId, phoneNumber, address, isVerified, otp, otpExpiry
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
         
-        if ($excludeUserId) {
-            $sql .= " AND userId != ?";
-            $params[] = $excludeUserId;
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . $mysqli->error);
+            return false;
         }
         
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+        $stmt->bind_param(
+            "ssssssssssss",
+            $userId,
+            $data['username'],
+            $data['password'],
+            $data['userType'],
+            $data['gender'],
+            $data['dob'],
+            $data['emailId'],
+            $data['phoneNumber'],
+            $data['address'],
+            $data['isVerified'],
+            $data['otp'],
+            $data['otpExpiry']
+        );
+        
+        $result = $stmt->execute();
+        
+        if ($result) {
+            // Store the generated user ID for retrieval
+            $this->lastGeneratedUserId = $userId;
+        } else {
+            error_log("Failed to create user: " . $stmt->error);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Generate a unique user ID based on user type
+     */
+    private function generateUserId($userType)
+    {
+        global $mysqli;
+        
+        $prefix = 'USR';
+        switch (strtolower($userType)) {
+            case 'student':
+                $prefix = 'STU';
+                break;
+            case 'faculty':
+            case 'teacher':
+                $prefix = 'FAC';
+                break;
+            case 'admin':
+                $prefix = 'ADM';
+                break;
+        }
+        
+        $year = date('Y');
+        
+        // Get the last user ID with this prefix
+        $stmt = $mysqli->prepare("SELECT userId FROM users WHERE userId LIKE ? ORDER BY userId DESC LIMIT 1");
+        $pattern = $prefix . $year . '%';
+        $stmt->bind_param("s", $pattern);
         $stmt->execute();
         $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
         
-        return $row['count'] > 0;
+        if ($row = $result->fetch_assoc()) {
+            // Extract the number and increment
+            $lastId = $row['userId'];
+            $number = (int)substr($lastId, -3);
+            $newNumber = str_pad($number + 1, 3, '0', STR_PAD_LEFT);
+        } else {
+            // First user of this type this year
+            $newNumber = '001';
+        }
+        
+        return $prefix . $year . $newNumber;
+    }
+    
+    /**
+     * Get the last generated user ID
+     */
+    private $lastGeneratedUserId = null;
+
+    public function getLastGeneratedUserId()
+    {
+        return $this->lastGeneratedUserId;
+    }
+    
+    /**
+     * Verify user with OTP
+     */
+    public function verifyUser($userId, $otp)
+    {
+        global $mysqli;
+        
+        if (!$mysqli) {
+            error_log("Database connection not available");
+            return false;
+        }
+        
+        // Get user's OTP and expiry
+        $stmt = $mysqli->prepare("SELECT otp, otpExpiry FROM users WHERE userId = ?");
+        
+        if (!$stmt) {
+            error_log("Failed to prepare statement: " . $mysqli->error);
+            return false;
+        }
+        
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($row = $result->fetch_assoc()) {
+            // Check if OTP matches and is not expired
+            if ($row['otp'] === $otp && strtotime($row['otpExpiry']) > time()) {
+                // Update user as verified and clear OTP
+                $updateStmt = $mysqli->prepare("UPDATE users SET isVerified = 1, otp = NULL, otpExpiry = NULL WHERE userId = ?");
+                
+                if (!$updateStmt) {
+                    error_log("Failed to prepare update statement: " . $mysqli->error);
+                    return false;
+                }
+                
+                $updateStmt->bind_param("s", $userId);
+                return $updateStmt->execute();
+            } else {
+                error_log("OTP mismatch or expired for user: " . $userId);
+                return false;
+            }
+        }
+        
+        error_log("User not found: " . $userId);
+        return false;
     }
 }
 ?>

@@ -1093,325 +1093,6 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
     .form-check-label {
         cursor: pointer;
-
-    /* ===================================
-       MODERN TABLE ENHANCEMENTS
-       =================================== */
-    
-    /* Enhanced Table Container */
-    .table-container {
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        border: 1px solid #e5e7eb;
-    }
-
-    .table-wrapper {
-        overflow-x: auto;
-    }
-
-    /* Enhanced Table Styling */
-    .table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .table thead {
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-
-    .table thead th {
-        padding: 1.25rem 1rem;
-        text-align: left;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #64748b;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .table tbody tr {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-bottom: 1px solid #f1f5f9;
-    }
-
-    .table tbody tr:hover {
-        background: linear-gradient(135deg, #fefeff 0%, #f9fafb 100%);
-        transform: translateX(4px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
-    }
-
-    .table tbody td {
-        padding: 1rem;
-        vertical-align: middle;
-    }
-
-    /* Book Cover Enhanced */
-    .book-cover, .no-image {
-        width: 60px;
-        height: 80px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
-    }
-
-    .book-cover::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
-    }
-
-    .table tbody tr:hover .book-cover,
-    .table tbody tr:hover .no-image {
-        transform: scale(1.08) rotate(-2deg);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-    }
-
-    .book-cover img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 12px;
-    }
-
-    .no-image i {
-        font-size: 1.75rem;
-        color: #94a3b8;
-        position: relative;
-        z-index: 1;
-    }
-
-    /* Code/Badge Enhancements */
-    .table tbody td code {
-        display: inline-block;
-        padding: 0.375rem 0.75rem;
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        color: #92400e;
-        border-radius: 8px;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
-        border: 1px solid #fbbf24;
-    }
-
-    /* Barcode Styling */
-    .table tbody td code[style*="background: #f0f0f0"] {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
-        color: #1e40af !important;
-        border: 1px solid #93c5fd !important;
-        padding: 0.375rem 0.75rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 1px !important;
-    }
-
-    /* Book Title Enhanced */
-    .book-title {
-        font-weight: 600;
-        color: #0f172a;
-        font-size: 0.9375rem;
-    }
-
-    /* Trending Badge Enhanced */
-    .badge[style*="background: #fbbf24"] {
-        display: inline-flex !important;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.375rem 0.75rem !important;
-        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-        color: white !important;
-        border-radius: 20px !important;
-        font-size: 0.75rem;
-        font-weight: 700;
-        box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3) !important;
-        animation: trendingPulse 2s ease-in-out infinite;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .badge[style*="background: #fbbf24"] i {
-        animation: trendingIcon 1.5s ease-in-out infinite;
-    }
-
-    @keyframes trendingPulse {
-        0%, 100% {
-            transform: scale(1);
-        }
-        50% {
-            transform: scale(1.05);
-        }
-    }
-
-    @keyframes trendingIcon {
-        0%, 100% {
-            transform: rotate(0deg);
-        }
-        25% {
-            transform: rotate(-10deg);
-        }
-        75% {
-            transform: rotate(10deg);
-        }
-    }
-
-    /* Status Badge Enhanced */
-    .status-badge {
-        display: inline-flex !important;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem !important;
-        border-radius: 20px !important;
-        font-size: 0.8125rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    .status-badge.available {
-        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%) !important;
-        color: #065f46 !important;
-        border: 2px solid #34d399 !important;
-    }
-
-    .status-badge.unavailable {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%) !important;
-        color: #991b1b !important;
-        border: 2px solid #f87171 !important;
-    }
-
-    .status-badge.low-stock {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
-        color: #92400e !important;
-        border: 2px solid #fbbf24 !important;
-    }
-
-    .status-badge.low-stock i,
-    .status-badge.unavailable i {
-        animation: warningPulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes warningPulse {
-        0%, 100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.5;
-        }
-    }
-
-    /* Number Badges in Table */
-    .table tbody td span.badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 0.9375rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-    }
-
-    .table tbody td span.badge:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Action Buttons Enhanced */
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .action-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 1rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .action-btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .btn-view {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        color: #1e40af;
-    }
-
-    .btn-view:hover {
-        background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
-    }
-
-    .btn-edit {
-        background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-        color: #5b21b6;
-    }
-
-    .btn-edit:hover {
-        background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%);
-    }
-
-    .btn-delete {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        color: #991b1b;
-    }
-
-    .btn-delete:hover {
-        background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
-    }
-
-    /* Empty State Enhanced */
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #94a3b8;
-    }
-
-    .empty-state i {
-        font-size: 4rem;
-        opacity: 0.3;
-        margin-bottom: 1.5rem;
-        display: block;
-    }
-
-    /* Responsive Enhancements */
-    @media (max-width: 1200px) {
-        .book-cover, .no-image {
-            width: 50px;
-            height: 70px;
-        }
-        
-        .action-btn {
-            width: 36px;
-            height: 36px;
-            font-size: 0.875rem;
-        }
-    }
         font-weight: 600;
         color: var(--gray-700);
         display: flex;
@@ -2011,12 +1692,67 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
-// Modified Image Preview for Add Book with compression
+// Set even more aggressive client-side upload limit (500KB instead of 2MB)
+const MAX_UPLOAD_SIZE = 500 * 1024; // 500KB
+
+// ULTRA-AGGRESSIVE image optimizer
+async function optimizeImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = async function() {
+                let quality = 0.7;
+                let maxWidth = 1200;
+                let result = file;
+                
+                // Try up to 8 compression passes
+                for (let attempt = 0; attempt < 8; attempt++) {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const blob = await new Promise(res => {
+                        canvas.toBlob(res, 'image/jpeg', quality);
+                    });
+                    
+                    result = new File([blob], file.name, { type: 'image/jpeg' });
+                    
+                    console.log(`Attempt ${attempt + 1}: ${(result.size / 1024).toFixed(1)}KB (quality: ${quality}, size: ${width}x${height})`);
+                    
+                    if (result.size <= MAX_UPLOAD_SIZE) {
+                        resolve(result);
+                        return;
+                    }
+                    
+                    // Reduce quality and size for next attempt
+                    quality = Math.max(0.4, quality - 0.1);
+                    maxWidth = Math.max(600, Math.floor(maxWidth * 0.8));
+                }
+                
+                reject(new Error(`Could not compress to ${(MAX_UPLOAD_SIZE / 1024).toFixed(0)}KB. Try a smaller image.`));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Modified Image Preview for Add Book with ULTRA-aggressive optimization
 document.getElementById('add_coverImage').addEventListener('change', async function() {
     if (this.files && this.files[0]) {
         let file = this.files[0];
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        const maxSize = 2 * 1024 * 1024;
         
         if (!allowedTypes.includes(file.type)) {
             alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
@@ -2026,34 +1762,41 @@ document.getElementById('add_coverImage').addEventListener('change', async funct
             return;
         }
         
-        // Compress if file is too large
-        if (file.size > maxSize) {
-            console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
-            file = await compressImage(file);
-            console.log(`Compressed size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+        // Always optimize images to ensure they're under limit
+        try {
+            const originalSize = file.size;
+            file = await optimizeImage(file);
             
-            // Update the file input with compressed file
+            console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
+            
+            // Update the file input with optimized file
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             this.files = dataTransfer.files;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                document.getElementById('add_previewImage').src = event.target.result;
+                document.getElementById('add_imagePreview').style.display = 'block';
+                document.getElementById('add_imagePlaceholder').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+            
+        } catch (error) {
+            alert(`Image optimization failed: ${error.message}`);
+            this.value = '';
+            document.getElementById('add_imagePreview').style.display = 'none';
+            document.getElementById('add_imagePlaceholder').style.display = 'flex';
         }
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('add_previewImage').src = event.target.result;
-            document.getElementById('add_imagePreview').style.display = 'block';
-            document.getElementById('add_imagePlaceholder').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
     }
 });
 
-// Modified Image Preview for Edit Book with compression
+// Same for edit modal
 document.getElementById('edit_coverImage').addEventListener('change', async function() {
     if (this.files && this.files[0]) {
         let file = this.files[0];
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        const maxSize = 2 * 1024 * 1024;
         
         if (!allowedTypes.includes(file.type)) {
             alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
@@ -2061,23 +1804,26 @@ document.getElementById('edit_coverImage').addEventListener('change', async func
             return;
         }
         
-        // Compress if file is too large
-        if (file.size > maxSize) {
-            console.log(`Original size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
-            file = await compressImage(file);
-            console.log(`Compressed size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+        try {
+            const originalSize = file.size;
+            file = await optimizeImage(file);
             
-            // Update the file input with compressed file
+            console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
+            
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             this.files = dataTransfer.files;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                document.getElementById('edit_previewImage').src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+        } catch (error) {
+            alert(`Image optimization failed: ${error.message}`);
+            this.value = '';
         }
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('edit_previewImage').src = event.target.result;
-        };
-        reader.readAsDataURL(file);
     }
 });
 

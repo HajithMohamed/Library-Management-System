@@ -34,7 +34,10 @@ class AuthHelper
     public function requireAuth($allowedTypes = [])
     {
         if (!$this->isLoggedIn()) {
-            $this->redirectToLogin();
+            $_SESSION['error'] = 'Please login to continue.';
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '';
+            header('Location: ' . BASE_URL);
+            exit;
         }
 
         if (!empty($allowedTypes)) {
@@ -43,6 +46,8 @@ class AuthHelper
                 $this->showAccessDenied();
             }
         }
+        
+        return true;
     }
 
     /**
@@ -181,5 +186,48 @@ class AuthHelper
             default:
                 return 0;
         }
+    }
+
+    /**
+     * Require user to have specific role
+     * Redirects to 403 if user doesn't have required role
+     */
+    public function requireRole($requiredRole)
+    {
+        // First check if user is logged in using existing requireAuth
+        $this->requireAuth();
+        
+        $userType = $_SESSION['userType'] ?? '';
+        
+        // Normalize roles for comparison
+        $requiredRole = ucfirst(strtolower($requiredRole));
+        $userType = ucfirst(strtolower($userType));
+        
+        if ($userType !== $requiredRole) {
+            http_response_code(403);
+            $_SESSION['error'] = 'You do not have permission to access this page.';
+            
+            // Redirect to appropriate dashboard
+            $this->redirectByUserType();
+            exit;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Check if user has specific role
+     */
+    public function hasRole($role)
+    {
+        if (!$this->isLoggedIn()) {
+            return false;
+        }
+        
+        $userType = $_SESSION['userType'] ?? '';
+        $role = ucfirst(strtolower($role));
+        $userType = ucfirst(strtolower($userType));
+        
+        return $userType === $role;
     }
 }
