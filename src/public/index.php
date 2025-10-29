@@ -162,6 +162,10 @@ $router->addRoute('GET', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/delete', 'BookController', 'deleteBook');
 
+// Admin books borrowed management routes
+$router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
+$router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
+
 // Public book browsing routes (accessible without login)
 $router->addRoute('GET', '/books', 'BookController', 'userBooks');
 $router->addRoute('GET', '/books/search', 'BookController', 'searchBooks');

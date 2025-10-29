@@ -460,6 +460,12 @@
                         <span>Fines</span>
                     </a>
                 </div>
+                <div class="nav-item">
+                    <a href="<?= BASE_URL ?>admin/borrowed-books" class="nav-link">
+                        <i class="fas fa-book-reader"></i>
+                        <span>Borrowed Books</span>
+                    </a>
+                </div>
             </div>
 
             <!-- System Section -->
