@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
+class ComposerStaticInitd3bc39c0a896637cec36e0c3a7ae8c1b
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -21,6 +21,7 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         ),
         'P' => 
         array (
+            'Picqer\\Barcode\\' => 15,
             'PhpOption\\' => 10,
             'PHPMailer\\PHPMailer\\' => 20,
         ),
@@ -35,6 +36,7 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         'A' => 
         array (
             'App\\Services\\' => 13,
+            'App\\Router\\' => 11,
             'App\\Models\\' => 11,
             'App\\Helpers\\' => 12,
             'App\\Controllers\\' => 16,
@@ -53,6 +55,10 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         'Symfony\\Polyfill\\Ctype\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
+        ),
+        'Picqer\\Barcode\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/picqer/php-barcode-generator/src',
         ),
         'PhpOption\\' => 
         array (
@@ -74,6 +80,10 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         array (
             0 => __DIR__ . '/../..' . '/services',
         ),
+        'App\\Router\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/router',
+        ),
         'App\\Models\\' => 
         array (
             0 => __DIR__ . '/../..' . '/models',
@@ -89,19 +99,6 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
     );
 
     public static $classMap = array (
-        'App\\Controllers\\AdminController' => __DIR__ . '/../..' . '/controllers/AdminController.php',
-        'App\\Controllers\\AuthController' => __DIR__ . '/../..' . '/controllers/AuthController.php',
-        'App\\Controllers\\BookController' => __DIR__ . '/../..' . '/controllers/BookController.php',
-        'App\\Controllers\\HomeController' => __DIR__ . '/../..' . '/controllers/HomeController.php',
-        'App\\Controllers\\UserController' => __DIR__ . '/../..' . '/controllers/UserController.php',
-        'App\\Helpers\\AuthHelper' => __DIR__ . '/../..' . '/helpers/AuthHelper.php',
-        'App\\Models\\Book' => __DIR__ . '/../..' . '/models/Book.php',
-        'App\\Models\\Transaction' => __DIR__ . '/../..' . '/models/Transaction.php',
-        'App\\Models\\User' => __DIR__ . '/../..' . '/models/User.php',
-        'App\\Services\\AdminService' => __DIR__ . '/../..' . '/services/AdminService.php',
-        'App\\Services\\AuthService' => __DIR__ . '/../..' . '/services/AuthService.php',
-        'App\\Services\\BookService' => __DIR__ . '/../..' . '/services/BookService.php',
-        'App\\Services\\UserService' => __DIR__ . '/../..' . '/services/UserService.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Dotenv\\Dotenv' => __DIR__ . '/..' . '/vlucas/phpdotenv/src/Dotenv.php',
@@ -160,6 +157,67 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         'PhpOption\\Option' => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption/Option.php',
         'PhpOption\\Some' => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption/Some.php',
         'PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/PhpToken.php',
+        'Picqer\\Barcode\\Barcode' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Barcode.php',
+        'Picqer\\Barcode\\BarcodeBar' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeBar.php',
+        'Picqer\\Barcode\\BarcodeGenerator' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGenerator.php',
+        'Picqer\\Barcode\\BarcodeGeneratorDynamicHTML' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGeneratorDynamicHTML.php',
+        'Picqer\\Barcode\\BarcodeGeneratorHTML' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGeneratorHTML.php',
+        'Picqer\\Barcode\\BarcodeGeneratorJPG' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGeneratorJPG.php',
+        'Picqer\\Barcode\\BarcodeGeneratorPNG' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGeneratorPNG.php',
+        'Picqer\\Barcode\\BarcodeGeneratorSVG' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/BarcodeGeneratorSVG.php',
+        'Picqer\\Barcode\\Exceptions\\BarcodeException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/BarcodeException.php',
+        'Picqer\\Barcode\\Exceptions\\InvalidCharacterException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/InvalidCharacterException.php',
+        'Picqer\\Barcode\\Exceptions\\InvalidCheckDigitException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/InvalidCheckDigitException.php',
+        'Picqer\\Barcode\\Exceptions\\InvalidFormatException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/InvalidFormatException.php',
+        'Picqer\\Barcode\\Exceptions\\InvalidLengthException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/InvalidLengthException.php',
+        'Picqer\\Barcode\\Exceptions\\InvalidOptionException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/InvalidOptionException.php',
+        'Picqer\\Barcode\\Exceptions\\UnknownColorException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/UnknownColorException.php',
+        'Picqer\\Barcode\\Exceptions\\UnknownTypeException' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Exceptions/UnknownTypeException.php',
+        'Picqer\\Barcode\\Helpers\\BinarySequenceConverter' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Helpers/BinarySequenceConverter.php',
+        'Picqer\\Barcode\\Helpers\\ColorHelper' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Helpers/ColorHelper.php',
+        'Picqer\\Barcode\\Helpers\\StringHelpers' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Helpers/StringHelpers.php',
+        'Picqer\\Barcode\\Renderers\\DynamicHtmlRenderer' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/DynamicHtmlRenderer.php',
+        'Picqer\\Barcode\\Renderers\\HtmlRenderer' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/HtmlRenderer.php',
+        'Picqer\\Barcode\\Renderers\\JpgRenderer' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/JpgRenderer.php',
+        'Picqer\\Barcode\\Renderers\\PngRenderer' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/PngRenderer.php',
+        'Picqer\\Barcode\\Renderers\\RendererInterface' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/RendererInterface.php',
+        'Picqer\\Barcode\\Renderers\\SvgRenderer' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Renderers/SvgRenderer.php',
+        'Picqer\\Barcode\\Types\\TypeCodabar' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCodabar.php',
+        'Picqer\\Barcode\\Types\\TypeCode11' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode11.php',
+        'Picqer\\Barcode\\Types\\TypeCode128' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode128.php',
+        'Picqer\\Barcode\\Types\\TypeCode128A' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode128A.php',
+        'Picqer\\Barcode\\Types\\TypeCode128B' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode128B.php',
+        'Picqer\\Barcode\\Types\\TypeCode128C' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode128C.php',
+        'Picqer\\Barcode\\Types\\TypeCode32' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode32.php',
+        'Picqer\\Barcode\\Types\\TypeCode39' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode39.php',
+        'Picqer\\Barcode\\Types\\TypeCode39Checksum' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode39Checksum.php',
+        'Picqer\\Barcode\\Types\\TypeCode39Extended' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode39Extended.php',
+        'Picqer\\Barcode\\Types\\TypeCode39ExtendedChecksum' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode39ExtendedChecksum.php',
+        'Picqer\\Barcode\\Types\\TypeCode93' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeCode93.php',
+        'Picqer\\Barcode\\Types\\TypeEan13' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeEan13.php',
+        'Picqer\\Barcode\\Types\\TypeEan8' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeEan8.php',
+        'Picqer\\Barcode\\Types\\TypeEanUpcBase' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeEanUpcBase.php',
+        'Picqer\\Barcode\\Types\\TypeITF14' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeITF14.php',
+        'Picqer\\Barcode\\Types\\TypeIntelligentMailBarcode' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeIntelligentMailBarcode.php',
+        'Picqer\\Barcode\\Types\\TypeInterface' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeInterface.php',
+        'Picqer\\Barcode\\Types\\TypeInterleaved25' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeInterleaved25.php',
+        'Picqer\\Barcode\\Types\\TypeInterleaved25Checksum' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeInterleaved25Checksum.php',
+        'Picqer\\Barcode\\Types\\TypeKix' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeKix.php',
+        'Picqer\\Barcode\\Types\\TypeMsi' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeMsi.php',
+        'Picqer\\Barcode\\Types\\TypeMsiChecksum' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeMsiChecksum.php',
+        'Picqer\\Barcode\\Types\\TypePharmacode' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypePharmacode.php',
+        'Picqer\\Barcode\\Types\\TypePharmacodeTwoCode' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypePharmacodeTwoCode.php',
+        'Picqer\\Barcode\\Types\\TypePlanet' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypePlanet.php',
+        'Picqer\\Barcode\\Types\\TypePostnet' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypePostnet.php',
+        'Picqer\\Barcode\\Types\\TypeRms4cc' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeRms4cc.php',
+        'Picqer\\Barcode\\Types\\TypeStandard2of5' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeStandard2of5.php',
+        'Picqer\\Barcode\\Types\\TypeStandard2of5Checksum' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeStandard2of5Checksum.php',
+        'Picqer\\Barcode\\Types\\TypeTelepen' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeTelepen.php',
+        'Picqer\\Barcode\\Types\\TypeTelepenNumeric' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeTelepenNumeric.php',
+        'Picqer\\Barcode\\Types\\TypeUpcA' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeUpcA.php',
+        'Picqer\\Barcode\\Types\\TypeUpcE' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeUpcE.php',
+        'Picqer\\Barcode\\Types\\TypeUpcExtension2' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeUpcExtension2.php',
+        'Picqer\\Barcode\\Types\\TypeUpcExtension5' => __DIR__ . '/..' . '/picqer/php-barcode-generator/src/Types/TypeUpcExtension5.php',
         'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
         'Symfony\\Polyfill\\Ctype\\Ctype' => __DIR__ . '/..' . '/symfony/polyfill-ctype/Ctype.php',
         'Symfony\\Polyfill\\Mbstring\\Mbstring' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/Mbstring.php',
@@ -172,9 +230,9 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitd3bc39c0a896637cec36e0c3a7ae8c1b::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitd3bc39c0a896637cec36e0c3a7ae8c1b::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitd3bc39c0a896637cec36e0c3a7ae8c1b::$classMap;
 
         }, null, ClassLoader::class);
     }
