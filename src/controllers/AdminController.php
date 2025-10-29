@@ -455,12 +455,87 @@ class AdminController
 
     $type = $_GET['type'] ?? null;
     $unreadOnly = isset($_GET['unread']) ? true : false;
-    $notifications = $this->adminService->getAllNotifications(null, $type, $unreadOnly);
+    $userTypeFilter = $_GET['userType'] ?? null;
+    $priority = $_GET['priority'] ?? null;
+    $viewMode = $_GET['viewMode'] ?? 'own'; // 'own' or 'all'
+    
+    global $mysqli;
+    
+    $adminUserId = $_SESSION['userId'];
+    
+    // Build dynamic query
+    $sql = "SELECT 
+                n.id,
+                n.userId,
+                n.title,
+                n.message,
+                n.type,
+                n.priority,
+                n.isRead,
+                n.relatedId,
+                n.createdAt,
+                u.userType,
+                u.username,
+                u.emailId
+            FROM notifications n
+            LEFT JOIN users u ON n.userId = u.userId
+            WHERE 1=1";
+    
+    $params = [];
+    $types = '';
+    
+    // Filter by view mode
+    if ($viewMode === 'own') {
+        $sql .= " AND (n.userId = ? OR n.userId IS NULL)";
+        $params[] = $adminUserId;
+        $types .= 's';
+    }
+    // If viewMode is 'all', show all notifications (no userId filter)
+    
+    if ($type) {
+        $sql .= " AND n.type = ?";
+        $params[] = $type;
+        $types .= 's';
+    }
+    
+    if ($unreadOnly) {
+        $sql .= " AND n.isRead = 0";
+    }
+    
+    if ($userTypeFilter) {
+        $sql .= " AND (u.userType = ? OR n.userId IS NULL)";
+        $params[] = $userTypeFilter;
+        $types .= 's';
+    }
+    
+    if ($priority) {
+        $sql .= " AND n.priority = ?";
+        $params[] = $priority;
+        $types .= 's';
+    }
+    
+    $sql .= " ORDER BY n.isRead ASC, n.createdAt DESC";
+    
+    $stmt = $mysqli->prepare($sql);
+    
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $notifications = [];
+    while ($row = $result->fetch_assoc()) {
+        $notifications[] = $row;
+    }
 
     $this->render('admin/notifications', [
       'notifications' => $notifications,
       'currentType' => $type,
-      'unreadOnly' => $unreadOnly
+      'unreadOnly' => $unreadOnly,
+      'userTypeFilter' => $userTypeFilter,
+      'viewMode' => $viewMode
     ]);
   }
 
