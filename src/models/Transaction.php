@@ -263,5 +263,135 @@ class Transaction
             return null;
         }
     }
+
+    /**
+     * Get transactions by date range
+     */
+    public function getTransactionsByDateRange($startDate, $endDate, $userId = null)
+    {
+        try {
+            if ($userId) {
+                $stmt = $this->db->prepare("
+                    SELECT t.*, b.bookName, b.authorName, b.isbn
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    WHERE t.borrowDate BETWEEN ? AND ?
+                    AND t.userId = ?
+                    ORDER BY t.borrowDate DESC
+                ");
+                $stmt->bind_param("sss", $startDate, $endDate, $userId);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT t.*, b.bookName, b.authorName, b.isbn
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    WHERE t.borrowDate BETWEEN ? AND ?
+                    ORDER BY t.borrowDate DESC
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            }
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting transactions by date range: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get active borrowing count
+     */
+    public function getActiveBorrowingCount()
+    {
+        try {
+            $sql = "SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL";
+            $result = $this->db->query($sql);
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting active borrowing count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get overdue transactions
+     */
+    public function getOverdueTransactions()
+    {
+        try {
+            $sql = "SELECT t.*, b.bookName, b.authorName, u.emailId, u.userType
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    JOIN users u ON t.userId = u.userId
+                    WHERE t.returnDate IS NULL 
+                    AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+                    ORDER BY t.borrowDate ASC";
+            
+            $result = $this->db->query($sql);
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting overdue transactions: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Update fine for a transaction
+     */
+    public function updateFine($tid, $fineAmount)
+    {
+        try {
+            $stmt = $this->db->prepare("UPDATE transactions SET fineAmount = ? WHERE tid = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("ds", $fineAmount, $tid);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating fine: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get fine statistics
+     */
+    public function getFineStats()
+    {
+        try {
+            $sql = "SELECT 
+                    COUNT(*) as total_fines,
+                    SUM(CASE WHEN fineStatus = 'paid' THEN fineAmount ELSE 0 END) as paid_fines,
+                    SUM(CASE WHEN fineStatus = 'pending' THEN fineAmount ELSE 0 END) as pending_fines,
+                    SUM(fineAmount) as total_amount
+                    FROM transactions 
+                    WHERE fineAmount > 0";
+            
+            $result = $this->db->query($sql);
+            return $result->fetch_assoc();
+        } catch (\Exception $e) {
+            error_log("Error getting fine stats: " . $e->getMessage());
+            return [
+                'total_fines' => 0,
+                'paid_fines' => 0,
+                'pending_fines' => 0,
+                'total_amount' => 0
+            ];
+        }
+    }
 }
 ?>

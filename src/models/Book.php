@@ -96,6 +96,65 @@ class Book extends BaseModel
     }
 
     /**
+     * Get all books
+     */
+    public function getAllBooks($limit = null, $offset = null)
+    {
+        try {
+            $sql = "SELECT * FROM {$this->table} ORDER BY bookName ASC";
+            
+            if ($limit) {
+                $sql .= " LIMIT ?";
+                if ($offset) {
+                    $sql .= " OFFSET ?";
+                }
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            
+            if ($limit && $offset) {
+                $stmt->bind_param('ii', $limit, $offset);
+            } elseif ($limit) {
+                $stmt->bind_param('i', $limit);
+            } else {
+                // No parameters, execute directly
+                $result = $this->db->query("SELECT * FROM {$this->table} ORDER BY bookName ASC");
+                return $result->fetch_all(MYSQLI_ASSOC);
+            }
+            
+            $stmt->execute();
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting all books: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get popular books based on borrow count
+     */
+    public function getPopularBooks($limit = 10)
+    {
+        try {
+            $sql = "SELECT b.*, COUNT(t.tid) as borrowCount
+                    FROM {$this->table} b
+                    LEFT JOIN transactions t ON b.isbn = t.isbn
+                    GROUP BY b.isbn
+                    ORDER BY borrowCount DESC
+                    LIMIT ?";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param('i', $limit);
+            $stmt->execute();
+            
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting popular books: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Get trending books
      */
     public function getTrendingBooks($limit = 10)
