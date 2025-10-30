@@ -36,6 +36,26 @@ if (file_exists($vendorPath)) {
   error_log("Please run 'composer install' in the project root.");
 }
 
+// Manual class autoloader for controllers (fallback if composer autoload doesn't work)
+spl_autoload_register(function ($class) {
+    // Convert namespace to file path
+    // Example: App\Controllers\BookController -> src/Controllers/BookController.php
+    $prefix = 'App\\';
+    $base_dir = APP_ROOT . '/';
+    
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+    
+    $relative_class = substr($class, $len);
+    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+    
+    if (file_exists($file)) {
+        require_once $file;
+        error_log("Autoloaded class: {$class} from {$file}");
+    }
+});
 
 // Include configuration (this creates $mysqli)
 require_once APP_ROOT . '/config/config.php';
@@ -120,6 +140,8 @@ $router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
 $router->addRoute('GET', '/faculty/search', 'FacultyController', 'search');
 $router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
+$router->addRoute('GET', '/faculty/reserve', 'FacultyController', 'reserve');
+$router->addRoute('POST', '/faculty/reserve', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');

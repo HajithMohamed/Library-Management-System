@@ -765,4 +765,35 @@ class BookController
         $pageTitle = 'Return Books';
         include APP_ROOT . '/views/users/return.php';
     }
+
+    /**
+     * Get reservation queue for a book
+     */
+    public function getReservationQueue($isbn)
+    {
+        global $mysqli;
+        
+        if (!$mysqli) {
+            return [];
+        }
+        
+        $stmt = $mysqli->prepare("
+            SELECT br.userId, br.createdAt, u.firstName, u.lastName
+            FROM book_reservations br
+            LEFT JOIN users u ON br.userId = u.userId
+            WHERE br.isbn = ? AND br.reservationStatus = 'Active'
+            ORDER BY br.createdAt ASC
+        ");
+        
+        $queue = [];
+        if ($stmt) {
+            $stmt->bind_param("s", $isbn);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $queue = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
+        
+        return $queue;
+    }
 }
