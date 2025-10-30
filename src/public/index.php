@@ -253,6 +253,9 @@ try {
                 case 'reserve':
                     $ctrl->reserve();
                     break;
+                case 'profile':
+                    $ctrl->profile();
+                    break;
                 default:
                     $ctrl->dashboard();
             }

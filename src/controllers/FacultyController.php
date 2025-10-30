@@ -251,18 +251,39 @@ class FacultyController extends BaseController
         $userId = $_SESSION['userId'];
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'email' => $_POST['email'] ?? '',
-                'phone' => $_POST['phone'] ?? '',
-                'address' => $_POST['address'] ?? '',
-                'department' => $_POST['department'] ?? ''
-            ];
-            
-            if ($this->userModel->updateProfile($userId, $data)) {
-                $_SESSION['success'] = 'Profile updated successfully';
-            } else {
-                $_SESSION['error'] = 'Failed to update profile';
+            if (isset($_POST['update_profile'])) {
+                $data = [
+                    'username' => $_POST['name'] ?? '',
+                    'emailId' => $_POST['email'] ?? '',
+                    'gender' => $_POST['gender'] ?? '',
+                    'dob' => $_POST['dob'] ?? '',
+                    'phoneNumber' => $_POST['phoneNumber'] ?? '',
+                    'address' => $_POST['address'] ?? '',
+                ];
+                
+                if ($this->userModel->updateProfile($userId, $data)) {
+                    $_SESSION['success'] = 'Profile updated successfully';
+                } else {
+                    $_SESSION['error'] = 'Failed to update profile';
+                }
+            } elseif (isset($_POST['change_password'])) {
+                $currentPassword = $_POST['current_password'] ?? '';
+                $newPassword = $_POST['new_password'] ?? '';
+                $confirmPassword = $_POST['confirm_password'] ?? '';
+
+                if ($newPassword !== $confirmPassword) {
+                    $_SESSION['error'] = 'New password and confirmation do not match.';
+                } else {
+                    if ($this->userModel->changePassword($userId, $currentPassword, $newPassword)) {
+                        $_SESSION['success'] = 'Password changed successfully.';
+                    } else {
+                        $_SESSION['error'] = $this->userModel->getLastError() ?? 'Failed to change password.';
+                    }
+                }
             }
+            
+            $this->redirect('faculty/profile');
+            return;
         }
         
         $user = $this->userModel->findById($userId);
