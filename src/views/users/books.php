@@ -1,6 +1,32 @@
 <?php
 $pageTitle = 'Browse Books';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Fetch books from the database
+global $mysqli;
+$search = $_GET['search'] ?? '';
+$books = [];
+
+if ($mysqli) {
+    $sql = "SELECT isbn, bookName, authorName, publisherName, description, category, publicationYear, totalCopies, bookImage, available, borrowed, isTrending, isSpecial, specialBadge FROM books";
+    $params = [];
+    if (!empty($search)) {
+        $sql .= " WHERE bookName LIKE ? OR authorName LIKE ? OR publisherName LIKE ? OR isbn LIKE ?";
+        $like = '%' . $search . '%';
+        $params = [$like, $like, $like, $like];
+    }
+    $sql .= " ORDER BY bookName ASC";
+    $stmt = $mysqli->prepare($sql);
+    if (!empty($params)) {
+        $stmt->bind_param('ssss', ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $books[] = $row;
+    }
+    $stmt->close();
+}
 ?>
 
 <style>
@@ -530,12 +556,12 @@ include APP_ROOT . '/views/layouts/header.php';
               </div>
 
               <div class="book-actions">
+                <a href="<?= BASE_URL ?>user/book?isbn=<?= urlencode($book['isbn']) ?>"
+                  class="btn-borrow" style="background: #6c757d; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(108, 117, 125, 0.3);">
+                  <i class="fas fa-info-circle"></i>
+                  <span>View Details</span>
+                </a>
                 <?php if ($book['available'] > 0): ?>
-                  <a href="<?= BASE_URL ?>user/book?isbn=<?= urlencode($book['isbn']) ?>"
-                    class="btn-borrow" style="background: #6c757d; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(108, 117, 125, 0.3);">
-                    <i class="fas fa-info-circle"></i>
-                    <span>View Details</span>
-                  </a>
                   <a href="<?= BASE_URL ?>user/reserve?isbn=<?= urlencode($book['isbn']) ?>"
                     class="btn-borrow">
                     <i class="fas fa-bookmark"></i>

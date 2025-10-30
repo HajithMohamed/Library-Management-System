@@ -63,14 +63,16 @@ class BaseController
         if (!isset($_SESSION['userId'])) {
             $_SESSION['error'] = 'Please login to access this page';
             $this->redirect('login');
-            return;
+            exit;
         }
-        
-        // Check user type if specified
-        if (!empty($allowedTypes) && !in_array($_SESSION['userType'], $allowedTypes)) {
-            $_SESSION['error'] = 'Access denied';
-            $this->redirect('login');
-            return;
+        if (!empty($allowedTypes)) {
+            $userType = strtolower($_SESSION['userType'] ?? '');
+            $allowedTypesLower = array_map('strtolower', $allowedTypes);
+            if (!in_array($userType, $allowedTypesLower)) {
+                $_SESSION['error'] = 'Access denied';
+                $this->redirect('login');
+                exit;
+            }
         }
     }
 

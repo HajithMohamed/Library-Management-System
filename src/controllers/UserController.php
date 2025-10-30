@@ -289,15 +289,13 @@ class UserController extends BaseController
         
         $userId = $_SESSION['userId'];
         $userType = $_SESSION['userType'] ?? null;
-        
-        error_log("SUCCESS: User authenticated - ID: $userId, Type: " . ($userType ?? 'NULL'));
-        
-        // Check user role - allow 'Student', 'Faculty'
-        if (!in_array($userType, ['Student', 'Faculty'])) {
+
+        // Make user type check case-insensitive
+        $allowedTypes = ['student', 'faculty'];
+        if (!in_array(strtolower($userType), $allowedTypes)) {
             error_log("ERROR: Invalid user type - Type: " . ($userType ?? 'NULL'));
-            error_log("Allowed types: Student, Faculty");
             $_SESSION['error'] = 'Access denied. Only students and faculty can reserve books.';
-            header('Location: ' . BASE_URL . 'user/dashboard');
+            $this->redirect('user/dashboard');
             exit;
         }
         
@@ -406,7 +404,7 @@ class UserController extends BaseController
         if (!isset($_SESSION['userId'])) {
             error_log("ERROR: userId not in session for viewBook");
             error_log("Available session keys: " . implode(', ', array_keys($_SESSION)));
-            header('Location: ' . BASE_URL . 'login');
+            $this->redirect('login');
             exit;
         }
         
@@ -419,7 +417,7 @@ class UserController extends BaseController
         if (!$isbn) {
             error_log("ERROR: No ISBN provided for viewBook");
             $_SESSION['error'] = 'No book specified';
-            header('Location: ' . BASE_URL . 'user/books');
+            $this->redirect('user/books');
             exit;
         }
         
@@ -436,7 +434,7 @@ class UserController extends BaseController
         
         if (!$book) {
             $_SESSION['error'] = 'Book not found';
-            header('Location: ' . BASE_URL . 'user/books');
+            $this->redirect('user/books');
             exit;
         }
         

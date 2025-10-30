@@ -21,15 +21,12 @@ class AdminController
    */
   public function dashboard()
   {
-    // Use existing requireAuth method
     $this->authHelper->requireAuth();
-    
-    // Check if user is admin
     $userType = $_SESSION['userType'] ?? '';
     if (strtolower($userType) !== 'admin') {
         http_response_code(403);
         $_SESSION['error'] = 'Access denied. Admin privileges required.';
-        header('Location: ' . BASE_URL);
+        header('Location: ' . BASE_URL . 'login');
         exit;
     }
     
@@ -707,15 +704,12 @@ class AdminController
    */
   private function render($view, $data = [])
   {
-    // Ensure user is authenticated for admin views
     $this->authHelper->requireAuth();
-    
-    // Check if user is admin
     $userType = $_SESSION['userType'] ?? '';
     if (strtolower($userType) !== 'admin') {
         http_response_code(403);
         $_SESSION['error'] = 'Access denied. Admin privileges required.';
-        header('Location: ' . BASE_URL);
+        header('Location: ' . BASE_URL . 'login');
         exit;
     }
     
