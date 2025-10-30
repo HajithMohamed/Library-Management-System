@@ -148,4 +148,30 @@ class BaseController
         echo json_encode($data);
         exit;
     }
+
+    /**
+     * Require user authentication
+     */
+    protected function requireAuth()
+    {
+        if (!isset($_SESSION['userId'])) {
+            header('Location: ' . BASE_URL . 'login');
+            exit;
+        }
+    }
+
+    /**
+     * Require user to have specific role
+     */
+    protected function requireRole($allowedRoles)
+    {
+        $this->requireAuth();
+        
+        $userType = $_SESSION['userType'] ?? null;
+        
+        if (!in_array($userType, (array)$allowedRoles)) {
+            header('Location: ' . BASE_URL . '403');
+            exit;
+        }
+    }
 }

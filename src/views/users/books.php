@@ -531,10 +531,15 @@ include APP_ROOT . '/views/layouts/header.php';
 
               <div class="book-actions">
                 <?php if ($book['available'] > 0): ?>
-                  <a href="<?= BASE_URL ?>user/borrow?isbn=<?= urlencode($book['isbn']) ?>"
+                  <a href="<?= BASE_URL ?>user/book?isbn=<?= urlencode($book['isbn']) ?>"
+                    class="btn-borrow" style="background: #6c757d; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(108, 117, 125, 0.3);">
+                    <i class="fas fa-info-circle"></i>
+                    <span>View Details</span>
+                  </a>
+                  <a href="<?= BASE_URL ?>user/reserve?isbn=<?= urlencode($book['isbn']) ?>"
                     class="btn-borrow">
-                    <i class="fas fa-hand-holding"></i>
-                    <span>Borrow Book</span>
+                    <i class="fas fa-bookmark"></i>
+                    <span>Reserve Book</span>
                   </a>
                 <?php else: ?>
                   <button class="btn-borrow btn-unavailable" disabled>
@@ -616,9 +621,9 @@ include APP_ROOT . '/views/layouts/header.php';
               </div>
 
               <div class="book-actions">
-                <a href="#" onclick="return false;" class="btn-borrow">
-                  <i class="fas fa-hand-holding"></i>
-                  <span>Borrow Book</span>
+                <a href="<?= BASE_URL ?>user/reserve?isbn=<?= urlencode($book['isbn']) ?>" class="btn-borrow">
+                  <i class="fas fa-bookmark"></i>
+                  <span>Reserve Book</span>
                 </a>
               </div>
             </div>
