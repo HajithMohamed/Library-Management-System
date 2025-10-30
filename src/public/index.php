@@ -53,8 +53,9 @@ try {
     $segments = explode('/', trim($requestUri, '/'));
     $controller = $segments[0] ?? 'home';
     $action = $segments[1] ?? 'index';
+    $subAction = $segments[2] ?? null;
     
-    error_log("Controller: $controller, Action: $action");
+    error_log("Controller: $controller, Action: $action, SubAction: " . ($subAction ?? 'none'));
     
     // Route based on controller
     switch ($controller) {
@@ -116,14 +117,124 @@ try {
             
             switch ($action) {
                 case 'dashboard':
+                case 'index':
+                case '':
                     $ctrl->dashboard();
                     break;
+                    
                 case 'books':
                     require_once APP_ROOT . '/Controllers/BookController.php';
                     $bookCtrl = new App\Controllers\BookController();
-                    $bookCtrl->adminBooks();
+                    
+                    // Handle book sub-actions
+                    if ($subAction === 'add' && $requestMethod === 'POST') {
+                        $bookCtrl->addBook();
+                    } elseif ($subAction === 'edit' && $requestMethod === 'POST') {
+                        $bookCtrl->editBook();
+                    } elseif ($subAction === 'delete' && $requestMethod === 'POST') {
+                        $bookCtrl->deleteBook();
+                    } else {
+                        $bookCtrl->adminBooks();
+                    }
                     break;
+                    
+                case 'users':
+                    $ctrl->users();
+                    break;
+                    
+                case 'fines':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->updateFines();
+                    } else {
+                        $ctrl->fines();
+                    }
+                    break;
+                    
+                case 'borrow-requests':
+                    $ctrl->borrowRequests();
+                    break;
+                    
+                case 'borrow-requests-handle':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->handleBorrowRequest();
+                    } else {
+                        header('Location: ' . BASE_URL . 'admin/borrow-requests');
+                        exit;
+                    }
+                    break;
+                    
+                case 'borrowed-books':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->booksBorrowed(); // Handles POST internally
+                    } else {
+                        $ctrl->booksBorrowed();
+                    }
+                    break;
+                    
+                case 'notifications':
+                    if ($requestMethod === 'POST' && $subAction === 'mark-read') {
+                        $ctrl->markNotificationRead();
+                    } else {
+                        $ctrl->notifications();
+                    }
+                    break;
+                    
+                case 'reports':
+                    $ctrl->reports();
+                    break;
+                    
+                case 'analytics':
+                    $ctrl->analytics();
+                    break;
+                    
+                case 'maintenance':
+                    if ($requestMethod === 'POST') {
+                        if ($subAction === 'backup') {
+                            $ctrl->createBackup();
+                        } else {
+                            $ctrl->performMaintenance();
+                        }
+                    } else {
+                        $ctrl->maintenance();
+                    }
+                    break;
+                    
+                case 'settings':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->updateSettings();
+                    } else {
+                        $ctrl->settings();
+                    }
+                    break;
+                    
+                case 'profile':
+                    if ($requestMethod === 'POST') {
+                        // Handle profile update
+                        require_once APP_ROOT . '/Controllers/UserController.php';
+                        $userCtrl = new App\Controllers\UserController();
+                        $userCtrl->updateProfile();
+                    } else {
+                        // Show profile page
+                        $pageTitle = 'Admin Profile';
+                        $_SESSION['admin'] = [
+                            'adminId' => $_SESSION['userId'] ?? '',
+                            'username' => $_SESSION['username'] ?? '',
+                            'emailId' => $_SESSION['emailId'] ?? '',
+                            'firstName' => $_SESSION['firstName'] ?? '',
+                            'lastName' => $_SESSION['lastName'] ?? '',
+                            'phoneNumber' => $_SESSION['phoneNumber'] ?? '',
+                            'gender' => $_SESSION['gender'] ?? '',
+                            'dob' => $_SESSION['dob'] ?? '',
+                            'address' => $_SESSION['address'] ?? '',
+                            'department' => $_SESSION['department'] ?? 'Library Management',
+                            'position' => $_SESSION['position'] ?? 'Administrator'
+                        ];
+                        include APP_ROOT . '/views/admin/admin-profile.php';
+                    }
+                    break;
+                    
                 default:
+                    error_log("Unknown admin action: $action");
                     $ctrl->dashboard();
             }
             break;
@@ -148,8 +259,9 @@ try {
             break;
             
         default:
+            error_log("Unknown controller: $controller");
             http_response_code(404);
-            echo "404 - Page Not Found";
+            echo "404 - Page Not Found: /$controller/$action";
     }
     
 } catch (\Exception $e) {

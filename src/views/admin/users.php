@@ -1123,7 +1123,7 @@ $currentAdminId = $_SESSION['userId'] ?? '';
 <!-- Admin Layout -->
 <div class="admin-layout">
     <!-- Left Sidebar -->
-<?include APP_ROOT . '/views/admin/admin-navbar.php' ?>;
+    <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">

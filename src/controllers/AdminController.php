@@ -707,14 +707,31 @@ class AdminController
    */
   private function render($view, $data = [])
   {
+    // Ensure user is authenticated for admin views
+    $this->authHelper->requireAuth();
+    
+    // Check if user is admin
+    $userType = $_SESSION['userType'] ?? '';
+    if (strtolower($userType) !== 'admin') {
+        http_response_code(403);
+        $_SESSION['error'] = 'Access denied. Admin privileges required.';
+        header('Location: ' . BASE_URL);
+        exit;
+    }
+    
+    // Extract data to make variables available in view
     extract($data);
+    
+    // Build view file path
     $viewFile = APP_ROOT . '/views/' . $view . '.php';
 
     if (file_exists($viewFile)) {
       include $viewFile;
     } else {
+      error_log("View file not found: {$viewFile}");
       http_response_code(404);
-      include APP_ROOT . '/views/errors/404.php';
+      echo "View not found: {$view}";
+      exit;
     }
   }
 
