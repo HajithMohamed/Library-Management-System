@@ -3,6 +3,7 @@ $pageTitle = 'Notifications';
 include APP_ROOT . '/views/layouts/header.php';
 
 $notifications = $notifications ?? [];
+$userType = $userType ?? 'Student';
 ?>
 
 <style>
@@ -218,6 +219,9 @@ $notifications = $notifications ?? [];
         <div class="notifications-header">
             <h1>🔔 Notifications</h1>
             <p>Stay updated with your library activities and important announcements</p>
+            <p style="font-size: 0.95rem; color: #667eea; font-weight: 600; margin-top: 0.5rem;">
+                <i class="fas fa-user-circle"></i> Viewing as: <?= htmlspecialchars($userType) ?>
+            </p>
         </div>
 
         <div class="row justify-content-center">
@@ -249,6 +253,12 @@ $notifications = $notifications ?? [];
                                     <?php if (isset($notification['type'])): ?>
                                         <span class="type-badge">
                                             <?= ucfirst(str_replace('_', ' ', $notification['type'])) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($notification['userId'] === null): ?>
+                                        <span class="type-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                                            <i class="fas fa-globe"></i> System-wide
                                         </span>
                                     <?php endif; ?>
                                     

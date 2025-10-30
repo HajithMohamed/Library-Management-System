@@ -1107,4 +1107,250 @@ class AdminService
       return [];
     }
   }
+
+  /**
+   * Get all borrowed books with filters
+   */
+  public function getAllBorrowedBooks($status = null, $userId = null, $isbn = null)
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT bb.*, 
+                     u.username, u.emailId, u.userType,
+                     b.bookName, b.authorName, b.publisherName,
+                     a.username as addedByUsername
+              FROM books_borrowed bb
+              LEFT JOIN users u ON bb.userId = u.userId
+              LEFT JOIN books b ON bb.isbn = b.isbn
+              LEFT JOIN users a ON bb.addedBy = a.userId
+              WHERE 1=1";
+
+      $params = [];
+      $types = "";
+
+      if ($status) {
+        $sql .= " AND bb.status = ?";
+        $params[] = $status;
+        $types .= "s";
+      }
+
+      if ($userId) {
+        $sql .= " AND bb.userId = ?";
+        $params[] = $userId;
+        $types .= "s";
+      }
+
+      if ($isbn) {
+        $sql .= " AND bb.isbn = ?";
+        $params[] = $isbn;
+        $types .= "s";
+      }
+
+      $sql .= " ORDER BY bb.borrowDate DESC";
+
+      $stmt = $conn->prepare($sql);
+
+      if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+      }
+
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $borrowedBooks = [];
+      while ($row = $result->fetch_assoc()) {
+        $borrowedBooks[] = $row;
+      }
+
+      return $borrowedBooks;
+    } catch (\Exception $e) {
+      error_log("Error getting borrowed books: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Get borrowed book by ID
+   */
+  public function getBorrowedBookById($id)
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT bb.*, 
+                     u.username, u.emailId, u.userType,
+                     b.bookName, b.authorName, b.publisherName, b.available,
+                     a.username as addedByUsername
+              FROM books_borrowed bb
+              LEFT JOIN users u ON bb.userId = u.userId
+              LEFT JOIN books b ON bb.isbn = b.isbn
+              LEFT JOIN users a ON bb.addedBy = a.userId
+              WHERE bb.id = ?";
+
+      $stmt = $conn->prepare($sql);
+      $stmt->bind_param("i", $id);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      return $result->fetch_assoc();
+    } catch (\Exception $e) {
+      error_log("Error getting borrowed book: " . $e->getMessage());
+      return null;
+    }
+  }
+
+  /**
+   * Add borrowed book record
+   */
+  public function addBorrowedBook($userId, $isbn, $borrowDate, $dueDate, $notes, $addedBy)
+  {
+    global $conn;
+
+    try {
+      // Check if book is available
+      $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
+      $stmt->bind_param("s", $isbn);
+      $stmt->execute();
+      $book = $stmt->get_result()->fetch_assoc();
+
+      if (!$book || $book['available'] <= 0) {
+        return ['success' => false, 'message' => 'Book is not available'];
+      }
+
+      // Start transaction
+      $conn->begin_transaction();
+
+      // Insert borrowed book record
+      $stmt = $conn->prepare("INSERT INTO books_borrowed (userId, isbn, borrowDate, dueDate, status, notes, addedBy) VALUES (?, ?, ?, ?, 'Active', ?, ?)");
+      $stmt->bind_param("ssssss", $userId, $isbn, $borrowDate, $dueDate, $notes, $addedBy);
+      $stmt->execute();
+
+      // Update book availability
+      $stmt = $conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ?");
+      $stmt->bind_param("s", $isbn);
+      $stmt->execute();
+
+      $conn->commit();
+      return ['success' => true, 'message' => 'Borrowed book record added successfully'];
+    } catch (\Exception $e) {
+      $conn->rollback();
+      error_log("Error adding borrowed book: " . $e->getMessage());
+      return ['success' => false, 'message' => 'Failed to add borrowed book record'];
+    }
+  }
+
+  /**
+   * Update borrowed book record
+   */
+  public function updateBorrowedBook($id, $userId, $isbn, $borrowDate, $dueDate, $returnDate, $status, $notes)
+  {
+    global $conn;
+
+    try {
+      // Get current record
+      $current = $this->getBorrowedBookById($id);
+      if (!$current) {
+        return ['success' => false, 'message' => 'Record not found'];
+      }
+
+      // Start transaction
+      $conn->begin_transaction();
+
+      // Update borrowed book record
+      $stmt = $conn->prepare("UPDATE books_borrowed SET userId = ?, isbn = ?, borrowDate = ?, dueDate = ?, returnDate = ?, status = ?, notes = ? WHERE id = ?");
+      $stmt->bind_param("sssssssi", $userId, $isbn, $borrowDate, $dueDate, $returnDate, $status, $notes, $id);
+      $stmt->execute();
+
+      // If status changed to Returned and was previously Active/Overdue, update book availability
+      if ($status === 'Returned' && in_array($current['status'], ['Active', 'Overdue'])) {
+        $stmt = $conn->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+      }
+      // If status changed from Returned to Active/Overdue, decrease availability
+      elseif (in_array($status, ['Active', 'Overdue']) && $current['status'] === 'Returned') {
+        $stmt = $conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+      }
+
+      $conn->commit();
+      return ['success' => true, 'message' => 'Borrowed book record updated successfully'];
+    } catch (\Exception $e) {
+      $conn->rollback();
+      error_log("Error updating borrowed book: " . $e->getMessage());
+      return ['success' => false, 'message' => 'Failed to update borrowed book record'];
+    }
+  }
+
+  /**
+   * Delete borrowed book record
+   */
+  public function deleteBorrowedBook($id)
+  {
+    global $conn;
+
+    try {
+      // Get current record
+      $current = $this->getBorrowedBookById($id);
+      if (!$current) {
+        return ['success' => false, 'message' => 'Record not found'];
+      }
+
+      // Start transaction
+      $conn->begin_transaction();
+
+      // If book was not returned, update availability
+      if (in_array($current['status'], ['Active', 'Overdue'])) {
+        $stmt = $conn->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ?");
+        $stmt->bind_param("s", $current['isbn']);
+        $stmt->execute();
+      }
+
+      // Delete the record
+      $stmt = $conn->prepare("DELETE FROM books_borrowed WHERE id = ?");
+      $stmt->bind_param("i", $id);
+      $stmt->execute();
+
+      $conn->commit();
+      return ['success' => true, 'message' => 'Borrowed book record deleted successfully'];
+    } catch (\Exception $e) {
+      $conn->rollback();
+      error_log("Error deleting borrowed book: " . $e->getMessage());
+      return ['success' => false, 'message' => 'Failed to delete borrowed book record'];
+    }
+  }
+
+  /**
+   * Get borrowed books statistics
+   */
+  public function getBorrowedBooksStats()
+  {
+    global $conn;
+
+    try {
+      $stats = [];
+
+      // Total borrowed (active + overdue)
+      $result = $conn->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status IN ('Active', 'Overdue')");
+      $stats['total_active'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Total returned
+      $result = $conn->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Returned'");
+      $stats['total_returned'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Total overdue
+      $result = $conn->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Overdue'");
+      $stats['total_overdue'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Auto-update overdue status
+      $conn->query("UPDATE books_borrowed SET status = 'Overdue' WHERE status = 'Active' AND dueDate < CURDATE() AND returnDate IS NULL");
+
+      return $stats;
+    } catch (\Exception $e) {
+      error_log("Error getting borrowed books stats: " . $e->getMessage());
+      return [];
+    }
+  }
 }

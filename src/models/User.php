@@ -473,6 +473,113 @@ class User extends BaseModel
         return false;
     }
 
+    /**
+     * Get all users
+     */
+    public function getAllUsers($userType = null, $limit = null)
+    {
+        try {
+            $sql = "SELECT * FROM {$this->table}";
+            
+            if ($userType) {
+                $sql .= " WHERE userType = ?";
+            }
+            
+            $sql .= " ORDER BY userId DESC";
+            
+            if ($limit) {
+                $sql .= " LIMIT ?";
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            if ($userType && $limit) {
+                $stmt->bind_param("si", $userType, $limit);
+            } elseif ($userType) {
+                $stmt->bind_param("s", $userType);
+            } elseif ($limit) {
+                $stmt->bind_param("i", $limit);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting all users: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get user statistics
+     */
+    public function getUserStats()
+    {
+        try {
+            $stats = [
+                'total' => 0,
+                'byType' => [],
+                'verified' => 0,
+                'unverified' => 0
+            ];
+            
+            // Total users
+            $result = $this->db->query("SELECT COUNT(*) as total FROM {$this->table}");
+            if ($row = $result->fetch_assoc()) {
+                $stats['total'] = (int)$row['total'];
+            }
+            
+            // Users by type
+            $result = $this->db->query("SELECT userType, COUNT(*) as count FROM {$this->table} GROUP BY userType");
+            while ($row = $result->fetch_assoc()) {
+                $stats['byType'][$row['userType']] = (int)$row['count'];
+            }
+            
+            // Verified vs unverified
+            $result = $this->db->query("SELECT COUNT(*) as verified FROM {$this->table} WHERE isVerified = 1");
+            if ($row = $result->fetch_assoc()) {
+                $stats['verified'] = (int)$row['verified'];
+            }
+            
+            $stats['unverified'] = $stats['total'] - $stats['verified'];
+            
+            return $stats;
+        } catch (\Exception $e) {
+            error_log("Error getting user stats: " . $e->getMessage());
+            return [
+                'total' => 0,
+                'byType' => [],
+                'verified' => 0,
+                'unverified' => 0
+            ];
+        }
+    }
+
+    /**
+     * Delete user by ID
+     */
+    public function deleteUser($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE userId = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("s", $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error deleting user: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function updateProfile($userId, $data)
     {
         $fields = [];

@@ -1225,7 +1225,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                                 <img src="<?= BASE_URL ?>public/<?= htmlspecialchars($book['bookImage']) ?>" 
                                                      alt="<?= htmlspecialchars($book['bookName']) ?>" 
                                                      class="book-cover"
-                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                     onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <div class="no-image" style="display:none;">
                                                     <i class="fas fa-book"></i>
                                                 </div>
@@ -1377,6 +1377,16 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                         </div>
                         
                         <div class="col-md-6">
+                            <label for="add_barcode" class="form-label">
+                                <i class="fas fa-qrcode"></i>
+                                Barcode
+                            </label>
+                            <input type="text" class="form-control" name="barcode" 
+                                   placeholder="Leave empty for auto-generation">
+                            <small class="text-muted">Auto-generated if left empty</small>
+                        </div>
+                        
+                        <div class="col-md-12">
                             <label for="add_bookName" class="form-label">
                                 <i class="fas fa-book"></i>
                                 Book Title <span class="text-danger">*</span>
@@ -1403,7 +1413,34 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                    placeholder="Enter publisher name">
                         </div>
                         
+                        <div class="col-md-12">
+                            <label for="add_description" class="form-label">
+                                <i class="fas fa-align-left"></i>
+                                Description
+                            </label>
+                            <textarea class="form-control" name="description" rows="3" 
+                                      placeholder="Enter book description"></textarea>
+                        </div>
+                        
                         <div class="col-md-6">
+                            <label for="add_category" class="form-label">
+                                <i class="fas fa-tag"></i>
+                                Category
+                            </label>
+                            <input type="text" class="form-control" name="category" 
+                                   placeholder="e.g., Computer Science, Literature">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="add_publicationYear" class="form-label">
+                                <i class="fas fa-calendar"></i>
+                                Publication Year
+                            </label>
+                            <input type="number" class="form-control" name="publicationYear" 
+                                   min="1800" max="<?= date('Y') ?>" placeholder="e.g., <?= date('Y') ?>">
+                        </div>
+                        
+                        <div class="col-md-4">
                             <label for="add_totalCopies" class="form-label">
                                 <i class="fas fa-copy"></i>
                                 Total Copies <span class="text-danger">*</span>
@@ -1412,13 +1449,22 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                    min="1" value="1" required>
                         </div>
                         
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="add_available" class="form-label">
                                 <i class="fas fa-check-circle"></i>
                                 Available Copies <span class="text-danger">*</span>
                             </label>
                             <input type="number" class="form-control" name="available" 
                                    min="0" value="1" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="add_borrowed" class="form-label">
+                                <i class="fas fa-book-reader"></i>
+                                Borrowed Copies
+                            </label>
+                            <input type="number" class="form-control" name="borrowed" 
+                                   min="0" value="0">
                         </div>
 
                         <div class="col-md-12">
@@ -1429,6 +1475,26 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     Mark as Trending Book
                                 </label>
                             </div>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1" id="add_isSpecial">
+                                <label class="form-check-label" for="add_isSpecial">
+                                    <i class="fas fa-star"></i>
+                                    Mark as Special Book
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-12" id="add_specialBadgeContainer" style="display: none;">
+                            <label for="add_specialBadge" class="form-label">
+                                <i class="fas fa-award"></i>
+                                Special Badge
+                            </label>
+                            <input type="text" class="form-control" name="specialBadge" id="add_specialBadge"
+                                   placeholder="e.g., Bestseller, Classic, Award Winner">
+                            <small class="text-muted">Only shown if 'Mark as Special' is checked</small>
                         </div>
                     </div>
                 </div>
@@ -1514,6 +1580,31 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <input type="text" class="form-control" name="publisherName" id="edit_publisher" required>
                         </div>
                         
+                        <div class="col-md-12">
+                            <label for="edit_description" class="form-label">
+                                <i class="fas fa-align-left"></i>
+                                Description
+                            </label>
+                            <textarea class="form-control" name="description" id="edit_description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_category" class="form-label">
+                                <i class="fas fa-tag"></i>
+                                Category
+                            </label>
+                            <input type="text" class="form-control" name="category" id="edit_category">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="edit_publicationYear" class="form-label">
+                                <i class="fas fa-calendar"></i>
+                                Publication Year
+                            </label>
+                            <input type="number" class="form-control" name="publicationYear" id="edit_publicationYear" 
+                                   min="1800" max="<?= date('Y') ?>">
+                        </div>
+                        
                         <div class="col-md-4">
                             <label for="edit_totalCopies" class="form-label">
                                 Total Copies <span class="text-danger">*</span>
@@ -1543,6 +1634,25 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     Mark as Trending Book
                                 </label>
                             </div>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1" id="edit_isSpecial">
+                                <label class="form-check-label" for="edit_isSpecial">
+                                    <i class="fas fa-star"></i>
+                                    Mark as Special Book
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-12" id="edit_specialBadgeContainer" style="display: none;">
+                            <label for="edit_specialBadge" class="form-label">
+                                <i class="fas fa-award"></i>
+                                Special Badge
+                            </label>
+                            <input type="text" class="form-control" name="specialBadge" id="edit_specialBadge">
+                            <small class="text-muted">Only shown if 'Mark as Special' is checked</small>
                         </div>
                     </div>
                 </div>
@@ -1827,6 +1937,16 @@ document.getElementById('edit_coverImage').addEventListener('change', async func
     }
 });
 
+// Show/hide special badge field in Add form
+document.getElementById('add_isSpecial').addEventListener('change', function() {
+    document.getElementById('add_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
+});
+
+// Show/hide special badge field in Edit form
+document.getElementById('edit_isSpecial').addEventListener('change', function() {
+    document.getElementById('edit_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
+});
+
 // Open Edit Modal with book data - UPDATED
 function openEditModal(book) {
     document.getElementById('edit_isbn').value = book.isbn;
@@ -1835,10 +1955,18 @@ function openEditModal(book) {
     document.getElementById('edit_bookName').value = book.bookName;
     document.getElementById('edit_author').value = book.authorName;
     document.getElementById('edit_publisher').value = book.publisherName;
+    document.getElementById('edit_description').value = book.description || '';
+    document.getElementById('edit_category').value = book.category || '';
+    document.getElementById('edit_publicationYear').value = book.publicationYear || '';
     document.getElementById('edit_totalCopies').value = book.totalCopies;
     document.getElementById('edit_available').value = book.available;
     document.getElementById('edit_borrowed').value = book.borrowed || 0;
     document.getElementById('edit_isTrending').checked = book.isTrending == 1;
+    document.getElementById('edit_isSpecial').checked = book.isSpecial == 1;
+    document.getElementById('edit_specialBadge').value = book.specialBadge || '';
+    
+    // Show/hide special badge container
+    document.getElementById('edit_specialBadgeContainer').style.display = book.isSpecial == 1 ? 'block' : 'none';
     
     // Set image preview
     if (book.bookImage) {

@@ -302,6 +302,38 @@ include APP_ROOT . '/views/layouts/header.php';
     transform: translateY(0);
   }
 
+  /* Back Button */
+  .back-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    border: 2px solid #10b981;
+    background: white;
+    color: #10b981;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .back-button:hover {
+    background: #10b981;
+    color: white;
+    transform: translateX(-5px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .back-button i {
+    transition: transform 0.3s ease;
+  }
+
+  .back-button:hover i {
+    transform: translateX(-3px);
+  }
+
   /* Empty State */
   .empty-state {
     text-align: center;
@@ -438,12 +470,18 @@ include APP_ROOT . '/views/layouts/header.php';
         <h1>Return Books</h1>
         <p>Manage and return your borrowed books</p>
       </div>
-      <?php if (!empty($books)) { ?>
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="<?= BASE_URL ?>user/dashboard" class="back-button">
+          <i class="fas fa-arrow-left"></i>
+          <span>Back to Dashboard</span>
+        </a>
+        <?php if (!empty($books)) { ?>
         <div class="books-count-badge">
           <i class="fas fa-book"></i>
           <span><?= count($books) ?> <?= count($books) === 1 ? 'Book' : 'Books' ?> Borrowed</span>
         </div>
-      <?php } ?>
+        <?php } ?>
+      </div>
     </div>
 
     <div class="row justify-content-center">

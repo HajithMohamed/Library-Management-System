@@ -139,7 +139,7 @@ class Router{
 private function showDetailedError($exception, $context)
 {
   http_response_code(500);
-  $errorView = APP_ROOT . '/views/errors/detailed_error.php';
+  $errorView = APP_ROOT . '/views/errors/router_error.php';
 
   if (file_exists($errorView)) {
     include $errorView;
