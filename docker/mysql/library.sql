@@ -809,8 +809,69 @@ INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, 
 ('USR008', '9780141439518', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
 
 -- ====================================================================
--- Re-enable FK checks after all inserts
+-- FINE CALCULATION SYSTEM (Simplified - No stored procedures needed)
 -- ====================================================================
+
+-- Create a simple view to calculate fines on-the-fly
+CREATE OR REPLACE VIEW transaction_fines AS
+SELECT 
+    t.tid,
+    t.userId,
+    t.isbn,
+    t.borrowDate,
+    t.returnDate,
+    t.fineStatus,
+    t.finePaymentDate,
+    t.finePaymentMethod,
+    b.bookName,
+    u.emailId,
+    u.userType,
+    -- Calculate days overdue (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0)
+        ELSE 0
+    END AS daysOverdue,
+    -- Calculate fine amount (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(500.00, GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00)
+        ELSE 0.00
+    END AS calculatedFine,
+    t.fineAmount AS storedFine
+FROM transactions t
+JOIN books b ON t.isbn = b.isbn
+JOIN users u ON t.userId = u.userId;
+
+-- Update existing transaction fines based on calculation (safe version)
+UPDATE transactions t
+SET t.fineAmount = (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+)
+WHERE (t.returnDate IS NULL OR t.fineStatus = 'pending')
+  AND t.fineAmount != (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+  );
+
+-- ====================================================================
+-- End of fine calculation system
+-- ====================================================================
+
+-- Re-enable FK checks after all inserts
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ====================================================================
