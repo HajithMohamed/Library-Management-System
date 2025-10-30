@@ -99,6 +99,10 @@ $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
 
+// User notifications routes
+$router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
+$router->addRoute('POST', '/user/notifications', 'UserController', 'notifications');
+
 // Student routes
 $router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
 $router->addRoute('GET', '/student/profile', 'UserController', 'profile');
@@ -124,6 +128,7 @@ $router->addRoute('POST', '/faculty/feedback', 'FacultyController', 'feedback');
 $router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');
 $router->addRoute('POST', '/faculty/book-request', 'FacultyController', 'bookRequest');
 $router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
+$router->addRoute('POST', '/faculty/notifications', 'FacultyController', 'notifications');
 
 // Admin routes
 $router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
@@ -156,6 +161,10 @@ $router->addRoute('POST', '/admin/books/add', 'BookController', 'addBook');
 $router->addRoute('GET', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/edit', 'BookController', 'editBook');
 $router->addRoute('POST', '/admin/books/delete', 'BookController', 'deleteBook');
+
+// Admin books borrowed management routes
+$router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
+$router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 
 // Public book browsing routes (accessible without login)
 $router->addRoute('GET', '/books', 'BookController', 'userBooks');

@@ -398,6 +398,32 @@ CREATE TABLE IF NOT EXISTS `report_schedule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================
+-- Table structure for table `books_borrowed`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `books_borrowed` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `borrowDate` date NOT NULL,
+  `dueDate` date NOT NULL,
+  `returnDate` date DEFAULT NULL,
+  `status` enum('Active','Returned','Overdue') NOT NULL DEFAULT 'Active',
+  `notes` text,
+  `addedBy` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_status` (`status`),
+  KEY `idx_borrowDate` (`borrowDate`),
+  KEY `idx_dueDate` (`dueDate`),
+  CONSTRAINT `books_borrowed_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
+  CONSTRAINT `books_borrowed_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE,
+  CONSTRAINT `books_borrowed_ibfk_3` FOREIGN KEY (`addedBy`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
 -- Disable FK checks for safe data insertion (re-enabled after)
 -- ====================================================================
 SET FOREIGN_KEY_CHECKS = 0;
@@ -768,15 +794,19 @@ INSERT IGNORE INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `re
 ('USR009', '/api/profile/update', 'PUT', 200, 223, '192.168.1.58', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
 
 -- ====================================================================
--- DUMMY DATA: Report Schedule (5 scheduled reports)
--- FIXED: Updated dates to 2025
+-- DUMMY DATA: Books Borrowed (10 sample records)
 -- ====================================================================
-INSERT IGNORE INTO `report_schedule` (`reportName`, `reportType`, `frequency`, `recipients`, `isActive`, `lastGenerated`, `nextScheduled`, `createdBy`) VALUES
-('Monthly Circulation Report', 'Monthly', 'First day of month', '["richard.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM001'),
-('Weekly Overdue Books', 'Weekly', 'Every Monday', '["susan.librarian@university.edu", "mark.librarian@university.edu", "nancy.librarian@university.edu"]', 1, '2025-10-21 08:00:00', '2025-10-28 08:00:00', 'ADM001'),
-('Daily New Registrations', 'Daily', 'Every day at 9 AM', '["richard.admin@university.edu", "jennifer.admin@university.edu"]', 1, '2025-10-25 09:00:00', '2025-10-26 09:00:00', 'ADM002'),
-('Quarterly Collection Analysis', 'Quarterly', 'First day of quarter', '["richard.admin@university.edu"]', 1, '2025-10-01 08:00:00', '2026-01-01 08:00:00', 'ADM001'),
-('Monthly Fine Collection', 'Monthly', 'First day of month', '["jennifer.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM002');
+INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, `returnDate`, `status`, `notes`, `addedBy`) VALUES
+('USR001', '9780134685991', '2025-10-15', '2025-10-29', NULL, 'Active', 'Regular borrowing', 'ADM001'),
+('USR002', '9780132350884', '2025-10-18', '2025-11-01', NULL, 'Active', NULL, 'LIB001'),
+('USR003', '9780743273565', '2025-10-01', '2025-10-15', '2025-10-14', 'Returned', 'Returned on time', 'LIB001'),
+('USR004', '9780451524935', '2025-09-25', '2025-10-09', NULL, 'Overdue', 'Needs follow-up', 'ADM001'),
+('USR005', '9781593279509', '2025-10-20', '2025-11-03', NULL, 'Active', NULL, 'LIB002'),
+('USR006', '9780134757599', '2025-10-10', '2025-10-24', '2025-10-23', 'Returned', NULL, 'LIB001'),
+('USR007', '9780061120084', '2025-10-22', '2025-11-05', NULL, 'Active', 'Faculty member', 'ADM001'),
+('FAC001', '9780393979503', '2025-10-05', '2025-10-19', '2025-10-18', 'Returned', 'Extended borrowing period', 'LIB003'),
+('FAC002', '9781617294136', '2025-10-12', '2025-10-26', NULL, 'Active', NULL, 'LIB002'),
+('USR008', '9780141439518', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
 
 -- ====================================================================
 -- Re-enable FK checks after all inserts

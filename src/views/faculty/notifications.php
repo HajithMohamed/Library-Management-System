@@ -7,6 +7,7 @@ $pageTitle = 'Notifications';
 include APP_ROOT . '/views/layouts/header.php';
 
 $notifications = $notifications ?? [];
+$userType = $userType ?? 'Faculty';
 
 // Separate read and unread notifications
 $unreadNotifications = array_filter($notifications, fn($n) => !$n['isRead']);
@@ -510,6 +511,9 @@ $readNotifications = array_filter($notifications, fn($n) => $n['isRead']);
                         Notifications
                     </h1>
                     <p>Stay updated with your library activities</p>
+                    <p style="font-size: 0.95rem; color: #667eea; font-weight: 600; margin-top: 0.5rem;">
+                        <i class="fas fa-user-graduate"></i> Viewing as: <?= htmlspecialchars($userType) ?>
+                    </p>
                 </div>
                 <div class="header-stats">
                     <a href="<?= BASE_URL ?>faculty/dashboard" class="back-button">
@@ -592,6 +596,11 @@ $readNotifications = array_filter($notifications, fn($n) => $n['isRead']);
                                             <i class="fas fa-clock"></i>
                                             <?= date('M d, Y • H:i', strtotime($notification['createdAt'])) ?>
                                         </span>
+                                        <?php if ($notification['userId'] === null): ?>
+                                            <span class="meta-badge" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); color: #10b981;">
+                                                <i class="fas fa-globe"></i> System-wide
+                                            </span>
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <?php if (!$isRead): ?>
@@ -657,6 +666,11 @@ $readNotifications = array_filter($notifications, fn($n) => $n['isRead']);
                                             <i class="fas fa-clock"></i>
                                             <?= date('M d, Y • H:i', strtotime($notification['createdAt'])) ?>
                                         </span>
+                                        <?php if ($notification['userId'] === null): ?>
+                                            <span class="meta-badge" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); color: #10b981;">
+                                                <i class="fas fa-globe"></i> System-wide
+                                            </span>
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <div class="notification-actions">

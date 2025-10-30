@@ -325,13 +325,15 @@ class FacultyController extends BaseController
         $this->requireLogin(['Faculty']);
         
         $userId = $_SESSION['userId'];
+        $userType = 'Faculty';
         
         // Handle mark as read
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
             if ($notificationId) {
+                global $mysqli;
                 $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
-                $stmt = $this->db->prepare($sql);
+                $stmt = $mysqli->prepare($sql);
                 $stmt->bind_param('is', $notificationId, $userId);
                 $stmt->execute();
             }
@@ -339,10 +341,39 @@ class FacultyController extends BaseController
             return;
         }
         
-        // Get all notifications for faculty
-        $notifications = $this->userModel->getNotifications($userId);
+        // Get notifications with proper user email and type based on userId
+        global $mysqli;
+        
+        $sql = "SELECT 
+                    n.id,
+                    n.userId,
+                    n.title,
+                    n.message,
+                    n.type,
+                    n.priority,
+                    n.isRead,
+                    n.relatedId,
+                    n.createdAt,
+                    u.userType,
+                    u.username,
+                    u.emailId
+                FROM notifications n
+                LEFT JOIN users u ON n.userId = u.userId
+                WHERE n.userId = ? OR n.userId IS NULL
+                ORDER BY n.isRead ASC, n.createdAt DESC";
+        
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $notifications = [];
+        while ($row = $result->fetch_assoc()) {
+            $notifications[] = $row;
+        }
         
         $this->data['notifications'] = $notifications;
+        $this->data['userType'] = $userType;
         $this->view('faculty/notifications', $this->data);
     }
 }

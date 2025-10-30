@@ -25,18 +25,23 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all books - FIXED: Changed 'image' to 'bookImage'
+        // Fetch all books - UPDATED: Fetch all fields
         $sql = "SELECT 
                     isbn,
                     barcode,
                     bookName,
                     authorName,
                     publisherName,
+                    description,
+                    category,
+                    publicationYear,
                     totalCopies,
                     bookImage,
                     available,
                     borrowed,
-                    isTrending
+                    isTrending,
+                    isSpecial,
+                    specialBadge
                 FROM books 
                 ORDER BY bookName ASC";
         
@@ -51,11 +56,8 @@ class BookController
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Add 'image' alias for backward compatibility if needed
-                $row['image'] = $row['bookImage'];
-                // Add missing columns with default values for view compatibility
-                $row['isSpecial'] = 0;
-                $row['specialBadge'] = null;
+                // Debug: Log each book's image path
+                error_log("Book: {$row['bookName']}, Image: " . ($row['bookImage'] ?? 'NULL'));
                 $books[] = $row;
             }
             $result->free();
@@ -119,9 +121,15 @@ class BookController
             $bookName = trim($_POST['bookName'] ?? '');
             $authorName = trim($_POST['authorName'] ?? '');
             $publisherName = trim($_POST['publisherName'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $category = trim($_POST['category'] ?? '');
+            $publicationYear = !empty($_POST['publicationYear']) ? (int)$_POST['publicationYear'] : null;
             $totalCopies = (int)($_POST['totalCopies'] ?? 1);
             $available = (int)($_POST['available'] ?? $totalCopies);
+            $borrowed = (int)($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
+            $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
+            $specialBadge = $isSpecial ? trim($_POST['specialBadge'] ?? '') : null;
             
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
@@ -165,6 +173,7 @@ class BookController
                 $uploadDir = APP_ROOT . '/public/uploads/books/';
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
+                    error_log("Created upload directory: {$uploadDir}");
                 }
                 
                 $fileExtension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
@@ -176,11 +185,24 @@ class BookController
                     exit();
                 }
                 
+                // Check file size (500KB max after compression on client)
+                if ($_FILES['image']['size'] > 1024 * 1024 * 2) { // 2MB hard limit server-side
+                    $_SESSION['error'] = 'Image file is too large. Maximum size is 2MB.';
+                    header('Location: ' . BASE_URL . 'admin/books');
+                    exit();
+                }
+                
                 $fileName = uniqid('book_') . '.' . $fileExtension;
                 $targetPath = $uploadDir . $fileName;
                 
                 if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
                     $imagePath = 'uploads/books/' . $fileName;
+                    error_log("✓ Image uploaded successfully: {$imagePath}");
+                } else {
+                    error_log("✗ Failed to move uploaded file to: {$targetPath}");
+                    $_SESSION['error'] = 'Failed to upload image. Please try again.';
+                    header('Location: ' . BASE_URL . 'admin/books');
+                    exit();
                 }
             }
             
@@ -196,28 +218,34 @@ class BookController
             }
             // END BARCODE GENERATION
             
-            $borrowed = $totalCopies - $available;
-            
-            // Insert book - FIXED: Changed 'image' to 'bookImage'
+            // Insert book - UPDATED: Include all fields
             $stmt = $mysqli->prepare("INSERT INTO books 
-                (isbn, barcode, bookName, authorName, publisherName, totalCopies, bookImage, available, borrowed, isTrending) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                (isbn, barcode, bookName, authorName, publisherName, description, category, publicationYear, 
+                 totalCopies, bookImage, available, borrowed, isTrending, isSpecial, specialBadge) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssssissii", 
+            error_log("Inserting book with image path: " . ($imagePath ?? 'NULL'));
+            
+            $stmt->bind_param("sssssssississis", 
                 $isbn, 
                 $barcodeValue,
                 $bookName, 
                 $authorName, 
-                $publisherName, 
+                $publisherName,
+                $description,
+                $category,
+                $publicationYear,
                 $totalCopies,
                 $imagePath,
                 $available,
                 $borrowed,
-                $isTrending
+                $isTrending,
+                $isSpecial,
+                $specialBadge
             );
             
             if ($stmt->execute()) {
@@ -267,9 +295,15 @@ class BookController
             $bookName = trim($_POST['bookName'] ?? '');
             $authorName = trim($_POST['authorName'] ?? '');
             $publisherName = trim($_POST['publisherName'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $category = trim($_POST['category'] ?? '');
+            $publicationYear = !empty($_POST['publicationYear']) ? (int)$_POST['publicationYear'] : null;
             $totalCopies = (int)($_POST['totalCopies'] ?? 1);
             $available = (int)($_POST['available'] ?? 0);
+            $borrowed = (int)($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
+            $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
+            $specialBadge = $isSpecial ? trim($_POST['specialBadge'] ?? '') : null;
             
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
@@ -325,33 +359,41 @@ class BookController
                 }
             }
             
-            $borrowed = $totalCopies - $available;
-            
-            // Update book - FIXED: Changed 'image' to 'bookImage'
+            // Update book - UPDATED: Include all fields
             $stmt = $mysqli->prepare("UPDATE books SET 
                 bookName = ?, 
                 authorName = ?, 
-                publisherName = ?, 
+                publisherName = ?,
+                description = ?,
+                category = ?,
+                publicationYear = ?,
                 totalCopies = ?,
                 bookImage = ?,
                 available = ?, 
                 borrowed = ?,
-                isTrending = ?
+                isTrending = ?,
+                isSpecial = ?,
+                specialBadge = ?
                 WHERE isbn = ?");
             
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
             
-            $stmt->bind_param("sssisiiis", 
+            $stmt->bind_param("sssssiisiiisss", 
                 $bookName, 
                 $authorName, 
-                $publisherName, 
+                $publisherName,
+                $description,
+                $category,
+                $publicationYear,
                 $totalCopies,
                 $imagePath,
                 $available, 
                 $borrowed,
                 $isTrending,
+                $isSpecial,
+                $specialBadge,
                 $isbn
             );
             
@@ -477,17 +519,22 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all available books - FIXED: Changed 'image' to 'bookImage'
+        // Fetch all available books - UPDATED: Fetch all fields
         $sql = "SELECT 
                     isbn,
                     bookName,
                     authorName,
                     publisherName,
+                    description,
+                    category,
+                    publicationYear,
                     totalCopies,
                     bookImage,
                     available,
                     borrowed,
-                    isTrending
+                    isTrending,
+                    isSpecial,
+                    specialBadge
                 FROM books
                 WHERE available > 0
                 ORDER BY bookName ASC";
@@ -504,9 +551,6 @@ class BookController
             while ($row = $result->fetch_assoc()) {
                 // Add 'image' alias for backward compatibility if needed
                 $row['image'] = $row['bookImage'];
-                // Add missing columns with default values for view compatibility
-                $row['isSpecial'] = 0;
-                $row['specialBadge'] = null;
                 $books[] = $row;
             }
             $result->free();
@@ -577,15 +621,20 @@ class BookController
         }
         
         $searchTerm = '%' . $query . '%';
-        // FIXED: Changed 'image' to 'bookImage'
+        // UPDATED: Fetch all fields
         $stmt = $mysqli->prepare("SELECT 
                 isbn, 
                 bookName, 
                 authorName, 
                 publisherName,
+                description,
+                category,
+                publicationYear,
                 bookImage,
                 available,
-                isTrending
+                isTrending,
+                isSpecial,
+                specialBadge
             FROM books 
             WHERE bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?
             ORDER BY bookName ASC
@@ -605,9 +654,6 @@ class BookController
         while ($row = $result->fetch_assoc()) {
             // Add 'image' alias for backward compatibility if needed
             $row['image'] = $row['bookImage'];
-            // Add missing columns with default values for view compatibility
-            $row['isSpecial'] = 0;
-            $row['specialBadge'] = null;
             $books[] = $row;
         }
         
