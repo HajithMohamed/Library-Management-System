@@ -267,7 +267,7 @@ class UserController extends BaseController
     }
     
     /**
-     * Reserve a book
+     * Reserve a book - FIXED VERSION
      */
     public function reserve() {
         // DEBUG: Log session data
@@ -275,50 +275,38 @@ class UserController extends BaseController
         error_log("Full URL: " . $_SERVER['REQUEST_URI']);
         error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
         error_log("Session data: " . print_r($_SESSION, true));
-        error_log("GET data: " . print_r($_GET, true));
-        error_log("POST data: " . print_r($_POST, true));
         
-        // Check authentication
+        // SIMPLIFIED AUTHENTICATION - Just check if logged in
         if (!isset($_SESSION['userId'])) {
-            error_log("ERROR: userId not in session - redirecting to login");
-            error_log("Available session keys: " . implode(', ', array_keys($_SESSION)));
+            error_log("ERROR: User not logged in");
             $_SESSION['error'] = 'Please login to reserve books';
             header('Location: ' . BASE_URL . 'login');
             exit;
         }
         
         $userId = $_SESSION['userId'];
-        $userType = $_SESSION['userType'] ?? null;
-
-        // Make user type check case-insensitive
-        $allowedTypes = ['student', 'faculty'];
-        if (!in_array(strtolower($userType), $allowedTypes)) {
-            error_log("ERROR: Invalid user type - Type: " . ($userType ?? 'NULL'));
-            $_SESSION['error'] = 'Access denied. Only students and faculty can reserve books.';
-            $this->redirect('user/dashboard');
-            exit;
-        }
+        $userType = $_SESSION['userType'] ?? '';
         
-        error_log("SUCCESS: User role validated");
+        error_log("User authenticated - ID: $userId, Type: $userType");
         
         // Get ISBN from query parameter
         $isbn = $_GET['isbn'] ?? null;
-        error_log("ISBN from GET: " . ($isbn ?? 'NULL'));
         
         if (!$isbn) {
-            error_log("ERROR: No ISBN provided in URL");
+            error_log("ERROR: No ISBN provided");
             $_SESSION['error'] = 'No book specified for reservation';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
         
-        error_log("SUCCESS: ISBN received: $isbn");
+        error_log("ISBN received: $isbn");
         
         global $mysqli;
         
         // If POST request, process the reservation
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("=== PROCESSING RESERVATION (POST) ===");
+            
             // Check if book exists
             $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
             $stmt->bind_param("s", $isbn);
@@ -366,6 +354,7 @@ class UserController extends BaseController
         
         // GET request - show reservation confirmation page
         error_log("=== SHOWING RESERVATION PAGE (GET) ===");
+        
         // Fetch book details
         $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
         $stmt->bind_param("s", $isbn);
@@ -388,40 +377,43 @@ class UserController extends BaseController
         $checkStmt->close();
         
         error_log("=== LOADING RESERVE VIEW ===");
+        
         // Load reserve view
         $pageTitle = 'Reserve Book';
         require_once APP_ROOT . '/views/users/reserve.php';
     }
     
+    /**
+     * View book details - FIXED VERSION
+     */
     public function viewBook() {
-        // DEBUG: Log session data
         error_log("=== VIEW BOOK METHOD CALLED ===");
         error_log("Full URL: " . $_SERVER['REQUEST_URI']);
         error_log("Session data: " . print_r($_SESSION, true));
-        error_log("GET data: " . print_r($_GET, true));
         
-        // Check authentication
+        // SIMPLIFIED AUTHENTICATION - Just check if logged in
         if (!isset($_SESSION['userId'])) {
-            error_log("ERROR: userId not in session for viewBook");
-            error_log("Available session keys: " . implode(', ', array_keys($_SESSION)));
-            $this->redirect('login');
+            error_log("ERROR: User not logged in");
+            $_SESSION['error'] = 'Please login to view book details';
+            header('Location: ' . BASE_URL . 'login');
             exit;
         }
         
-        error_log("SUCCESS: User authenticated for viewBook - ID: " . $_SESSION['userId']);
+        $userId = $_SESSION['userId'];
+        error_log("User authenticated - ID: $userId");
         
         // Get ISBN from URL parameter
         $isbn = $_GET['isbn'] ?? null;
-        error_log("ISBN from GET: " . ($isbn ?? 'NULL'));
         
         if (!$isbn) {
-            error_log("ERROR: No ISBN provided for viewBook");
+            error_log("ERROR: No ISBN provided");
             $_SESSION['error'] = 'No book specified';
-            $this->redirect('user/books');
+            header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
         
-        error_log("SUCCESS: Fetching book details for ISBN: $isbn");
+        error_log("Fetching book details for ISBN: $isbn");
+        
         global $mysqli;
         
         // Fetch book details
@@ -434,12 +426,11 @@ class UserController extends BaseController
         
         if (!$book) {
             $_SESSION['error'] = 'Book not found';
-            $this->redirect('user/books');
+            header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
         
         // Check if user has active reservation
-        $userId = $_SESSION['userId'];
         $resStmt = $mysqli->prepare("SELECT * FROM book_reservations WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'");
         $resStmt->bind_param("ss", $userId, $isbn);
         $resStmt->execute();
@@ -447,6 +438,7 @@ class UserController extends BaseController
         $resStmt->close();
         
         error_log("=== LOADING VIEW-BOOK VIEW ===");
+        
         // Load view-book view
         $pageTitle = 'Book Details';
         require_once APP_ROOT . '/views/users/view-book.php';

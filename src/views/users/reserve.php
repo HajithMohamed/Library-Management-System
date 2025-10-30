@@ -1,6 +1,21 @@
 <?php
 $pageTitle = 'Reserve Book';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Check if user is logged in - REMOVED STRICT USER TYPE CHECK
+if (!isset($_SESSION['userId'])) {
+    header('Location: ' . BASE_URL . 'login');
+    exit();
+}
+
+// Allow both Student and Faculty to access this page
+$userType = $_SESSION['userType'] ?? '';
+$allowedTypes = ['student', 'faculty'];
+if (!in_array(strtolower($userType), $allowedTypes)) {
+    $_SESSION['error'] = 'Access denied. Only students and faculty can reserve books.';
+    header('Location: ' . BASE_URL . 'user/dashboard');
+    exit();
+}
 ?>
 
 <style>
@@ -176,7 +191,7 @@ include APP_ROOT . '/views/layouts/header.php';
       </div>
     </div>
 
-    <?php if ($existingReservation): ?>
+    <?php if (isset($existingReservation) && $existingReservation): ?>
       <div class="alert alert-warning">
         <strong>⚠️ You already have an active reservation for this book</strong>
         <p style="margin: 10px 0 0 0;">Expires on: <?= date('F j, Y', strtotime($existingReservation['expiryDate'])) ?></p>

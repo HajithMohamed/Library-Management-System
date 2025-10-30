@@ -498,15 +498,13 @@ class BookController
      */
     public function userBooks()
     {
-        // Check if logged in user is Faculty and redirect
+        // Only redirect if user is Faculty or Admin
         if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
             $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-            
             if ($userType === 'Faculty') {
                 header('Location: /faculty/books');
                 exit();
             }
-            
             if ($userType === 'Admin') {
                 header('Location: /admin/books');
                 exit();
@@ -795,5 +793,48 @@ class BookController
         }
         
         return $queue;
+    }
+
+    /**
+     * View details for a single book (user/student)
+     */
+    public function viewBook()
+    {
+        // Only redirect if user is Faculty or Admin
+        if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
+            $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+            if ($userType === 'Faculty') {
+                header('Location: /faculty/books');
+                exit();
+            }
+            if ($userType === 'Admin') {
+                header('Location: /admin/books');
+                exit();
+            }
+        }
+        global $mysqli;
+        $isbn = $_GET['isbn'] ?? '';
+        if (empty($isbn)) {
+            // Redirect to books page if no ISBN provided
+            header('Location: ' . BASE_URL . 'user/books');
+            exit();
+        }
+
+        // Fetch book details
+        $stmt = $mysqli->prepare("SELECT isbn, bookName, authorName, publisherName, description, category, publicationYear, totalCopies, bookImage, available, borrowed, isTrending, isSpecial, specialBadge FROM books WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $book = $result->fetch_assoc();
+        $stmt->close();
+
+        if (!$book) {
+            // Book not found
+            header('Location: ' . BASE_URL . 'user/books');
+            exit();
+        }
+
+        $pageTitle = 'Book Details';
+        include APP_ROOT . '/views/users/view-book.php';
     }
 }

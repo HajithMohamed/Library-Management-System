@@ -81,7 +81,7 @@ try {
         case 'user':
             require_once APP_ROOT . '/Controllers/UserController.php';
             $ctrl = new App\Controllers\UserController();
-            
+
             switch ($action) {
                 case 'dashboard':
                     $ctrl->dashboard();
@@ -92,10 +92,28 @@ try {
                     $bookCtrl->userBooks();
                     break;
                 case 'book':
-                    $ctrl->viewBook();
+                    // Book details page
+                    require_once APP_ROOT . '/Controllers/BookController.php';
+                    $bookCtrl = new App\Controllers\BookController();
+                    // Add a method to show book details if not present, or call viewBook()
+                    if (method_exists($bookCtrl, 'viewBook')) {
+                        $bookCtrl->viewBook();
+                    } else {
+                        // fallback: show books
+                        $bookCtrl->userBooks();
+                    }
                     break;
                 case 'reserve':
-                    $ctrl->reserve();
+                    // Book reserve page
+                    require_once APP_ROOT . '/Controllers/UserController.php';
+                    if (method_exists($ctrl, 'reserve')) {
+                        $ctrl->reserve();
+                    } else {
+                        // fallback: show books
+                        require_once APP_ROOT . '/Controllers/BookController.php';
+                        $bookCtrl = new App\Controllers\BookController();
+                        $bookCtrl->userBooks();
+                    }
                     break;
                 case 'profile':
                     $ctrl->profile();
