@@ -514,7 +514,10 @@ $borrowedBooks = $borrowedBooks ?? [];
                 <!-- Books Grid -->
                 <div class="books-grid">
                     <?php foreach ($borrowedBooks as $book): 
-                        $borrowDate = strtotime($book['borrowDate']);
+                        // Defensive: skip if borrowDate is missing or invalid
+                        $borrowDateStr = $book['borrowDate'] ?? null;
+                        if (!$borrowDateStr || strtotime($borrowDateStr) === false) continue;
+                        $borrowDate = strtotime($borrowDateStr);
                         $dueDate = strtotime('+14 days', $borrowDate);
                         $today = time();
                         $daysUntilDue = ceil(($dueDate - $today) / (60 * 60 * 24));
@@ -532,6 +535,7 @@ $borrowedBooks = $borrowedBooks ?? [];
                             $statusText = 'Due in ' . $daysUntilDue . ' days';
                             $statusIcon = '✅';
                         }
+                        $bookId = htmlspecialchars($book['tid'] ?? $book['id'] ?? '');
                     ?>
                         <div class="book-card">
                             <span class="status-badge <?= $statusClass ?>">
@@ -541,7 +545,7 @@ $borrowedBooks = $borrowedBooks ?? [];
                             <div class="book-info">
                                 <h3 class="book-title"><?= htmlspecialchars($book['title'] ?? $book['bookName'] ?? 'Unknown Book') ?></h3>
                                 <p class="book-author"><?= htmlspecialchars($book['author'] ?? $book['authorName'] ?? 'Unknown Author') ?></p>
-                                <p class="book-isbn"><?= htmlspecialchars($book['isbn']) ?></p>
+                                <p class="book-isbn"><?= htmlspecialchars($book['isbn'] ?? '') ?></p>
                             </div>
                             
                             <div class="book-meta">
@@ -562,7 +566,7 @@ $borrowedBooks = $borrowedBooks ?? [];
                             </div>
                             
                             <form method="POST" action="<?= BASE_URL ?>faculty/return">
-                                <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($book['tid'] ?? $book['id'] ?? '') ?>">
+                                <input type="hidden" name="borrow_id" value="<?= $bookId ?>">
                                 <button type="submit" class="return-btn">
                                     <i class="fas fa-check-circle"></i>
                                     <span>Return Book</span>

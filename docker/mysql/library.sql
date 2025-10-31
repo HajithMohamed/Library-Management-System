@@ -877,3 +877,23 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ====================================================================
 -- End of database schema and dummy data
 -- ====================================================================
+-- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ...existing code...
+
+-- ====================================================================
+-- Table structure for table `saved_cards`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `card_holder` varchar(100) NOT NULL,
+  `card_number_masked` varchar(25) NOT NULL,
+  `card_expiry` varchar(7) NOT NULL,
+  `card_type` varchar(20) DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ...existing code...

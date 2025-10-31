@@ -274,6 +274,12 @@ try {
                 case 'profile':
                     $ctrl->profile();
                     break;
+                case 'fines':
+                    $ctrl->fines();
+                    break;
+                case 'return':
+                    $ctrl->returnBook();
+                    break;
                 default:
                     $ctrl->dashboard();
             }

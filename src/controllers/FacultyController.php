@@ -269,11 +269,43 @@ class FacultyController extends BaseController
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $borrowId = $_POST['borrow_id'] ?? 0;
             $amount = $_POST['amount'] ?? 0;
-            
-            if ($this->borrowModel->payFine($borrowId, $amount)) {
-                $_SESSION['success'] = 'Fine paid successfully';
+
+            // Online payment
+            if (isset($_POST['pay_online'])) {
+                $cardHolder = trim($_POST['card_holder'] ?? '');
+                $cardNumber = preg_replace('/\D/', '', $_POST['card_number'] ?? '');
+                $cardExpiry = $_POST['card_expiry'] ?? '';
+                $saveCard = !empty($_POST['save_card']);
+                // Card type detection (simple)
+                $cardType = '';
+                if (preg_match('/^4/', $cardNumber)) $cardType = 'Visa';
+                elseif (preg_match('/^5[1-5]/', $cardNumber)) $cardType = 'MasterCard';
+                elseif (preg_match('/^3[47]/', $cardNumber)) $cardType = 'Amex';
+                elseif (preg_match('/^6/', $cardNumber)) $cardType = 'Discover';
+
+                // Save card if requested (mask number, never save CVV)
+                if ($saveCard && strlen($cardNumber) >= 4) {
+                    global $mysqli;
+                    $masked = str_repeat('X', strlen($cardNumber) - 4) . substr($cardNumber, -4);
+                    $stmt = $mysqli->prepare("INSERT INTO saved_cards (userId, card_holder, card_number_masked, card_expiry, card_type) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->bind_param('sssss', $userId, $cardHolder, $masked, $cardExpiry, $cardType);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+
+                // Mark fine as paid (simulate payment)
+                if ($this->borrowModel->payFine($borrowId, $amount, 'online')) {
+                    $_SESSION['success'] = 'Fine paid successfully via online payment';
+                } else {
+                    $_SESSION['error'] = 'Failed to process online payment';
+                }
             } else {
-                $_SESSION['error'] = 'Failed to process payment';
+                // Cash payment
+                if ($this->borrowModel->payFine($borrowId, $amount)) {
+                    $_SESSION['success'] = 'Fine paid successfully';
+                } else {
+                    $_SESSION['error'] = 'Failed to process payment';
+                }
             }
         }
         
