@@ -1,6 +1,6 @@
 <?php
 // Get active reservations
-require_once __DIR__ . '/../../src/config/dbConnection.php';
+require_once __DIR__ . '/../../config/dbConnection.php';
 $userId = $_SESSION['userId'];
 
 $stmt = $pdo->prepare("
@@ -456,8 +456,9 @@ try {
                             </div>
                         <?php else: ?>
                             <?php
-                            require_once __DIR__ . '/../../src/Controllers/BookController.php';
-                            $bookController = new BookController();
+                            // Fix: Use the full namespace path
+                            require_once __DIR__ . '/../../Controllers/BookController.php';
+                            $bookController = new \App\Controllers\BookController();
                             $queue = $bookController->getReservationQueue($res['isbn']);
                             
                             $position = 0;

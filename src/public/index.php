@@ -2,15 +2,13 @@
 
 /**
  * Front Controller - Entry point for all requests
- * Routes requests to appropriate controllers based on URL patterns
+ * Simple routing without Router class
  */
 
 // Start session
 session_start();
 
-
-
-// Define application paths (needed before including config)
+// Define application paths
 define('APP_ROOT', dirname(__DIR__));
 define('PUBLIC_ROOT', __DIR__);
 
@@ -23,186 +21,288 @@ ini_set('error_log', APP_ROOT . '/logs/error.log');
 
 // Log startup
 error_log("=== Application Starting ===");
-error_log("APP_ROOT: " . APP_ROOT);
-error_log("PUBLIC_ROOT: " . PUBLIC_ROOT);
+error_log("Request URI: " . $_SERVER['REQUEST_URI']);
 
-// Include Composer autoloader - FIXED PATH (use root vendor, not src/vendor)
-$vendorPath = dirname(APP_ROOT) . '/vendor/autoload.php';
-if (file_exists($vendorPath)) {
-  require_once $vendorPath;
-  error_log("Composer autoloader loaded from: {$vendorPath}");
-} else {
-  error_log("WARNING: Composer autoloader not found at {$vendorPath}");
-  error_log("Please run 'composer install' in the project root.");
-}
-
-
-// Include configuration (this creates $mysqli)
+// Include configuration
 require_once APP_ROOT . '/config/config.php';
-error_log("Config loaded");
-
-// Include dbConnection for backwards compatibility (creates $conn alias)
 require_once APP_ROOT . '/config/dbConnection.php';
-error_log("DB Connection loaded");
 
-// Verify connection
+// Verify database connection
 if (!$mysqli || !($mysqli instanceof mysqli)) {
-  error_log("ERROR: Database connection failed - mysqli not initialized");
-  die("Database connection failed in index.php");
+  die("Database connection failed");
 }
 
-if (!$conn || !($conn instanceof mysqli)) {
-  error_log("ERROR: Database connection failed - conn not initialized");
-  die("Database connection failed - conn alias not created");
+error_log("Database connected successfully");
+
+// Get request URI and method
+$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$requestMethod = $_SERVER['REQUEST_METHOD'];
+
+// Remove base path if exists
+$requestUri = str_replace('/index.php', '', $requestUri);
+$requestUri = rtrim($requestUri, '/');
+if (empty($requestUri)) {
+    $requestUri = '/';
 }
 
-error_log("Database connections verified (mysqli and conn)");
+error_log("Routing to: $requestUri");
 
-use App\Router\Router;
-
-
-
-// Initialize router and define routes
-$router = new Router();
-
-// Home page routes
-$router->addRoute('GET', '/', 'HomeController', 'index');
-$router->addRoute('GET', '/about', 'HomeController', 'about');
-$router->addRoute('GET', '/contact', 'HomeController', 'contact');
-$router->addRoute('GET', '/library', 'HomeController', 'library');
-
-// Authentication routes
-$router->addRoute('GET', '/login', 'AuthController', 'login');
-$router->addRoute('POST', '/login', 'AuthController', 'login');
-$router->addRoute('GET', '/signup', 'AuthController', 'signup');
-$router->addRoute('POST', '/signup', 'AuthController', 'signup');
-$router->addRoute('GET', '/verify-otp', 'AuthController', 'verifyOtp');
-$router->addRoute('POST', '/verify-otp', 'AuthController', 'verifyOtp');
-$router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword');
-$router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
-$router->addRoute('GET', '/logout', 'AuthController', 'logout');
-
-// User dashboard routes
-$router->addRoute('GET', '/user/dashboard', 'UserController', 'dashboard');
-$router->addRoute('GET', '/user/profile', 'UserController', 'profile');
-$router->addRoute('POST', '/user/profile', 'UserController', 'updateProfile');
-$router->addRoute('POST', '/user/change-password', 'UserController', 'changePassword');
-
-// User book management routes
-$router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
-$router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
-$router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
-$router->addRoute('GET', '/user/return', 'BookController', 'return');
-$router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
-
-// User fines routes
-$router->addRoute('GET', '/user/fines', 'UserController', 'fines');
-$router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
-
-// User notifications routes
-$router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
-$router->addRoute('POST', '/user/notifications', 'UserController', 'notifications');
-
-// Student routes
-$router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
-$router->addRoute('GET', '/student/profile', 'UserController', 'profile');
-$router->addRoute('POST', '/student/profile', 'UserController', 'updateProfile');
-$router->addRoute('POST', '/student/change-password', 'UserController', 'changePassword');
-
-// Faculty routes
-$router->addRoute('GET', '/faculty/dashboard', 'FacultyController', 'dashboard');
-$router->addRoute('GET', '/faculty/books', 'FacultyController', 'books');
-$router->addRoute('GET', '/faculty/book/{isbn}', 'FacultyController', 'viewBook');
-$router->addRoute('GET', '/faculty/fines', 'FacultyController', 'fines');
-$router->addRoute('POST', '/faculty/fines', 'FacultyController', 'fines');
-$router->addRoute('GET', '/faculty/return', 'FacultyController', 'returnBook');
-$router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
-$router->addRoute('GET', '/faculty/search', 'FacultyController', 'search');
-$router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
-$router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
-$router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
-$router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
-$router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
-$router->addRoute('GET', '/faculty/feedback', 'FacultyController', 'feedback');
-$router->addRoute('POST', '/faculty/feedback', 'FacultyController', 'feedback');
-$router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');
-$router->addRoute('POST', '/faculty/book-request', 'FacultyController', 'bookRequest');
-$router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
-$router->addRoute('POST', '/faculty/notifications', 'FacultyController', 'notifications');
-
-// Admin routes
-$router->addRoute('GET', '/admin/dashboard', 'AdminController', 'dashboard');
-$router->addRoute('GET', '/admin/users', 'AdminController', 'users');
-$router->addRoute('POST', '/admin/users/add', 'AdminController', 'addUser');
-$router->addRoute('POST', '/admin/users/edit', 'AdminController', 'editUser');
-$router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
-$router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
-$router->addRoute('GET', '/admin/settings', 'AdminController', 'settings');
-$router->addRoute('POST', '/admin/settings', 'AdminController', 'updateSettings');
-$router->addRoute('GET', '/admin/fines', 'AdminController', 'fines');
-$router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
-$router->addRoute('GET', '/admin/maintenance', 'AdminController', 'maintenance');
-$router->addRoute('POST', '/admin/backup', 'AdminController', 'createBackup');
-$router->addRoute('POST', '/admin/maintenance/perform', 'AdminController', 'performMaintenance');
-
-// Admin borrow requests routes
-$router->addRoute('GET', '/admin/borrow-requests', 'AdminController', 'borrowRequests');
-$router->addRoute('POST', '/admin/borrow-requests/handle', 'AdminController', 'handleBorrowRequest');
-$router->addRoute('GET', '/admin/analytics', 'AdminController', 'analytics');
-
-// Admin notifications routes
-$router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
-$router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
-
-// Admin book management routes
-$router->addRoute('GET', '/admin/books', 'BookController', 'adminBooks');
-$router->addRoute('GET', '/admin/books/add', 'BookController', 'addBook');
-$router->addRoute('POST', '/admin/books/add', 'BookController', 'addBook');
-$router->addRoute('GET', '/admin/books/edit', 'BookController', 'editBook');
-$router->addRoute('POST', '/admin/books/edit', 'BookController', 'editBook');
-$router->addRoute('POST', '/admin/books/delete', 'BookController', 'deleteBook');
-
-// Admin books borrowed management routes
-$router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
-$router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
-
-// Public book browsing routes (accessible without login)
-$router->addRoute('GET', '/books', 'BookController', 'userBooks');
-$router->addRoute('GET', '/books/search', 'BookController', 'searchBooks');
-
-// API routes
-$router->addRoute('GET', '/api/books/search', 'BookController', 'searchBooks');
-$router->addRoute('GET', '/api/book/details', 'BookController', 'getBookDetails');
-
-// Error handling routes
-$router->addRoute('GET', '/403', 'AuthController', 'show403');
-$router->addRoute('GET', '/404', 'AuthController', 'show404');
-
-// Health check and system routes
-$router->addRoute('GET', '/health', 'AuthController', 'healthCheck');
-$router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
-
-// Debug routes (remove in production)
-$router->addRoute('GET', '/debug/video', 'HomeController', 'videoDebug');
-
-error_log("Routes registered, dispatching...");
-
-// Dispatch the request
+// Simple routing logic
 try {
-  $router->dispatch();
-} catch (\Exception $e) {
-  error_log("FATAL ERROR during dispatch: " . $e->getMessage());
-  error_log("Stack trace: " . $e->getTraceAsString());
+    // Parse the URI into segments
+    $segments = explode('/', trim($requestUri, '/'));
+    $controller = $segments[0] ?? 'home';
+    $action = $segments[1] ?? 'index';
+    $subAction = $segments[2] ?? null;
+    
+    error_log("Controller: $controller, Action: $action, SubAction: " . ($subAction ?? 'none'));
+    
+    // Route based on controller
+    switch ($controller) {
+        case '':
+        case 'home':
+            require_once APP_ROOT . '/Controllers/HomeController.php';
+            $ctrl = new App\Controllers\HomeController();
+            $ctrl->index();
+            break;
+            
+        case 'login':
+            require_once APP_ROOT . '/Controllers/AuthController.php';
+            $ctrl = new App\Controllers\AuthController();
+            $ctrl->login();
+            break;
+            
+        case 'logout':
+            require_once APP_ROOT . '/Controllers/AuthController.php';
+            $ctrl = new App\Controllers\AuthController();
+            $ctrl->logout();
+            break;
+            
+        case 'user':
+            require_once APP_ROOT . '/Controllers/UserController.php';
+            $ctrl = new App\Controllers\UserController();
 
-  // Show error page
-  http_response_code(500);
-  echo "<!DOCTYPE html><html><head><title>Fatal Error</title></head><body>";
-  echo "<h1>Fatal Application Error</h1>";
-  echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-  echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . "</p>";
-  echo "<p><strong>Line:</strong> " . $e->getLine() . "</p>";
-  echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-  echo "</body></html>";
+            switch ($action) {
+                case 'dashboard':
+                    $ctrl->dashboard();
+                    break;
+                case 'books':
+                    require_once APP_ROOT . '/Controllers/BookController.php';
+                    $bookCtrl = new App\Controllers\BookController();
+                    $bookCtrl->userBooks();
+                    break;
+                case 'book':
+                    // Book details page
+                    require_once APP_ROOT . '/Controllers/BookController.php';
+                    $bookCtrl = new App\Controllers\BookController();
+                    // Add a method to show book details if not present, or call viewBook()
+                    if (method_exists($bookCtrl, 'viewBook')) {
+                        $bookCtrl->viewBook();
+                    } else {
+                        // fallback: show books
+                        $bookCtrl->userBooks();
+                    }
+                    break;
+                case 'reserve':
+                    // Book reserve page
+                    require_once APP_ROOT . '/Controllers/UserController.php';
+                    if (method_exists($ctrl, 'reserve')) {
+                        $ctrl->reserve();
+                    } else {
+                        // fallback: show books
+                        require_once APP_ROOT . '/Controllers/BookController.php';
+                        $bookCtrl = new App\Controllers\BookController();
+                        $bookCtrl->userBooks();
+                    }
+                    break;
+                case 'profile':
+                    $ctrl->profile();
+                    break;
+                case 'fines':
+                    $ctrl->fines();
+                    break;
+                case 'notifications':
+                    $ctrl->notifications();
+                    break;
+                default:
+                    $ctrl->dashboard();
+            }
+            break;
+            
+        case 'admin':
+            require_once APP_ROOT . '/Controllers/AdminController.php';
+            $ctrl = new App\Controllers\AdminController();
+            
+            switch ($action) {
+                case 'dashboard':
+                case 'index':
+                case '':
+                    $ctrl->dashboard();
+                    break;
+                    
+                case 'books':
+                    require_once APP_ROOT . '/Controllers/BookController.php';
+                    $bookCtrl = new App\Controllers\BookController();
+                    
+                    // Handle book sub-actions
+                    if ($subAction === 'add' && $requestMethod === 'POST') {
+                        $bookCtrl->addBook();
+                    } elseif ($subAction === 'edit' && $requestMethod === 'POST') {
+                        $bookCtrl->editBook();
+                    } elseif ($subAction === 'delete' && $requestMethod === 'POST') {
+                        $bookCtrl->deleteBook();
+                    } else {
+                        $bookCtrl->adminBooks();
+                    }
+                    break;
+                    
+                case 'users':
+                    $ctrl->users();
+                    break;
+                    
+                case 'fines':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->updateFines();
+                    } else {
+                        $ctrl->fines();
+                    }
+                    break;
+                    
+                case 'borrow-requests':
+                    $ctrl->borrowRequests();
+                    break;
+                    
+                case 'borrow-requests-handle':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->handleBorrowRequest();
+                    } else {
+                        header('Location: ' . BASE_URL . 'admin/borrow-requests');
+                        exit;
+                    }
+                    break;
+                    
+                case 'borrowed-books':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->booksBorrowed(); // Handles POST internally
+                    } else {
+                        $ctrl->booksBorrowed();
+                    }
+                    break;
+                    
+                case 'notifications':
+                    if ($requestMethod === 'POST' && $subAction === 'mark-read') {
+                        $ctrl->markNotificationRead();
+                    } else {
+                        $ctrl->notifications();
+                    }
+                    break;
+                    
+                case 'reports':
+                    $ctrl->reports();
+                    break;
+                    
+                case 'analytics':
+                    $ctrl->analytics();
+                    break;
+                    
+                case 'maintenance':
+                    if ($requestMethod === 'POST') {
+                        if ($subAction === 'backup') {
+                            $ctrl->createBackup();
+                        } else {
+                            $ctrl->performMaintenance();
+                        }
+                    } else {
+                        $ctrl->maintenance();
+                    }
+                    break;
+                    
+                case 'settings':
+                    if ($requestMethod === 'POST') {
+                        $ctrl->updateSettings();
+                    } else {
+                        $ctrl->settings();
+                    }
+                    break;
+                    
+                case 'profile':
+                    if ($requestMethod === 'POST') {
+                        // Handle profile update
+                        require_once APP_ROOT . '/Controllers/UserController.php';
+                        $userCtrl = new App\Controllers\UserController();
+                        $userCtrl->updateProfile();
+                    } else {
+                        // Show profile page
+                        $pageTitle = 'Admin Profile';
+                        $_SESSION['admin'] = [
+                            'adminId' => $_SESSION['userId'] ?? '',
+                            'username' => $_SESSION['username'] ?? '',
+                            'emailId' => $_SESSION['emailId'] ?? '',
+                            'firstName' => $_SESSION['firstName'] ?? '',
+                            'lastName' => $_SESSION['lastName'] ?? '',
+                            'phoneNumber' => $_SESSION['phoneNumber'] ?? '',
+                            'gender' => $_SESSION['gender'] ?? '',
+                            'dob' => $_SESSION['dob'] ?? '',
+                            'address' => $_SESSION['address'] ?? '',
+                            'department' => $_SESSION['department'] ?? 'Library Management',
+                            'position' => $_SESSION['position'] ?? 'Administrator'
+                        ];
+                        include APP_ROOT . '/views/admin/admin-profile.php';
+                    }
+                    break;
+                    
+                default:
+                    error_log("Unknown admin action: $action");
+                    $ctrl->dashboard();
+            }
+            break;
+            
+        case 'faculty':
+            require_once APP_ROOT . '/Controllers/FacultyController.php';
+            $ctrl = new App\Controllers\FacultyController();
+            
+            switch ($action) {
+                case 'dashboard':
+                    $ctrl->dashboard();
+                    break;
+                case 'books':
+                    $ctrl->books();
+                    break;
+                case 'reserve':
+                    $ctrl->reserve();
+                    break;
+                case 'profile':
+                    $ctrl->profile();
+                    break;
+                case 'fines':
+                    $ctrl->fines();
+                    break;
+                case 'return':
+                    $ctrl->returnBook();
+                    break;
+                default:
+                    $ctrl->dashboard();
+            }
+            break;
+            
+        default:
+            error_log("Unknown controller: $controller");
+            http_response_code(404);
+            echo "404 - Page Not Found: /$controller/$action";
+    }
+    
+} catch (\Exception $e) {
+    error_log("ERROR: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    http_response_code(500);
+    echo "<!DOCTYPE html><html><head><title>Error</title></head><body>";
+    echo "<h1>Application Error</h1>";
+    echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
+    if (ini_get('display_errors')) {
+        echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    }
+    echo "</body></html>";
 }
 
 error_log("=== Request Complete ===");

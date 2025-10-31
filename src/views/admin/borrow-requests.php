@@ -876,7 +876,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 <!-- Admin Layout -->
 <div class="admin-layout">
   <!-- Left Sidebar -->
-  <?include APP_ROOT . '/views/admin/admin-navbar.php' ?>;
+  <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
 
   <!-- Main Content -->
   <main class="main-content">
@@ -1101,17 +1101,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         <h5 class="modal-title">Approve Borrow Request</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="closeModal('approveModal')">×</button>
       </div>
-      <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle.php">
+      <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle">
         <div class="modal-body">
           <input type="hidden" name="action" value="approve">
           <input type="hidden" name="requestId" id="approveRequestId">
-
           <div class="mb-3">
             <label for="dueDate" class="form-label">Due Date</label>
             <input type="date" class="form-control" id="dueDate" name="dueDate"
               value="<?= date('Y-m-d', strtotime('+14 days')) ?>" required>
           </div>
-
           <div class="alert alert-info">
             <i class="fas fa-info-circle"></i>
             This will create a transaction record and decrease the book's available count.
@@ -1134,17 +1132,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         <h5 class="modal-title">Reject Borrow Request</h5>
         <button type="button" class="btn-close" onclick="closeModal('rejectModal')">×</button>
       </div>
-      <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle.php">
+      <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle">
         <div class="modal-body">
           <input type="hidden" name="action" value="reject">
           <input type="hidden" name="requestId" id="rejectRequestId">
-
           <div class="mb-3">
             <label for="rejectReason" class="form-label">Rejection Reason</label>
             <textarea class="form-control" id="rejectReason" name="reason" rows="3"
               placeholder="Enter reason for rejection..."></textarea>
           </div>
-
           <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i>
             The user will be notified about the rejection.
