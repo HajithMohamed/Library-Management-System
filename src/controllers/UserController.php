@@ -267,122 +267,98 @@ class UserController extends BaseController
     }
     
     /**
-     * Reserve a book - FIXED VERSION
+     * Reserve a book (send to borrow_requests table)
      */
     public function reserve() {
-        // DEBUG: Log session data
-        error_log("=== RESERVE METHOD CALLED ===");
-        error_log("Full URL: " . $_SERVER['REQUEST_URI']);
-        error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
-        error_log("Session data: " . print_r($_SESSION, true));
-        
-        // SIMPLIFIED AUTHENTICATION - Just check if logged in
-        if (!isset($_SESSION['userId'])) {
-            error_log("ERROR: User not logged in");
-            $_SESSION['error'] = 'Please login to reserve books';
-            header('Location: ' . BASE_URL . 'login');
-            exit;
-        }
-        
+        $this->requireLogin();
+
         $userId = $_SESSION['userId'];
-        $userType = $_SESSION['userType'] ?? '';
-        
-        error_log("User authenticated - ID: $userId, Type: $userType");
-        
-        // Get ISBN from query parameter
         $isbn = $_GET['isbn'] ?? null;
-        
+
         if (!$isbn) {
-            error_log("ERROR: No ISBN provided");
             $_SESSION['error'] = 'No book specified for reservation';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
-        
-        error_log("ISBN received: $isbn");
-        
+
         global $mysqli;
-        
-        // If POST request, process the reservation
+
+        // Only allow POST for reservation
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            error_log("=== PROCESSING RESERVATION (POST) ===");
-            
-            // Check if book exists
-            $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
-            $stmt->bind_param("s", $isbn);
+            // Check if already has a pending/approved request for this book
+            $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
+            $stmt->bind_param("ss", $userId, $isbn);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $book = $result->fetch_assoc();
+            if ($stmt->get_result()->num_rows > 0) {
+                $_SESSION['error'] = 'You already have a pending or approved request for this book.';
+                $stmt->close();
+                header('Location: ' . BASE_URL . 'user/books');
+                exit;
+            }
             $stmt->close();
-            
-            if (!$book) {
-                $_SESSION['error'] = 'Book not found';
-                header('Location: ' . BASE_URL . 'user/books');
-                exit;
-            }
-            
-            // Check if user already has an active reservation for this book
-            $checkStmt = $mysqli->prepare("SELECT * FROM book_reservations WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'");
-            $checkStmt->bind_param("ss", $userId, $isbn);
-            $checkStmt->execute();
-            
-            if ($checkStmt->get_result()->num_rows > 0) {
-                $_SESSION['error'] = 'You already have an active reservation for this book';
-                $checkStmt->close();
-                header('Location: ' . BASE_URL . 'user/books');
-                exit;
-            }
-            $checkStmt->close();
-            
-            // Calculate expiry date (7 days from now)
-            $expiryDate = date('Y-m-d', strtotime('+7 days'));
-            
-            // Insert reservation into book_reservations table
-            $insertStmt = $mysqli->prepare("INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate) VALUES (?, ?, 'Active', ?)");
-            $insertStmt->bind_param("sss", $userId, $isbn, $expiryDate);
-            
-            if ($insertStmt->execute()) {
-                $_SESSION['success'] = 'Book reserved successfully! Your reservation will expire in 7 days.';
+
+            // Only allow reservation for 1 day
+            $dueDate = date('Y-m-d', strtotime('+1 day'));
+
+            // Insert into borrow_requests
+            $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, dueDate, status) VALUES (?, ?, ?, 'Pending')");
+            $stmt->bind_param("sss", $userId, $isbn, $dueDate);
+            if ($stmt->execute()) {
+                $_SESSION['success'] = 'Reservation request sent! Awaiting admin approval.';
             } else {
-                $_SESSION['error'] = 'Failed to reserve book. Please try again.';
+                $_SESSION['error'] = 'Failed to send reservation request.';
             }
-            $insertStmt->close();
-            
-            header('Location: ' . BASE_URL . 'user/books');
+            $stmt->close();
+
+            header('Location: ' . BASE_URL . 'user/reserved-books');
             exit;
         }
-        
-        // GET request - show reservation confirmation page
-        error_log("=== SHOWING RESERVATION PAGE (GET) ===");
-        
-        // Fetch book details
+
+        // GET: Show confirmation page
         $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
         $stmt->bind_param("s", $isbn);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $book = $result->fetch_assoc();
+        $book = $stmt->get_result()->fetch_assoc();
         $stmt->close();
-        
+
         if (!$book) {
             $_SESSION['error'] = 'Book not found';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
-        
-        // Check if user already has reservation
-        $checkStmt = $mysqli->prepare("SELECT * FROM book_reservations WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'");
-        $checkStmt->bind_param("ss", $userId, $isbn);
-        $checkStmt->execute();
-        $existingReservation = $checkStmt->get_result()->fetch_assoc();
-        $checkStmt->close();
-        
-        error_log("=== LOADING RESERVE VIEW ===");
-        
-        // Load reserve view
-        $pageTitle = 'Reserve Book';
-        require_once APP_ROOT . '/views/users/reserve.php';
+
+        $this->data['book'] = $book;
+        $this->view('users/reserve', $this->data);
     }
-    
+
+    /**
+     * Show user's reserved books (borrow requests)
+     */
+    public function reservedBooks() {
+        $this->requireLogin();
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+
+        $sql = "SELECT br.*, b.bookName, b.authorName 
+                FROM borrow_requests br
+                LEFT JOIN books b ON br.isbn = b.isbn
+                WHERE br.userId = ?
+                ORDER BY br.requestDate DESC";
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $requests = [];
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = $row;
+        }
+        $stmt->close();
+
+        $this->data['requests'] = $requests;
+        $this->view('users/reserved-books', $this->data);
+    }
+
     /**
      * View book details - FIXED VERSION
      */

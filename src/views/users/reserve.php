@@ -16,6 +16,8 @@ if (!in_array(strtolower($userType), $allowedTypes)) {
     header('Location: ' . BASE_URL . 'user/dashboard');
     exit();
 }
+
+$book = $book ?? [];
 ?>
 
 <style>

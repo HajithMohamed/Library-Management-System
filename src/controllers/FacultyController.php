@@ -168,25 +168,96 @@ class FacultyController extends BaseController
         $this->view('faculty/book-details', $this->data);
     }
 
-    public function reserve($params = [])
-    {
+    /**
+     * Reserve a book (send to borrow_requests table)
+     */
+    public function reserve() {
         $this->requireLogin(['Faculty']);
-        
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('faculty/books');
-            return;
-        }
-        
-        $isbn = $params['isbn'] ?? $_POST['isbn'] ?? '';
+
         $userId = $_SESSION['userId'];
-        
-        if ($this->borrowModel->createReservation($userId, $isbn)) {
-            $_SESSION['success'] = 'Book reserved successfully';
-        } else {
-            $_SESSION['error'] = 'Failed to reserve book';
+        $isbn = $_GET['isbn'] ?? null;
+
+        if (!$isbn) {
+            $_SESSION['error'] = 'No book specified for reservation';
+            header('Location: ' . BASE_URL . 'faculty/books');
+            exit;
         }
-        
-        $this->redirect('faculty/books');
+
+        global $mysqli;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Check if already has a pending/approved request for this book
+            $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
+            $stmt->bind_param("ss", $userId, $isbn);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                $_SESSION['error'] = 'You already have a pending or approved request for this book.';
+                $stmt->close();
+                header('Location: ' . BASE_URL . 'faculty/books');
+                exit;
+            }
+            $stmt->close();
+
+            // Only allow reservation for 1 day
+            $dueDate = date('Y-m-d', strtotime('+1 day'));
+
+            // Insert into borrow_requests
+            $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, dueDate, status) VALUES (?, ?, ?, 'Pending')");
+            $stmt->bind_param("sss", $userId, $isbn, $dueDate);
+            if ($stmt->execute()) {
+                $_SESSION['success'] = 'Reservation request sent! Awaiting admin approval.';
+            } else {
+                $_SESSION['error'] = 'Failed to send reservation request.';
+            }
+            $stmt->close();
+
+            header('Location: ' . BASE_URL . 'faculty/reserved-books');
+            exit;
+        }
+
+        // GET: Show confirmation page
+        $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+        $book = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$book) {
+            $_SESSION['error'] = 'Book not found';
+            header('Location: ' . BASE_URL . 'faculty/books');
+            exit;
+        }
+
+        $this->data['book'] = $book;
+        $this->view('faculty/reserve', $this->data);
+    }
+
+    /**
+     * Show faculty's reserved books (borrow requests)
+     */
+    public function reservedBooks() {
+        $this->requireLogin(['Faculty']);
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+
+        $sql = "SELECT br.*, b.bookName, b.authorName 
+                FROM borrow_requests br
+                LEFT JOIN books b ON br.isbn = b.isbn
+                WHERE br.userId = ?
+                ORDER BY br.requestDate DESC";
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $requests = [];
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = $row;
+        }
+        $stmt->close();
+
+        $this->data['requests'] = $requests;
+        $this->view('faculty/reserved-books', $this->data);
     }
 
     public function fines()
