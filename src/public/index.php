@@ -260,7 +260,7 @@ try {
         case 'faculty':
             require_once APP_ROOT . '/Controllers/FacultyController.php';
             $ctrl = new App\Controllers\FacultyController();
-            
+
             switch ($action) {
                 case 'dashboard':
                     $ctrl->dashboard();
@@ -268,8 +268,18 @@ try {
                 case 'books':
                     $ctrl->books();
                     break;
+                case 'book':
+                    // Support /faculty/book/{isbn}
+                    $isbn = $segments[2] ?? null;
+                    $ctrl->viewBook(['isbn' => $isbn]);
+                    break;
                 case 'reserve':
-                    $ctrl->reserve();
+                    // Support /faculty/reserve/{isbn}
+                    $isbn = $segments[2] ?? null;
+                    $ctrl->reserve(['isbn' => $isbn]);
+                    break;
+                case 'reserved-books':
+                    $ctrl->reservedBooks();
                     break;
                 case 'profile':
                     $ctrl->profile();
