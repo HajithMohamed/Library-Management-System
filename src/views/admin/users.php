@@ -1373,8 +1373,8 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                             <select class="form-control" name="userType" required>
                                 <option value="Student">Student</option>
                                 <option value="Faculty">Faculty</option>
-                                <option value="Admin">Admin</option>
                             </select>
+                            <small class="text-muted">User ID will be generated as STUyyyyNNN or FACyyyyNNN</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Gender <span class="text-danger">*</span></label>
@@ -1446,7 +1446,6 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                             <select class="form-control" name="userType" id="edit_userType" required>
                                 <option value="Student">Student</option>
                                 <option value="Faculty">Faculty</option>
-                                <option value="Admin">Admin</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -1671,18 +1670,33 @@ function viewUser(user) {
     new bootstrap.Modal(document.getElementById('viewUserModal')).show();
 }
 
-// Edit User - FIXED
+// Edit User - FIXED: ensure all fields are set correctly
 function editUser(user) {
     document.getElementById('edit_userId').value = user.userId || '';
     document.getElementById('edit_username').value = user.username || '';
     document.getElementById('edit_emailId').value = user.emailId || '';
     document.getElementById('edit_phoneNumber').value = user.phoneNumber || '';
-    document.getElementById('edit_userType').value = user.userType || 'Student';
-    document.getElementById('edit_gender').value = user.gender || 'Male';
+    // Set User Type select
+    let userType = user.userType || 'Student';
+    let userTypeSelect = document.getElementById('edit_userType');
+    for (let i = 0; i < userTypeSelect.options.length; i++) {
+        if (userTypeSelect.options[i].value === userType) {
+            userTypeSelect.selectedIndex = i;
+            break;
+        }
+    }
+    // Set Gender select
+    let gender = user.gender || 'Male';
+    let genderSelect = document.getElementById('edit_gender');
+    for (let i = 0; i < genderSelect.options.length; i++) {
+        if (genderSelect.options[i].value === gender) {
+            genderSelect.selectedIndex = i;
+            break;
+        }
+    }
     document.getElementById('edit_dob').value = user.dob || '';
     document.getElementById('edit_address').value = user.address || '';
-    document.getElementById('edit_isVerified').checked = user.isVerified == 1;
-    
+    document.getElementById('edit_isVerified').checked = user.isVerified == 1 || user.isVerified === 1 || user.isVerified === '1';
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 
