@@ -1,24 +1,35 @@
 <?php
+error_log("=== RESERVE VIEW LOADED ===");
+error_log("Book data: " . print_r($book ?? [], true));
+error_log("Session userId: " . ($_SESSION['userId'] ?? 'NOT SET'));
+error_log("Session userType: " . ($_SESSION['userType'] ?? 'NOT SET'));
+
 $pageTitle = 'Reserve Book';
 include APP_ROOT . '/views/layouts/header.php';
 
-// Check if user is logged in - REMOVED STRICT USER TYPE CHECK
+// SIMPLIFIED: Only check if user is logged in - removed strict user type check
 if (!isset($_SESSION['userId'])) {
+    error_log("ERROR in reserve view: User not logged in");
     header('Location: ' . BASE_URL . 'login');
     exit();
 }
 
-// Allow both Student and Faculty to access this page
-$userType = $_SESSION['userType'] ?? '';
-$allowedTypes = ['student', 'faculty'];
-if (!in_array(strtolower($userType), $allowedTypes)) {
-    $_SESSION['error'] = 'Access denied. Only students and faculty can reserve books.';
-    header('Location: ' . BASE_URL . 'user/dashboard');
-    exit();
-}
-
 $book = $book ?? [];
+error_log("Book variable after default: " . print_r($book, true));
 ?>
+
+<!-- ADD DEBUG INFO AT TOP OF PAGE (VISIBLE) -->
+<?php if (ini_get('display_errors')): ?>
+<div style="position: fixed; top: 0; left: 0; right: 0; background: #fff3cd; padding: 10px; z-index: 9999; font-size: 12px; border-bottom: 2px solid #ffc107;">
+    <strong>🐛 DEBUG INFO:</strong><br>
+    Session User ID: <?= $_SESSION['userId'] ?? 'NOT SET' ?><br>
+    Session User Type: <?= $_SESSION['userType'] ?? 'NOT SET' ?><br>
+    Book ISBN: <?= $book['isbn'] ?? 'NOT SET' ?><br>
+    Book Name: <?= $book['bookName'] ?? 'NOT SET' ?><br>
+    Book Available: <?= isset($book['available']) ? $book['available'] : 'NOT SET' ?><br>
+    Current URL: <?= $_SERVER['REQUEST_URI'] ?>
+</div>
+<?php endif; ?>
 
 <style>
   .reserve-container {

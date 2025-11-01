@@ -1,4 +1,9 @@
 <?php
+error_log("=== VIEW-BOOK VIEW LOADED ===");
+error_log("Book data: " . print_r($book ?? [], true));
+error_log("Session userId: " . ($_SESSION['userId'] ?? 'NOT SET'));
+error_log("Session userType: " . ($_SESSION['userType'] ?? 'NOT SET'));
+
 if (!defined('APP_ROOT')) {
     die('Direct access not permitted');
 }
@@ -7,10 +12,24 @@ include APP_ROOT . '/views/layouts/header.php';
 
 // Simple authentication check - just verify user is logged in
 if (!isset($_SESSION['userId'])) {
+    error_log("ERROR in view-book: User not logged in");
     header('Location: ' . BASE_URL . 'login');
     exit();
 }
 ?>
+
+<!-- ADD DEBUG INFO AT TOP OF PAGE (VISIBLE) -->
+<?php if (ini_get('display_errors')): ?>
+<div style="position: fixed; top: 0; left: 0; right: 0; background: #d1fae5; padding: 10px; z-index: 9999; font-size: 12px; border-bottom: 2px solid #10b981;">
+    <strong>🐛 DEBUG INFO:</strong><br>
+    Session User ID: <?= $_SESSION['userId'] ?? 'NOT SET' ?><br>
+    Session User Type: <?= $_SESSION['userType'] ?? 'NOT SET' ?><br>
+    Book ISBN: <?= $book['isbn'] ?? 'NOT SET' ?><br>
+    Book Name: <?= $book['bookName'] ?? 'NOT SET' ?><br>
+    Book Available: <?= isset($book['available']) ? $book['available'] : 'NOT SET' ?><br>
+    Current URL: <?= $_SERVER['REQUEST_URI'] ?>
+</div>
+<?php endif; ?>
 
 <style>
 .book-details-user-page {
