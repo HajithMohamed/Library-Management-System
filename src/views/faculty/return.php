@@ -10,46 +10,78 @@ $returnedBooks = $returnedBooks ?? [];
 ?>
 
 <style>
+    /* Hide scrollbars globally */
+    body {
+        overflow-x: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    body::-webkit-scrollbar {
+        display: none;
+    }
+
     .return-wrapper {
         min-height: 100vh;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 3rem 0;
+        padding: 4rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         position: relative;
         overflow: hidden;
     }
     
+    /* Animated background particles */
     .return-wrapper::before {
         content: '';
         position: absolute;
         top: -50%;
         right: -10%;
-        width: 500px;
-        height: 500px;
-        background: rgba(255, 255, 255, 0.1);
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
         border-radius: 50%;
         animation: float 20s infinite ease-in-out;
     }
     
+    .return-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -10%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: float 25s infinite ease-in-out reverse;
+    }
+    
     @keyframes float {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-50px) rotate(180deg); }
+        0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        33% { transform: translateY(-30px) translateX(30px) rotate(120deg); }
+        66% { transform: translateY(30px) translateX(-30px) rotate(240deg); }
     }
     
     .return-container {
-        max-width: 1000px;
+        max-width: 1600px;
+        width: 95%;
         margin: 0 auto;
-        padding: 0 2rem;
         position: relative;
         z-index: 1;
     }
     
     /* Header Section */
     .return-header {
-        background: white;
-        border-radius: 30px 30px 0 0;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        border-radius: 32px 32px 0 0;
         padding: 2.5rem 3rem;
-        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
         animation: slideInDown 0.6s ease-out;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-bottom: none;
     }
     
     @keyframes slideInDown {
@@ -64,86 +96,61 @@ $returnedBooks = $returnedBooks ?? [];
     }
     
     .header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1.5rem;
+        display: inline-block;
     }
     
     .header-title h1 {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #1f2937;
+        font-size: 2.2rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
         margin-bottom: 0.5rem;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 1rem;
+        letter-spacing: -0.5px;
     }
     
     .header-title h1 i {
-        color: #667eea;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
     .header-title p {
         color: #6b7280;
-        font-size: 1.1rem;
+        font-size: 1rem;
         margin: 0;
+        font-weight: 500;
     }
     
-    .header-actions {
-        display: flex;
-        gap: 1rem;
-    }
-    
-    .back-button {
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        border: 2px solid #667eea;
-        background: white;
-        color: #667eea;
-        font-weight: 700;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
+    .books-count-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        text-decoration: none;
-    }
-    
-    .back-button:hover {
-        background: #667eea;
-        color: white;
-        transform: translateX(-5px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-    }
-    
-    .back-button i {
-        transition: transform 0.3s ease;
-    }
-    
-    .back-button:hover i {
-        transform: translateX(-3px);
-    }
-    
-    .books-count {
         padding: 0.75rem 1.5rem;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         color: #667eea;
         border-radius: 50px;
-        font-weight: 700;
+        font-weight: 800;
         font-size: 0.95rem;
-        border: 2px solid #667eea;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        margin-top: 1rem;
     }
     
     /* Books Body */
     .return-body {
-        background: white;
-        border-radius: 0 0 30px 30px;
-        padding: 2rem 3rem 3rem;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        border-radius: 0 0 32px 32px;
+        padding: 2.5rem 3rem 3rem;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
         animation: slideInUp 0.6s ease-out 0.2s both;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-top: none;
     }
     
     @keyframes slideInUp {
@@ -165,11 +172,11 @@ $returnedBooks = $returnedBooks ?? [];
     }
     
     .book-card {
-        background: #f9fafb;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
         border-radius: 20px;
-        padding: 1.75rem;
+        padding: 2rem;
         transition: all 0.3s ease;
-        border: 2px solid transparent;
+        border: 2px solid rgba(102, 126, 234, 0.1);
         position: relative;
         overflow: hidden;
     }
@@ -180,7 +187,7 @@ $returnedBooks = $returnedBooks ?? [];
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
+        height: 5px;
         background: linear-gradient(90deg, #667eea, #764ba2);
         transform: scaleX(0);
         transform-origin: left;
@@ -192,8 +199,8 @@ $returnedBooks = $returnedBooks ?? [];
     }
     
     .book-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.2);
         border-color: rgba(102, 126, 234, 0.3);
         background: white;
     }
@@ -203,35 +210,41 @@ $returnedBooks = $returnedBooks ?? [];
     }
     
     .book-title {
-        font-size: 1.25rem;
-        font-weight: 700;
+        font-size: 1.3rem;
+        font-weight: 800;
         color: #1f2937;
-        margin-bottom: 0.5rem;
-        line-height: 1.4;
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
     }
     
     .book-author {
-        font-size: 1rem;
-        color: #667eea;
-        font-weight: 600;
+        font-size: 1.05rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
         margin-bottom: 0.75rem;
     }
     
     .book-author::before {
         content: 'by ';
-        font-weight: 400;
+        font-weight: 500;
         color: #6b7280;
+        background: none;
+        -webkit-text-fill-color: #6b7280;
     }
     
     .book-isbn {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: #9ca3af;
         font-family: 'Courier New', monospace;
+        font-weight: 600;
     }
     
     .book-isbn::before {
-        content: 'ISBN: ';
-        font-weight: 600;
+        content: '📖 ISBN: ';
+        font-weight: 700;
     }
     
     /* Book Meta */
@@ -239,75 +252,46 @@ $returnedBooks = $returnedBooks ?? [];
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
-        margin-bottom: 1.5rem;
-        padding: 1rem;
+        padding: 1.25rem;
         background: white;
-        border-radius: 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
     }
     
     .meta-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
     }
     
     .meta-label {
         color: #6b7280;
-        font-weight: 600;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
     }
     
     .meta-value {
         color: #1f2937;
-        font-weight: 700;
-    }
-    
-    .meta-value.overdue {
-        color: #ef4444;
-    }
-    
-    .meta-value.due-soon {
-        color: #f59e0b;
+        font-weight: 800;
     }
     
     .meta-value.ok {
         color: #10b981;
     }
     
-    /* Status Badge */
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-    }
-    
-    .status-badge.overdue {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
-        color: #ef4444;
-        border: 2px solid rgba(239, 68, 68, 0.3);
-    }
-    
-    .status-badge.due-soon {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
-        color: #f59e0b;
-        border: 2px solid rgba(245, 158, 11, 0.3);
-    }
-    
-    .status-badge.ok {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-        color: #10b981;
-        border: 2px solid rgba(16, 185, 129, 0.3);
-    }
-    
     /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 4rem 2rem;
+        padding: 5rem 2rem;
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
     }
     
     .empty-state-icon {
@@ -319,93 +303,141 @@ $returnedBooks = $returnedBooks ?? [];
         justify-content: center;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         border-radius: 50%;
-        font-size: 3.5rem;
-        color: #667eea;
+        font-size: 4rem;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .empty-state-icon i {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
     }
     
     .empty-state h4 {
-        font-size: 1.75rem;
-        font-weight: 800;
+        font-size: 2rem;
+        font-weight: 900;
         color: #1f2937;
-        margin-bottom: 0.75rem;
+        margin-bottom: 1rem;
     }
     
     .empty-state p {
         color: #6b7280;
         font-size: 1.1rem;
-        max-width: 400px;
-        margin: 0 auto 2rem;
-        line-height: 1.6;
+        max-width: 450px;
+        margin: 0 auto 2.5rem;
+        line-height: 1.7;
+        font-weight: 500;
     }
     
     .browse-btn {
-        padding: 1rem 2rem;
-        border-radius: 12px;
+        padding: 1.25rem 2.5rem;
+        border-radius: 16px;
         border: none;
-        font-weight: 700;
+        font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        gap: 1rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.3);
+        font-size: 1.1rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .browse-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+    
+    .browse-btn:hover::before {
+        width: 400px;
+        height: 400px;
+    }
+    
+    .browse-btn i,
+    .browse-btn span {
+        position: relative;
+        z-index: 1;
     }
     
     .browse-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 18px 45px rgba(102, 126, 234, 0.4);
         color: white;
     }
     
     /* Info Alert */
     .info-alert {
-        padding: 1.25rem;
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(6, 182, 212, 0.05));
-        border-left: 4px solid #3b82f6;
-        border-radius: 12px;
-        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-left: 5px solid #3b82f6;
+        border-radius: 16px;
+        margin-bottom: 2.5rem;
         display: flex;
         gap: 1rem;
         align-items: start;
+        box-shadow: 0 5px 20px rgba(59, 130, 246, 0.2);
     }
     
     .info-alert-icon {
-        width: 40px;
-        height: 40px;
+        width: 45px;
+        height: 45px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(59, 130, 246, 0.1);
-        color: #3b82f6;
-        border-radius: 10px;
-        font-size: 1.25rem;
+        background: #3b82f6;
+        color: white;
+        border-radius: 12px;
+        font-size: 1.3rem;
         flex-shrink: 0;
     }
     
     .info-alert-content h5 {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 0.25rem;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #1e3a8a;
+        margin-bottom: 0.5rem;
     }
     
     .info-alert-content p {
-        color: #6b7280;
+        color: #1e40af;
         margin: 0;
-        font-size: 0.95rem;
-        line-height: 1.5;
+        font-size: 1rem;
+        line-height: 1.6;
+        font-weight: 600;
     }
     
     /* Responsive Design */
+    @media (max-width: 1200px) {
+        .return-container {
+            max-width: 95%;
+        }
+    }
+    
     @media (max-width: 768px) {
         .return-wrapper {
-            padding: 2rem 0;
+            padding: 2rem 1rem;
         }
         
         .return-container {
-            padding: 0 1rem;
+            width: 100%;
         }
         
         .return-header {
@@ -413,31 +445,35 @@ $returnedBooks = $returnedBooks ?? [];
         }
         
         .return-body {
-            padding: 1.5rem;
-        }
-        
-        .header-content {
-            flex-direction: column;
-            align-items: start;
+            padding: 2rem 1.5rem;
         }
         
         .header-title h1 {
-            font-size: 2rem;
-        }
-        
-        .header-actions {
-            width: 100%;
-            flex-direction: column;
-        }
-        
-        .back-button,
-        .books-count {
-            width: 100%;
-            justify-content: center;
+            font-size: 1.8rem;
         }
         
         .books-grid {
             grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .return-header {
+            padding: 1.5rem;
+        }
+        
+        .return-body {
+            padding: 1.5rem;
+        }
+        
+        .header-title h1 {
+            font-size: 1.5rem;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .book-card {
+            padding: 1.5rem;
         }
     }
 </style>
@@ -452,20 +488,14 @@ $returnedBooks = $returnedBooks ?? [];
                         <i class="fas fa-undo"></i>
                         Returned Books
                     </h1>
-                    <p>Books you have returned to the library</p>
+                    <p>Books you have successfully returned to the library</p>
                 </div>
-                <div class="header-actions">
-                    <a href="<?= BASE_URL ?>faculty/dashboard" class="back-button">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>Back to Dashboard</span>
-                    </a>
-                    <?php if (!empty($returnedBooks)): ?>
-                        <span class="books-count">
-                            <i class="fas fa-book"></i>
-                            <?= count($returnedBooks) ?> <?= count($returnedBooks) === 1 ? 'Book' : 'Books' ?>
-                        </span>
-                    <?php endif; ?>
-                </div>
+                <?php if (!empty($returnedBooks)): ?>
+                    <div class="books-count-badge">
+                        <i class="fas fa-book"></i>
+                        <span><?= count($returnedBooks) ?> <?= count($returnedBooks) === 1 ? 'Book' : 'Books' ?> Returned</span>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -474,11 +504,11 @@ $returnedBooks = $returnedBooks ?? [];
             <?php if (!empty($returnedBooks)): ?>
                 <div class="info-alert">
                     <div class="info-alert-icon">
-                        <i class="fas fa-info-circle"></i>
+                        <i class="fas fa-check-circle"></i>
                     </div>
                     <div class="info-alert-content">
-                        <h5>Returned Books</h5>
-                        <p>Below is the list of books you have returned. Thank you for using the library responsibly!</p>
+                        <h5>Successfully Returned</h5>
+                        <p>Thank you for returning your books on time! Below is the complete history of your returned books.</p>
                     </div>
                 </div>
 
@@ -499,11 +529,11 @@ $returnedBooks = $returnedBooks ?? [];
                             </div>
                             <div class="book-meta">
                                 <div class="meta-row">
-                                    <span class="meta-label">Borrowed</span>
+                                    <span class="meta-label"><i class="fas fa-calendar-plus"></i> Borrowed</span>
                                     <span class="meta-value"><?= date('M d, Y', $borrowDate) ?></span>
                                 </div>
                                 <div class="meta-row">
-                                    <span class="meta-label">Returned</span>
+                                    <span class="meta-label"><i class="fas fa-calendar-check"></i> Returned</span>
                                     <span class="meta-value ok"><?= date('M d, Y', $returnDate) ?></span>
                                 </div>
                             </div>
@@ -516,7 +546,7 @@ $returnedBooks = $returnedBooks ?? [];
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <h4>No Books Returned Yet</h4>
-                    <p>You haven't returned any books yet. Once you return books, they will appear here.</p>
+                    <p>You haven't returned any books yet. Once you return books, they will appear here with complete transaction details.</p>
                     <a href="<?= BASE_URL ?>faculty/books" class="browse-btn">
                         <i class="fas fa-book"></i>
                         <span>Browse Books</span>
@@ -526,5 +556,15 @@ $returnedBooks = $returnedBooks ?? [];
         </div>
     </div>
 </div>
+
+<script>
+// Add Font Awesome if not already included
+if (!document.querySelector('link[href*="font-awesome"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+    document.head.appendChild(link);
+}
+</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

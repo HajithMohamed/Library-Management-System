@@ -392,6 +392,7 @@ class AuthController
   {
     extract($data);
     $viewFile = APP_ROOT . '/views/' . $view . '.php';
+    
 
     if (file_exists($viewFile)) {
       include $viewFile;
