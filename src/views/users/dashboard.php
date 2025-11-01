@@ -260,6 +260,8 @@ $recentActivity = $recentActivity ?? [];
     .action-card:nth-child(2) { animation-delay: 0.6s; }
     .action-card:nth-child(3) { animation-delay: 0.7s; }
     .action-card:nth-child(4) { animation-delay: 0.8s; }
+    .action-card:nth-child(5) { animation-delay: 0.9s; }
+    .action-card:nth-child(6) { animation-delay: 1.0s; }
     
     .action-card::before {
         content: '';
@@ -301,24 +303,76 @@ $recentActivity = $recentActivity ?? [];
         transform: scale(1.1) rotate(-5deg);
     }
     
+    /* Action Card 1 - Browse Books */
     .action-card:nth-child(1) .action-icon {
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         color: #667eea;
     }
     
-    .action-card:nth-child(2) .action-icon {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-        color: #10b981;
+    .action-card:nth-child(1) .action-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
     }
     
-    .action-card:nth-child(3) .action-icon {
+    /* Action Card 2 - Reserved Books */
+    .action-card:nth-child(2) .action-icon {
         background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
         color: #f59e0b;
     }
     
+    .action-card:nth-child(2) .action-btn {
+        background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+    }
+    
+    /* Action Card 3 - Borrow History */
+    .action-card:nth-child(3) .action-icon {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.1));
+        color: #8b5cf6;
+    }
+    
+    .action-card:nth-child(3) .action-btn {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+    }
+    
+    /* Action Card 4 - Return Books */
     .action-card:nth-child(4) .action-icon {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+        color: #10b981;
+    }
+    
+    .action-card:nth-child(4) .action-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+    
+    /* Action Card 5 - Pay Fines */
+    .action-card:nth-child(5) .action-icon {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+        color: #ef4444;
+    }
+    
+    .action-card:nth-child(5) .action-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Action Card 6 - Edit Profile */
+    .action-card:nth-child(6) .action-icon {
         background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
         color: #3b82f6;
+    }
+    
+    .action-card:nth-child(6) .action-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        color: white;
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
     }
     
     .action-card h5 {
@@ -352,30 +406,6 @@ $recentActivity = $recentActivity ?? [];
         z-index: 1;
     }
     
-    .action-card:nth-child(1) .action-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-    }
-    
-    .action-card:nth-child(2) .action-btn {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-    }
-    
-    .action-card:nth-child(3) .action-btn {
-        background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
-    }
-    
-    .action-card:nth-child(4) .action-btn {
-        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-    }
-    
     .action-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
@@ -387,7 +417,7 @@ $recentActivity = $recentActivity ?? [];
         border-radius: 20px;
         overflow: hidden;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        animation: slideInUp 0.6s ease-out 0.9s both;
+        animation: slideInUp 0.6s ease-out 1.1s both;
     }
     
     .activity-header {
@@ -584,6 +614,30 @@ $recentActivity = $recentActivity ?? [];
                 <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/books" class="action-btn">
                     <i class="fas fa-search"></i>
                     <span>Browse Now</span>
+                </a>
+            </div>
+            
+            <div class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-bookmark"></i>
+                </div>
+                <h5>Reserved Books</h5>
+                <p>View your pending and approved book reservations</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/reserved-books" class="action-btn">
+                    <i class="fas fa-bookmark"></i>
+                    <span>View Reserved</span>
+                </a>
+            </div>
+            
+            <div class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h5>Borrow History</h5>
+                <p>Track all your past and current book borrowings</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/borrow-history" class="action-btn">
+                    <i class="fas fa-history"></i>
+                    <span>View History</span>
                 </a>
             </div>
             
