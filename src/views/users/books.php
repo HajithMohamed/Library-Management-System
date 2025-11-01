@@ -746,7 +746,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 <div class="book-card-modern">
                     <div class="book-image-wrapper">
                         <?php if (!empty($book['bookImage'])): ?>
-                            <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
+                            <img src="<?= rtrim(BASE_URL, '/') . '/uploads/books/' . htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
                         <?php else: ?>
                             <div class="book-placeholder-icon">
                                 <i class="fas fa-book"></i>
@@ -862,16 +862,16 @@ async function fetchAutocomplete(query) {
 }
 
 function displayAutocomplete(books) {
+    const baseUrl = "<?= rtrim(BASE_URL, '/') ?>";
     autocompleteDropdown.innerHTML = books.slice(0, 5).map(book => `
         <div class="autocomplete-item" onclick="selectBook('${escapeHtml(book.bookName)}')">
-            ${book.bookImage ? `<img src="<?= BASE_URL ?>${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
+            ${book.bookImage ? `<img src="${baseUrl}/uploads/books/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
             <div class="autocomplete-item-text">
                 <div class="autocomplete-item-title">${escapeHtml(book.bookName)}</div>
                 <div class="autocomplete-item-author">by ${escapeHtml(book.authorName)}</div>
             </div>
         </div>
     `).join('');
-    
     autocompleteDropdown.classList.add('active');
 }
 
