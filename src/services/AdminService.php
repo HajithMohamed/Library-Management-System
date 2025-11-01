@@ -1127,38 +1127,59 @@ class AdminService
     global $conn;
 
     try {
-      $sql = "SELECT bb.*, 
-                     u.username, u.emailId, u.userType,
-                     b.bookName, b.authorName, b.publisherName,
-                     a.username as addedByUsername
-              FROM books_borrowed bb
-              LEFT JOIN users u ON bb.userId = u.userId
-              LEFT JOIN books b ON bb.isbn = b.isbn
-              LEFT JOIN users a ON bb.addedBy = a.userId
+      $sql = "SELECT 
+                t.tid as id,
+                t.userId,
+                t.isbn,
+                t.borrowDate,
+                t.returnDate,
+                t.fineAmount,
+                t.fineStatus,
+                t.finePaymentDate,
+                t.finePaymentMethod,
+                DATE_ADD(t.borrowDate, INTERVAL 14 DAY) as dueDate,
+                CASE 
+                    WHEN t.returnDate IS NOT NULL THEN 'Returned'
+                    WHEN CURDATE() > DATE_ADD(t.borrowDate, INTERVAL 14 DAY) THEN 'Overdue'
+                    ELSE 'Active'
+                END as status,
+                u.username,
+                u.emailId,
+                u.userType,
+                b.bookName,
+                b.authorName,
+                b.publisherName
+              FROM transactions t
+              LEFT JOIN users u ON t.userId = u.userId
+              LEFT JOIN books b ON t.isbn = b.isbn
               WHERE 1=1";
 
       $params = [];
       $types = "";
 
       if ($status) {
-        $sql .= " AND bb.status = ?";
-        $params[] = $status;
-        $types .= "s";
+        if ($status === 'Active') {
+            $sql .= " AND t.returnDate IS NULL AND CURDATE() <= DATE_ADD(t.borrowDate, INTERVAL 14 DAY)";
+        } elseif ($status === 'Returned') {
+            $sql .= " AND t.returnDate IS NOT NULL";
+        } elseif ($status === 'Overdue') {
+            $sql .= " AND t.returnDate IS NULL AND CURDATE() > DATE_ADD(t.borrowDate, INTERVAL 14 DAY)";
+        }
       }
 
       if ($userId) {
-        $sql .= " AND bb.userId = ?";
+        $sql .= " AND t.userId = ?";
         $params[] = $userId;
         $types .= "s";
       }
 
       if ($isbn) {
-        $sql .= " AND bb.isbn = ?";
+        $sql .= " AND t.isbn = ?";
         $params[] = $isbn;
         $types .= "s";
       }
 
-      $sql .= " ORDER BY bb.borrowDate DESC";
+      $sql .= " ORDER BY t.borrowDate DESC";
 
       $stmt = $conn->prepare($sql);
 

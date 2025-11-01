@@ -4,7 +4,7 @@ namespace App\Models;
 
 class BorrowRecord extends BaseModel
 {
-    protected $table = 'books_borrowed'; // FIXED: Changed from 'transactions' to 'books_borrowed'
+    protected $table = 'transactions';
 
     public function getActiveBorrowCount($userId)
     {
