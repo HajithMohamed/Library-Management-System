@@ -21,15 +21,12 @@ class AdminController
    */
   public function dashboard()
   {
-    // Use existing requireAuth method
     $this->authHelper->requireAuth();
-    
-    // Check if user is admin
     $userType = $_SESSION['userType'] ?? '';
     if (strtolower($userType) !== 'admin') {
         http_response_code(403);
         $_SESSION['error'] = 'Access denied. Admin privileges required.';
-        header('Location: ' . BASE_URL);
+        header('Location: ' . BASE_URL . 'login');
         exit;
     }
     
@@ -455,12 +452,87 @@ class AdminController
 
     $type = $_GET['type'] ?? null;
     $unreadOnly = isset($_GET['unread']) ? true : false;
-    $notifications = $this->adminService->getAllNotifications(null, $type, $unreadOnly);
+    $userTypeFilter = $_GET['userType'] ?? null;
+    $priority = $_GET['priority'] ?? null;
+    $viewMode = $_GET['viewMode'] ?? 'own'; // 'own' or 'all'
+    
+    global $mysqli;
+    
+    $adminUserId = $_SESSION['userId'];
+    
+    // Build dynamic query
+    $sql = "SELECT 
+                n.id,
+                n.userId,
+                n.title,
+                n.message,
+                n.type,
+                n.priority,
+                n.isRead,
+                n.relatedId,
+                n.createdAt,
+                u.userType,
+                u.username,
+                u.emailId
+            FROM notifications n
+            LEFT JOIN users u ON n.userId = u.userId
+            WHERE 1=1";
+    
+    $params = [];
+    $types = '';
+    
+    // Filter by view mode
+    if ($viewMode === 'own') {
+        $sql .= " AND (n.userId = ? OR n.userId IS NULL)";
+        $params[] = $adminUserId;
+        $types .= 's';
+    }
+    // If viewMode is 'all', show all notifications (no userId filter)
+    
+    if ($type) {
+        $sql .= " AND n.type = ?";
+        $params[] = $type;
+        $types .= 's';
+    }
+    
+    if ($unreadOnly) {
+        $sql .= " AND n.isRead = 0";
+    }
+    
+    if ($userTypeFilter) {
+        $sql .= " AND (u.userType = ? OR n.userId IS NULL)";
+        $params[] = $userTypeFilter;
+        $types .= 's';
+    }
+    
+    if ($priority) {
+        $sql .= " AND n.priority = ?";
+        $params[] = $priority;
+        $types .= 's';
+    }
+    
+    $sql .= " ORDER BY n.isRead ASC, n.createdAt DESC";
+    
+    $stmt = $mysqli->prepare($sql);
+    
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $notifications = [];
+    while ($row = $result->fetch_assoc()) {
+        $notifications[] = $row;
+    }
 
     $this->render('admin/notifications', [
       'notifications' => $notifications,
       'currentType' => $type,
-      'unreadOnly' => $unreadOnly
+      'unreadOnly' => $unreadOnly,
+      'userTypeFilter' => $userTypeFilter,
+      'viewMode' => $viewMode
     ]);
   }
 
@@ -632,14 +704,28 @@ class AdminController
    */
   private function render($view, $data = [])
   {
+    $this->authHelper->requireAuth();
+    $userType = $_SESSION['userType'] ?? '';
+    if (strtolower($userType) !== 'admin') {
+        http_response_code(403);
+        $_SESSION['error'] = 'Access denied. Admin privileges required.';
+        header('Location: ' . BASE_URL . 'login');
+        exit;
+    }
+    
+    // Extract data to make variables available in view
     extract($data);
+    
+    // Build view file path
     $viewFile = APP_ROOT . '/views/' . $view . '.php';
 
     if (file_exists($viewFile)) {
       include $viewFile;
     } else {
+      error_log("View file not found: {$viewFile}");
       http_response_code(404);
-      include APP_ROOT . '/views/errors/404.php';
+      echo "View not found: {$view}";
+      exit;
     }
   }
 
@@ -650,5 +736,208 @@ class AdminController
   {
     header('Location: ' . BASE_URL . ltrim($url, '/'));
     exit;
+  }
+
+  /**
+   * Books Borrowed Management - List all borrowed books
+   */
+  public function booksBorrowed()
+  {
+    $this->authHelper->requireAdmin();
+
+    // Handle form submissions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $action = $_POST['action'] ?? '';
+
+      switch ($action) {
+        case 'add':
+          $userId = $_POST['userId'] ?? '';
+          $isbn = $_POST['isbn'] ?? '';
+          $borrowDate = $_POST['borrowDate'] ?? date('Y-m-d');
+          $dueDate = $_POST['dueDate'] ?? date('Y-m-d', strtotime('+14 days'));
+          $notes = $_POST['notes'] ?? '';
+          $addedBy = $_SESSION['userId'];
+
+          $result = $this->adminService->addBorrowedBook($userId, $isbn, $borrowDate, $dueDate, $notes, $addedBy);
+          $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
+          break;
+
+        case 'edit':
+          $id = $_POST['id'] ?? '';
+          $userId = $_POST['userId'] ?? '';
+          $isbn = $_POST['isbn'] ?? '';
+          $borrowDate = $_POST['borrowDate'] ?? '';
+          $dueDate = $_POST['dueDate'] ?? '';
+          $returnDate = $_POST['returnDate'] ?: null;
+          $status = $_POST['status'] ?? 'Active';
+          $notes = $_POST['notes'] ?? '';
+
+          $result = $this->adminService->updateBorrowedBook($id, $userId, $isbn, $borrowDate, $dueDate, $returnDate, $status, $notes);
+          $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
+          break;
+
+        case 'delete':
+          $id = $_POST['id'] ?? '';
+          $result = $this->adminService->deleteBorrowedBook($id);
+          $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
+          break;
+      }
+
+      $this->redirect('/admin/borrowed-books');
+      return;
+    }
+
+    // Get filters
+    $status = $_GET['status'] ?? null;
+    $userId = $_GET['userId'] ?? null;
+    $isbn = $_GET['isbn'] ?? null;
+
+    // Get data
+    $borrowedBooks = $this->adminService->getAllBorrowedBooks($status, $userId, $isbn);
+    $stats = $this->adminService->getBorrowedBooksStats();
+
+    // Get all users and books for the form dropdowns
+    global $mysqli;
+    
+    $users = [];
+    $usersResult = $mysqli->query("SELECT userId, username, emailId, userType FROM users WHERE isVerified = 1 ORDER BY username");
+    while ($row = $usersResult->fetch_assoc()) {
+      $users[] = $row;
+    }
+
+    $books = [];
+    $booksResult = $mysqli->query("SELECT isbn, bookName, authorName, available FROM books ORDER BY bookName");
+    while ($row = $booksResult->fetch_assoc()) {
+      $books[] = $row;
+    }
+
+    $this->render('admin/borrowed-books', [
+      'borrowedBooks' => $borrowedBooks,
+      'stats' => $stats,
+      'currentStatus' => $status,
+      'currentUserId' => $userId,
+      'currentIsbn' => $isbn,
+      'users' => $users,
+      'books' => $books
+    ]);
+  }
+
+  /**
+   * Add Borrowed Book - Show form and process
+   */
+  public function addBooksBorrowed()
+  {
+    // Redirect to main page - form is now a modal
+    $this->redirect('/admin/borrowed-books');
+  }
+
+  /**
+   * Edit Borrowed Book - Show form and process
+   */
+  public function editBooksBorrowed()
+  {
+    // Redirect to main page - form is now a modal
+    $this->redirect('/admin/borrowed-books');
+  }
+
+  /**
+   * Delete Borrowed Book
+   */
+  public function deleteBooksBorrowed()
+  {
+    // Redirect to main page - handled in POST
+    $this->redirect('/admin/borrowed-books');
+  }
+
+  /**
+   * Reserve a book (send to borrow_requests table)
+   */
+  public function reserve()
+  {
+    $this->authHelper->requireAdmin();
+
+    $userId = $_SESSION['userId'];
+    $isbn = $_GET['isbn'] ?? null;
+
+    if (!$isbn) {
+      $_SESSION['error'] = 'No book specified for reservation';
+      header('Location: ' . BASE_URL . 'admin/books');
+      exit;
+    }
+
+    global $mysqli;
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      // Check if already has a pending/approved request for this book
+      $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
+      $stmt->bind_param("ss", $userId, $isbn);
+      $stmt->execute();
+      if ($stmt->get_result()->num_rows > 0) {
+        $_SESSION['error'] = 'You already have a pending or approved request for this book.';
+        $stmt->close();
+        header('Location: ' . BASE_URL . 'admin/books');
+        exit;
+      }
+      $stmt->close();
+
+      // Only allow reservation for 1 day
+      $dueDate = date('Y-m-d', strtotime('+1 day'));
+
+      // Insert into borrow_requests
+      $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, dueDate, status) VALUES (?, ?, ?, 'Pending')");
+      $stmt->bind_param("sss", $userId, $isbn, $dueDate);
+      if ($stmt->execute()) {
+        $_SESSION['success'] = 'Reservation request sent! Awaiting admin approval.';
+      } else {
+        $_SESSION['error'] = 'Failed to send reservation request.';
+      }
+      $stmt->close();
+
+      header('Location: ' . BASE_URL . 'admin/reserved-books');
+      exit;
+    }
+
+    // GET: Show confirmation page
+    $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
+    $stmt->bind_param("s", $isbn);
+    $stmt->execute();
+    $book = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$book) {
+      $_SESSION['error'] = 'Book not found';
+      header('Location: ' . BASE_URL . 'admin/books');
+      exit;
+    }
+
+    $this->render('admin/reserve', ['book' => $book]);
+  }
+
+  /**
+   * Show admin's reserved books (borrow requests)
+   */
+  public function reservedBooks()
+  {
+    $this->authHelper->requireAdmin();
+    global $mysqli;
+    $userId = $_SESSION['userId'];
+
+    $sql = "SELECT br.*, b.bookName, b.authorName 
+            FROM borrow_requests br
+            LEFT JOIN books b ON br.isbn = b.isbn
+            WHERE br.userId = ?
+            ORDER BY br.requestDate DESC";
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param("s", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $requests = [];
+    while ($row = $result->fetch_assoc()) {
+      $requests[] = $row;
+    }
+    $stmt->close();
+
+    $this->render('admin/reserved-books', ['requests' => $requests]);
   }
 }

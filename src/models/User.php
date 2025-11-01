@@ -2,27 +2,15 @@
 
 namespace App\Models;
 
-class User
+class User extends BaseModel
 {
-    private $db;      // Database connection property
-    private $conn;    // Alternative property name
+    protected $table = 'users';
+    private $lastError = null;
     
     public function __construct()
     {
-        // Initialize database connection
-        global $mysqli;
-        global $conn;
-        
-        // Support both $mysqli and $conn naming conventions
-        if (isset($mysqli)) {
-            $this->db = $mysqli;
-            $this->conn = $mysqli;
-        } elseif (isset($conn)) {
-            $this->db = $conn;
-            $this->conn = $conn;
-        } else {
-            throw new \Exception("Database connection not available");
-        }
+        // Call parent constructor to initialize $db from BaseModel
+        parent::__construct();
     }
     
     /**
@@ -54,7 +42,9 @@ class User
     public function getUserByEmail($email)
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
+            // Try emailId column first (your schema)
+            $sql = "SELECT * FROM {$this->table} WHERE emailId = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
             
             if (!$stmt) {
                 throw new \Exception("Prepare failed: " . $this->db->error);
@@ -64,7 +54,22 @@ class User
             $stmt->execute();
             $result = $stmt->get_result();
             
-            return $result->fetch_assoc();
+            if ($row = $result->fetch_assoc()) {
+                return $row;
+            }
+            
+            // Fallback: try 'email' column
+            $sql = "SELECT * FROM {$this->table} WHERE email = ? LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            
+            if ($stmt) {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                return $result->fetch_assoc();
+            }
+            
+            return null;
         } catch (\Exception $e) {
             error_log("Error getting user by email: " . $e->getMessage());
             return null;
@@ -467,6 +472,259 @@ class User
         
         error_log("User not found: " . $userId);
         return false;
+    }
+
+    /**
+     * Get all users
+     */
+    public function getAllUsers($userType = null, $limit = null)
+    {
+        try {
+            $sql = "SELECT * FROM {$this->table}";
+            
+            if ($userType) {
+                $sql .= " WHERE userType = ?";
+            }
+            
+            $sql .= " ORDER BY userId DESC";
+            
+            if ($limit) {
+                $sql .= " LIMIT ?";
+            }
+            
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            if ($userType && $limit) {
+                $stmt->bind_param("si", $userType, $limit);
+            } elseif ($userType) {
+                $stmt->bind_param("s", $userType);
+            } elseif ($limit) {
+                $stmt->bind_param("i", $limit);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting all users: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get user statistics
+     */
+    public function getUserStats()
+    {
+        try {
+            $stats = [
+                'total' => 0,
+                'byType' => [],
+                'verified' => 0,
+                'unverified' => 0
+            ];
+            
+            // Total users
+            $result = $this->db->query("SELECT COUNT(*) as total FROM {$this->table}");
+            if ($row = $result->fetch_assoc()) {
+                $stats['total'] = (int)$row['total'];
+            }
+            
+            // Users by type
+            $result = $this->db->query("SELECT userType, COUNT(*) as count FROM {$this->table} GROUP BY userType");
+            while ($row = $result->fetch_assoc()) {
+                $stats['byType'][$row['userType']] = (int)$row['count'];
+            }
+            
+            // Verified vs unverified
+            $result = $this->db->query("SELECT COUNT(*) as verified FROM {$this->table} WHERE isVerified = 1");
+            if ($row = $result->fetch_assoc()) {
+                $stats['verified'] = (int)$row['verified'];
+            }
+            
+            $stats['unverified'] = $stats['total'] - $stats['verified'];
+            
+            return $stats;
+        } catch (\Exception $e) {
+            error_log("Error getting user stats: " . $e->getMessage());
+            return [
+                'total' => 0,
+                'byType' => [],
+                'verified' => 0,
+                'unverified' => 0
+            ];
+        }
+    }
+
+    /**
+     * Delete user by ID
+     */
+    public function deleteUser($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE userId = ?");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("s", $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error deleting user: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function updateProfile($userId, $data)
+    {
+        $fields = [];
+        $values = [];
+        $types = '';
+
+        if (isset($data['username'])) {
+            $fields[] = "username = ?";
+            $values[] = $data['username'];
+            $types .= 's';
+        }
+
+        if (isset($data['emailId'])) {
+            $fields[] = "emailId = ?";
+            $values[] = $data['emailId'];
+            $types .= 's';
+        }
+        
+        if (isset($data['gender'])) {
+            $fields[] = "gender = ?";
+            $values[] = $data['gender'];
+            $types .= 's';
+        }
+
+        if (isset($data['dob'])) {
+            $fields[] = "dob = ?";
+            $values[] = $data['dob'];
+            $types .= 's';
+        }
+
+        if (isset($data['phoneNumber'])) {
+            $fields[] = "phoneNumber = ?";
+            $values[] = $data['phoneNumber'];
+            $types .= 's';
+        }
+        
+        if (isset($data['address'])) {
+            $fields[] = "address = ?";
+            $values[] = $data['address'];
+            $types .= 's';
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $values[] = $userId;
+        $types .= 's';
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . ", updatedAt = NOW() WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param($types, ...$values);
+        
+        return $stmt->execute();
+    }
+
+    public function changePassword($userId, $currentPassword, $newPassword)
+    {
+        // Verify current password
+        $sql = "SELECT password FROM {$this->table} WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        
+        if (!$result || !password_verify($currentPassword, $result['password'])) {
+            $this->lastError = 'Incorrect current password.';
+            return false;
+        }
+        
+        // Update password
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $sql = "UPDATE {$this->table} SET password = ?, updatedAt = NOW() WHERE userId = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('ss', $hashedPassword, $userId);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Find user by ID (using userId column)
+     */
+    public function findById($userId)
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE userId = ? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $userId);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_assoc();
+    }
+
+    /**
+     * Update user OTP for password reset
+     */
+    public function updateUserOtp($userId, $otp, $otpExpiry)
+    {
+        try {
+            $sql = "UPDATE {$this->table} SET otp = ?, otpExpiry = ? WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                error_log("Failed to prepare OTP update statement: " . $this->db->error);
+                return false;
+            }
+            
+            $stmt->bind_param('sss', $otp, $otpExpiry, $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating user OTP: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update user password
+     */
+    public function updateUserPassword($userId, $hashedPassword)
+    {
+        try {
+            $sql = "UPDATE {$this->table} 
+                    SET password = ?, otp = NULL, otpExpiry = NULL, updatedAt = NOW() 
+                    WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            
+            if (!$stmt) {
+                error_log("Failed to prepare password update statement: " . $this->db->error);
+                return false;
+            }
+            
+            $stmt->bind_param('ss', $hashedPassword, $userId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating user password: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getLastError()
+    {
+        return $this->lastError;
     }
 }
 ?>

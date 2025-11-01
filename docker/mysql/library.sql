@@ -398,6 +398,32 @@ CREATE TABLE IF NOT EXISTS `report_schedule` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================
+-- Table structure for table `books_borrowed`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `books_borrowed` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `borrowDate` date NOT NULL,
+  `dueDate` date NOT NULL,
+  `returnDate` date DEFAULT NULL,
+  `status` enum('Active','Returned','Overdue') NOT NULL DEFAULT 'Active',
+  `notes` text,
+  `addedBy` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_status` (`status`),
+  KEY `idx_borrowDate` (`borrowDate`),
+  KEY `idx_dueDate` (`dueDate`),
+  CONSTRAINT `books_borrowed_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
+  CONSTRAINT `books_borrowed_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE,
+  CONSTRAINT `books_borrowed_ibfk_3` FOREIGN KEY (`addedBy`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
 -- Disable FK checks for safe data insertion (re-enabled after)
 -- ====================================================================
 SET FOREIGN_KEY_CHECKS = 0;
@@ -526,7 +552,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
 -- FIXED: Updated all dates to 2025
 -- ====================================================================
 INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
-('USR001', 'john_smith', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
+('USR001', 'student', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
 ('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
 ('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
 ('USR004', 'sarah_davis', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-03-18', 'sarah.davis@university.edu', '555-0104', '321 Student Lane, Dorm A, Room 410', 'profile4.jpg', 1, '2025-01-18 14:30:00'),
@@ -541,10 +567,10 @@ INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gende
 ('FAC003', 'dr_william_lee', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1975-11-08', 'w.lee@university.edu', '555-0203', '1003 Faculty Housing, Building A', 'profile_fac3.jpg', 1, '2024-08-01 08:00:00'),
 ('FAC004', 'prof_patricia_martinez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1980-05-30', 'p.martinez@university.edu', '555-0204', '1004 Faculty Housing, Building C', 'profile_fac4.jpg', 1, '2024-08-01 08:00:00'),
 ('FAC005', 'dr_charles_white', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1979-09-16', 'c.white@university.edu', '555-0205', '1005 Faculty Housing, Building B', 'profile_fac5.jpg', 1, '2024-08-01 08:00:00'),
-('LIB001', 'librarian_susan', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
+('LIB001', 'lib', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Librarian', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
 ('LIB002', 'librarian_mark', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Male', '1988-02-28', 'mark.librarian@university.edu', '555-0302', '2002 Staff Quarters, Block B', 'profile_lib2.jpg', 1, '2023-06-01 08:00:00'),
 ('LIB003', 'librarian_nancy', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1990-10-19', 'nancy.librarian@university.edu', '555-0303', '2003 Staff Quarters, Block A', 'profile_lib3.jpg', 1, '2024-01-15 08:00:00'),
-('ADM001', 'admin_richard', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
+('ADM001', 'admin', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
 ('ADM002', 'admin_jennifer', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Female', '1980-12-21', 'jennifer.admin@university.edu', '555-0402', '3002 Admin Building, Office 102', 'profile_adm2.jpg', 1, '2022-01-01 08:00:00');
 
 -- ====================================================================
@@ -768,21 +794,106 @@ INSERT IGNORE INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `re
 ('USR009', '/api/profile/update', 'PUT', 200, 223, '192.168.1.58', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
 
 -- ====================================================================
--- DUMMY DATA: Report Schedule (5 scheduled reports)
--- FIXED: Updated dates to 2025
+-- DUMMY DATA: Books Borrowed (10 sample records)
 -- ====================================================================
-INSERT IGNORE INTO `report_schedule` (`reportName`, `reportType`, `frequency`, `recipients`, `isActive`, `lastGenerated`, `nextScheduled`, `createdBy`) VALUES
-('Monthly Circulation Report', 'Monthly', 'First day of month', '["richard.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM001'),
-('Weekly Overdue Books', 'Weekly', 'Every Monday', '["susan.librarian@university.edu", "mark.librarian@university.edu", "nancy.librarian@university.edu"]', 1, '2025-10-21 08:00:00', '2025-10-28 08:00:00', 'ADM001'),
-('Daily New Registrations', 'Daily', 'Every day at 9 AM', '["richard.admin@university.edu", "jennifer.admin@university.edu"]', 1, '2025-10-25 09:00:00', '2025-10-26 09:00:00', 'ADM002'),
-('Quarterly Collection Analysis', 'Quarterly', 'First day of quarter', '["richard.admin@university.edu"]', 1, '2025-10-01 08:00:00', '2026-01-01 08:00:00', 'ADM001'),
-('Monthly Fine Collection', 'Monthly', 'First day of month', '["jennifer.admin@university.edu", "susan.librarian@university.edu"]', 1, '2025-10-01 08:00:00', '2025-11-01 08:00:00', 'ADM002');
+INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, `returnDate`, `status`, `notes`, `addedBy`) VALUES
+('USR001', '9780134685991', '2025-10-15', '2025-10-29', NULL, 'Active', 'Regular borrowing', 'ADM001'),
+('USR002', '9780132350884', '2025-10-18', '2025-11-01', NULL, 'Active', NULL, 'LIB001'),
+('USR003', '9780743273565', '2025-10-01', '2025-10-15', '2025-10-14', 'Returned', 'Returned on time', 'LIB001'),
+('USR004', '9780451524935', '2025-09-25', '2025-10-09', NULL, 'Overdue', 'Needs follow-up', 'ADM001'),
+('USR005', '9781593279509', '2025-10-20', '2025-11-03', NULL, 'Active', NULL, 'LIB002'),
+('USR006', '9780134757599', '2025-10-10', '2025-10-24', '2025-10-23', 'Returned', NULL, 'LIB001'),
+('USR007', '9780061120084', '2025-10-22', '2025-11-05', NULL, 'Active', 'Faculty member', 'ADM001'),
+('FAC001', '9780393979503', '2025-10-05', '2025-10-19', '2025-10-18', 'Returned', 'Extended borrowing period', 'LIB003'),
+('FAC002', '9781617294136', '2025-10-12', '2025-10-26', NULL, 'Active', NULL, 'LIB002'),
+('USR008', '9780141439518', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
 
 -- ====================================================================
--- Re-enable FK checks after all inserts
+-- FINE CALCULATION SYSTEM (Simplified - No stored procedures needed)
 -- ====================================================================
+
+-- Create a simple view to calculate fines on-the-fly
+CREATE OR REPLACE VIEW transaction_fines AS
+SELECT 
+    t.tid,
+    t.userId,
+    t.isbn,
+    t.borrowDate,
+    t.returnDate,
+    t.fineStatus,
+    t.finePaymentDate,
+    t.finePaymentMethod,
+    b.bookName,
+    u.emailId,
+    u.userType,
+    -- Calculate days overdue (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0)
+        ELSE 0
+    END AS daysOverdue,
+    -- Calculate fine amount (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(500.00, GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00)
+        ELSE 0.00
+    END AS calculatedFine,
+    t.fineAmount AS storedFine
+FROM transactions t
+JOIN books b ON t.isbn = b.isbn
+JOIN users u ON t.userId = u.userId;
+
+-- Update existing transaction fines based on calculation (safe version)
+UPDATE transactions t
+SET t.fineAmount = (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+)
+WHERE (t.returnDate IS NULL OR t.fineStatus = 'pending')
+  AND t.fineAmount != (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+  );
+
+-- ====================================================================
+-- End of fine calculation system
+-- ====================================================================
+
+-- Re-enable FK checks after all inserts
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ====================================================================
 -- End of database schema and dummy data
 -- ====================================================================
+-- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ...existing code...
+
+-- ====================================================================
+-- Table structure for table `saved_cards`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `card_holder` varchar(100) NOT NULL,
+  `card_number_masked` varchar(25) NOT NULL,
+  `card_expiry` varchar(7) NOT NULL,
+  `card_type` varchar(20) DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ...existing code...

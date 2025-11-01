@@ -1,6 +1,14 @@
 <?php
 $pageTitle = 'Your Fines';
 include APP_ROOT . '/views/layouts/header.php';
+
+// Calculate total fine
+$totalFine = 0;
+if (!empty($fines)) {
+    foreach ($fines as $fine) {
+        $totalFine += (float)($fine['fineAmount'] ?? 0);
+    }
+}
 ?>
 
 <style>
@@ -467,10 +475,10 @@ include APP_ROOT . '/views/layouts/header.php';
                 <h1>Your Fines</h1>
                 <p>Manage and pay your outstanding library fines</p>
             </div>
-            <?php if (!empty($borrowedBooks)) { ?>
+            <?php if (!empty($fines) && $totalFine > 0) { ?>
             <div class="total-badge">
                 <div class="total-badge-label">Total Outstanding</div>
-                <div class="total-badge-amount">₹<?= number_format((float)($totalFine ?? 0), 2) ?></div>
+                <div class="total-badge-amount">₹<?= number_format($totalFine, 2) ?></div>
             </div>
             <?php } ?>
         </div>
@@ -483,15 +491,15 @@ include APP_ROOT . '/views/layouts/header.php';
                             <i class="fas fa-receipt"></i>
                             <h3>Pending Fines</h3>
                         </div>
-                        <?php if (!empty($borrowedBooks)) { ?>
+                        <?php if (!empty($fines)) { ?>
                         <span class="fines-count">
-                            <?= count($borrowedBooks) ?> <?= count($borrowedBooks) === 1 ? 'Item' : 'Items' ?>
+                            <?= count($fines) ?> <?= count($fines) === 1 ? 'Item' : 'Items' ?>
                         </span>
                         <?php } ?>
                     </div>
                     
                     <div class="fines-card-body">
-                        <?php if (!empty($borrowedBooks)) { ?>
+                        <?php if (!empty($fines)) { ?>
                             <!-- Info Alert -->
                             <div class="info-alert">
                                 <div class="info-alert-icon">
@@ -509,52 +517,86 @@ include APP_ROOT . '/views/layouts/header.php';
                                         <tr>
                                             <th>Book Details</th>
                                             <th>Borrowed Date</th>
+                                            <th>Due Date</th>
+                                            <th>Days Overdue</th>
                                             <th>Fine Amount</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                    <?php foreach ($borrowedBooks as $book) { ?>
+                                    <?php 
+                                    // Get fine settings once for all calculations
+                                    $maxBorrowDays = 14; // Will be fetched from controller
+                                    
+                                    foreach ($fines as $fine) { 
+                                        $fineAmount = (float)($fine['fineAmount'] ?? 0);
+                                        
+                                        // Calculate due date and days overdue
+                                        $borrowDate = new DateTime($fine['borrowDate']);
+                                        // Use max_borrow_days from fine settings if available in $fine array
+                                        $maxBorrowDays = isset($fine['max_borrow_days']) ? (int)$fine['max_borrow_days'] : 14;
+                                        $dueDate = clone $borrowDate;
+                                        $dueDate->add(new DateInterval("P{$maxBorrowDays}D"));
+                                        
+                                        $currentDate = new DateTime();
+                                        $interval = $dueDate->diff($currentDate);
+                                        $daysOverdue = $currentDate > $dueDate ? $interval->days : 0;
+                                    ?>
                                         <tr>
                                             <td data-label="Book Details">
                                                 <div class="book-info">
                                                     <span class="book-title">
-                                                        <?= htmlspecialchars($book['bookName'] ?? ($book['title'] ?? 'Book')) ?>
+                                                        <?= htmlspecialchars($fine['title'] ?? $fine['bookName'] ?? 'Book') ?>
                                                     </span>
                                                     <span class="book-isbn">
-                                                        ISBN: <?= htmlspecialchars($book['isbn']) ?>
+                                                        ISBN: <?= htmlspecialchars($fine['isbn'] ?? '') ?>
                                                     </span>
                                                 </div>
                                             </td>
                                             <td data-label="Borrowed Date">
                                                 <span class="date-badge">
                                                     <i class="fas fa-calendar-alt"></i>
-                                                    <?= htmlspecialchars(date('M d, Y', strtotime($book['borrowDate']))) ?>
+                                                    <?= htmlspecialchars($borrowDate->format('M d, Y')) ?>
                                                 </span>
                                             </td>
+                                            <td data-label="Due Date">
+                                                <span class="date-badge" style="background: <?= $daysOverdue > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' ?>; color: <?= $daysOverdue > 0 ? '#ef4444' : '#10b981' ?>;">
+                                                    <i class="fas fa-calendar-check"></i>
+                                                    <?= $dueDate->format('M d, Y') ?>
+                                                </span>
+                                            </td>
+                                            <td data-label="Days Overdue">
+                                                <?php if ($daysOverdue > 0): ?>
+                                                    <span class="date-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        <?= $daysOverdue ?> days
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
                                             <td data-label="Fine Amount">
-                                                <?php $fine = (float)($book['calculated_fine'] ?? 0); ?>
-                                                <span class="fine-amount <?= $fine > 0 ? '' : 'no-fine' ?>">
+                                                <span class="fine-amount">
                                                     <i class="fas fa-rupee-sign"></i>
-                                                    <?= number_format($fine, 2) ?>
+                                                    <?= number_format($fineAmount, 2) ?>
                                                 </span>
                                             </td>
                                             <td data-label="Action">
-                                                <?php if ($fine > 0) { ?>
-                                                <form method="POST" action="<?= BASE_URL ?>user/pay-fine" style="display:inline">
-                                                    <input type="hidden" name="tid" value="<?= htmlspecialchars($book['tid'] ?? '') ?>">
-                                                    <input type="hidden" name="amount" value="<?= htmlspecialchars($fine) ?>">
-                                                    <button type="submit" class="btn-pay">
-                                                        <i class="fas fa-credit-card"></i>
-                                                        <span>Pay Now</span>
-                                                    </button>
-                                                </form>
-                                                <?php } else { ?>
+                                                <?php if ($fineAmount > 0): ?>
+                                                    <form method="POST" action="<?= BASE_URL ?>user/fines" style="display:inline">
+                                                        <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
+                                                        <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
+                                                        <button type="submit" class="btn-pay">
+                                                            <i class="fas fa-credit-card"></i>
+                                                            <span>Pay Now</span>
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
                                                     <span class="no-fine-badge">
-                                                        <i class="fas fa-check-circle"></i>
-                                                        <span>No Fine</span>
+                                                        <i class="fas fa-check"></i>
+                                                        No Fine
                                                     </span>
-                                                <?php } ?>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php } ?>
@@ -567,7 +609,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                 <span class="total-summary-label">Total Amount Due:</span>
                                 <span class="total-summary-amount">
                                     <i class="fas fa-rupee-sign"></i>
-                                    <?= number_format((float)($totalFine ?? 0), 2) ?>
+                                    <?= number_format($totalFine, 2) ?>
                                 </span>
                             </div>
                         <?php } else { ?>

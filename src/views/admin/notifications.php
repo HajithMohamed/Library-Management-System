@@ -7,6 +7,8 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
 $notifications = $notifications ?? [];
 $currentType = $currentType ?? null;
 $unreadOnly = $unreadOnly ?? false;
+$userTypeFilter = $userTypeFilter ?? null;
+$viewMode = $viewMode ?? 'own';
 $totalNotifications = count($notifications);
 $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
 ?>
@@ -785,6 +787,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
                     <form method="GET" action="">
                         <div class="filter-row">
                             <div class="form-group">
+                                <label for="viewMode" class="form-label">View Mode</label>
+                                <select class="form-control" id="viewMode" name="viewMode">
+                                    <option value="own" <?= $viewMode === 'own' ? 'selected' : '' ?>>My Notifications</option>
+                                    <option value="all" <?= $viewMode === 'all' ? 'selected' : '' ?>>All Users (Management)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label for="type" class="form-label">Type</label>
                                 <select class="form-control" id="type" name="type">
                                     <option value="">All Types</option>
@@ -794,6 +803,16 @@ $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
                                     <option value="system" <?= $currentType === 'system' ? 'selected' : '' ?>>System</option>
                                     <option value="reminder" <?= $currentType === 'reminder' ? 'selected' : '' ?>>Reminder</option>
                                     <option value="approval" <?= $currentType === 'approval' ? 'selected' : '' ?>>Approval</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userType" class="form-label">User Type</label>
+                                <select class="form-control" id="userType" name="userType">
+                                    <option value="">All User Types</option>
+                                    <option value="Student" <?= $userTypeFilter === 'Student' ? 'selected' : '' ?>>Student</option>
+                                    <option value="Faculty" <?= $userTypeFilter === 'Faculty' ? 'selected' : '' ?>>Faculty</option>
+                                    <option value="Librarian" <?= $userTypeFilter === 'Librarian' ? 'selected' : '' ?>>Librarian</option>
+                                    <option value="Admin" <?= $userTypeFilter === 'Admin' ? 'selected' : '' ?>>Admin</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -863,6 +882,11 @@ $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
                                                 <span class="badge badge-secondary">
                                                     <?= ucfirst(str_replace('_', ' ', $notification['type'])) ?>
                                                 </span>
+                                                <?php if (isset($notification['userType']) && $notification['userType']): ?>
+                                                    <span class="badge badge-info">
+                                                        <i class="fas fa-user"></i> <?= htmlspecialchars($notification['userType']) ?>
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                         <div>
@@ -889,7 +913,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
                                         <?php if ($notification['userId']): ?>
                                             <span>
                                                 <i class="fas fa-user"></i>
-                                                User: <?= htmlspecialchars($notification['userId']) ?>
+                                                <?= htmlspecialchars($notification['username'] ?? $notification['emailId'] ?? $notification['userId']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span>
+                                                <i class="fas fa-globe"></i>
+                                                System-wide
                                             </span>
                                         <?php endif; ?>
                                     </div>

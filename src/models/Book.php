@@ -2,306 +2,318 @@
 
 namespace App\Models;
 
-class Book
+class Book extends BaseModel
 {
-    private $conn;
+    protected $table = 'books';
 
     public function __construct()
     {
-        global $conn;
-        $this->conn = $conn;
+        parent::__construct();
     }
 
     /**
-     * Get book statistics - FIXED VERSION
-     * Uses $conn consistently and matches database column names
+     * Search books by title, author, or ISBN
      */
-    public function getBookStats()
+    public function search($searchTerm = '')
     {
-        $stats = [
-            'total_books' => 0,
-            'available_books' => 0,
-            'borrowed_books' => 0,
-            'categories' => []
-        ];
+        if (empty($searchTerm)) {
+            return $this->all('bookName', 'ASC');
+        }
+
+        $searchTerm = '%' . $searchTerm . '%';
+        $sql = "SELECT * FROM {$this->table} 
+                WHERE bookName LIKE ? 
+                OR authorName LIKE ? 
+                OR isbn LIKE ? 
+                OR publisherName LIKE ?
+                ORDER BY bookName ASC";
         
-        try {
-            // Get total, available, and borrowed books
-            $query = "SELECT 
-                        COUNT(*) as total_books, 
-                        SUM(available) as available_books,
-                        SUM(borrowed) as borrowed_books
-                     FROM books";
-            
-            $result = $this->conn->query($query);
-            
-            if ($result && $result->num_rows > 0) {
-                $row = $result->fetch_assoc();
-                $stats['total_books'] = (int)($row['total_books'] ?? 0);
-                $stats['available_books'] = (int)($row['available_books'] ?? 0);
-                $stats['borrowed_books'] = (int)($row['borrowed_books'] ?? 0);
-            }
-            
-            // Get book count by category
-            $query = "SELECT category, COUNT(*) as count FROM books WHERE category IS NOT NULL GROUP BY category ORDER BY count DESC";
-            $result = $this->conn->query($query);
-            
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $stats['categories'][$row['category']] = (int)$row['count'];
-                }
-            }
-            
-            return $stats;
-        } catch (\Exception $e) {
-            error_log("Error getting book stats: " . $e->getMessage());
-            return $stats;
-        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
-    
+
     /**
-     * Get book by ID
+     * Advanced search with category filter
      */
-    public function getBookById($bookId)
+    public function advancedSearch($searchTerm = '', $category = '')
     {
-        try {
-            $stmt = $this->conn->prepare("SELECT * FROM books WHERE bookId = ?");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param("i", $bookId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            return $result->fetch_assoc();
-        } catch (\Exception $e) {
-            error_log("Error getting book by ID: " . $e->getMessage());
-            return null;
+        $sql = "SELECT * FROM {$this->table} WHERE 1=1";
+        $params = [];
+        $types = '';
+
+        if (!empty($searchTerm)) {
+            $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ?)";
+            $searchParam = '%' . $searchTerm . '%';
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $types .= 'sss';
         }
+
+        if (!empty($category)) {
+            $sql .= " AND category = ?";
+            $params[] = $category;
+            $types .= 's';
+        }
+
+        $sql .= " ORDER BY bookName ASC";
+
+        $stmt = $this->db->prepare($sql);
+        
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
-    
+
     /**
-     * Get book by ISBN
+     * Find book by ISBN
      */
-    public function getBookByIsbn($isbn)
+    public function findByISBN($isbn)
     {
-        try {
-            $stmt = $this->conn->prepare("SELECT * FROM books WHERE isbn = ?");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param("s", $isbn);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            return $result->fetch_assoc();
-        } catch (\Exception $e) {
-            error_log("Error getting book by ISBN: " . $e->getMessage());
-            return null;
-        }
+        $sql = "SELECT * FROM {$this->table} WHERE isbn = ? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $isbn);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_assoc();
     }
-    
+
     /**
-     * Create a new book
+     * Get all available books
      */
-    public function createBook($data)
+    public function getAvailableBooks()
     {
-        try {
-            $stmt = $this->conn->prepare("INSERT INTO books (title, author, isbn, category, available, borrowed) VALUES (?, ?, ?, ?, ?, ?)");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param("ssssis",
-                $data['title'],
-                $data['author'],
-                $data['isbn'],
-                $data['category'] ?? '',
-                $data['available'] ?? 0,
-                $data['borrowed'] ?? 0
-            );
-            
-            return $stmt->execute();
-        } catch (\Exception $e) {
-            error_log("Error creating book: " . $e->getMessage());
-            return false;
-        }
+        $sql = "SELECT * FROM {$this->table} WHERE available > 0 ORDER BY bookName ASC";
+        $result = $this->db->query($sql);
+        
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
-    
-    /**
-     * Update book
-     */
-    public function updateBook($bookId, $data)
-    {
-        try {
-            $fields = [];
-            $values = [];
-            $types = "";
-            
-            // Build dynamic UPDATE query based on provided data
-            if (isset($data['title'])) {
-                $fields[] = "title = ?";
-                $values[] = $data['title'];
-                $types .= "s";
-            }
-            if (isset($data['author'])) {
-                $fields[] = "author = ?";
-                $values[] = $data['author'];
-                $types .= "s";
-            }
-            if (isset($data['isbn'])) {
-                $fields[] = "isbn = ?";
-                $values[] = $data['isbn'];
-                $types .= "s";
-            }
-            if (isset($data['category'])) {
-                $fields[] = "category = ?";
-                $values[] = $data['category'];
-                $types .= "s";
-            }
-            if (isset($data['available'])) {
-                $fields[] = "available = ?";
-                $values[] = $data['available'];
-                $types .= "i";
-            }
-            if (isset($data['borrowed'])) {
-                $fields[] = "borrowed = ?";
-                $values[] = $data['borrowed'];
-                $types .= "i";
-            }
-            
-            if (empty($fields)) {
-                return false;
-            }
-            
-            $query = "UPDATE books SET " . implode(", ", $fields) . " WHERE bookId = ?";
-            $values[] = $bookId;
-            $types .= "i";
-            
-            $stmt = $this->conn->prepare($query);
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param($types, ...$values);
-            
-            return $stmt->execute();
-        } catch (\Exception $e) {
-            error_log("Error updating book: " . $e->getMessage());
-            return false;
-        }
-    }
-    
-    /**
-     * Delete book
-     */
-    public function deleteBook($bookId)
-    {
-        try {
-            $stmt = $this->conn->prepare("DELETE FROM books WHERE bookId = ?");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param("i", $bookId);
-            
-            return $stmt->execute();
-        } catch (\Exception $e) {
-            error_log("Error deleting book: " . $e->getMessage());
-            return false;
-        }
-    }
-    
+
     /**
      * Get all books
      */
-    public function getAllBooks()
+    public function getAllBooks($limit = null, $offset = null)
     {
         try {
-            $result = $this->conn->query("SELECT * FROM books ORDER BY title");
+            $sql = "SELECT * FROM {$this->table} ORDER BY bookName ASC";
             
-            if (!$result) {
-                throw new \Exception("Query failed: " . $this->conn->error);
+            if ($limit) {
+                $sql .= " LIMIT ?";
+                if ($offset) {
+                    $sql .= " OFFSET ?";
+                }
             }
             
-            return $result->fetch_all(MYSQLI_ASSOC);
+            $stmt = $this->db->prepare($sql);
+            
+            if ($limit && $offset) {
+                $stmt->bind_param('ii', $limit, $offset);
+            } elseif ($limit) {
+                $stmt->bind_param('i', $limit);
+            } else {
+                // No parameters, execute directly
+                $result = $this->db->query("SELECT * FROM {$this->table} ORDER BY bookName ASC");
+                return $result->fetch_all(MYSQLI_ASSOC);
+            }
+            
+            $stmt->execute();
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         } catch (\Exception $e) {
             error_log("Error getting all books: " . $e->getMessage());
             return [];
         }
     }
-    
+
+    /**
+     * Get popular books based on borrow count
+     */
+    public function getPopularBooks($limit = 10)
+    {
+        try {
+            $sql = "SELECT b.*, COUNT(t.tid) as borrowCount
+                    FROM {$this->table} b
+                    LEFT JOIN transactions t ON b.isbn = t.isbn
+                    GROUP BY b.isbn
+                    ORDER BY borrowCount DESC
+                    LIMIT ?";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param('i', $limit);
+            $stmt->execute();
+            
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting popular books: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get trending books
+     */
+    public function getTrendingBooks($limit = 10)
+    {
+        $sql = "SELECT * FROM {$this->table} 
+                WHERE isTrending = 1 
+                ORDER BY createdAt DESC 
+                LIMIT ?";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('i', $limit);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
+
     /**
      * Get books by category
      */
-    public function getBooksByCategory($category)
+    public function getByCategory($category)
     {
-        try {
-            $stmt = $this->conn->prepare("SELECT * FROM books WHERE category = ? ORDER BY title");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $stmt->bind_param("s", $category);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            return $result->fetch_all(MYSQLI_ASSOC);
-        } catch (\Exception $e) {
-            error_log("Error getting books by category: " . $e->getMessage());
-            return [];
-        }
+        $sql = "SELECT * FROM {$this->table} WHERE category = ? ORDER BY bookName ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $category);
+        $stmt->execute();
+        
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
-    
+
     /**
-     * Search books
+     * Get all categories
      */
-    public function searchBooks($keyword)
+    public function getAllCategories()
     {
-        try {
-            $stmt = $this->conn->prepare("SELECT * FROM books WHERE title LIKE ? OR author LIKE ? ORDER BY title");
-            
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->conn->error);
-            }
-            
-            $likeKeyword = "%" . $keyword . "%";
-            $stmt->bind_param("ss", $likeKeyword, $likeKeyword);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            return $result->fetch_all(MYSQLI_ASSOC);
-        } catch (\Exception $e) {
-            error_log("Error searching books: " . $e->getMessage());
-            return [];
+        $sql = "SELECT DISTINCT category FROM {$this->table} WHERE category IS NOT NULL ORDER BY category ASC";
+        $result = $this->db->query($sql);
+        
+        $categories = [];
+        while ($row = $result->fetch_assoc()) {
+            $categories[] = $row['category'];
         }
+        
+        return $categories;
     }
-    
+
     /**
-     * Get book count
+     * Add a new book
      */
-    public function getBooksCount()
+    public function addBook($data)
     {
-        try {
-            $result = $this->conn->query("SELECT COUNT(*) as count FROM books");
-            
-            if (!$result) {
-                throw new \Exception("Query failed: " . $this->conn->error);
+        $sql = "INSERT INTO {$this->table} 
+                (isbn, barcode, bookName, authorName, publisherName, description, 
+                category, publicationYear, totalCopies, available, bookImage)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('sssssssiiis',
+            $data['isbn'],
+            $data['barcode'],
+            $data['bookName'],
+            $data['authorName'],
+            $data['publisherName'],
+            $data['description'],
+            $data['category'],
+            $data['publicationYear'],
+            $data['totalCopies'],
+            $data['available'],
+            $data['bookImage']
+        );
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Update book information
+     */
+    public function updateBook($isbn, $data)
+    {
+        $fields = [];
+        $values = [];
+        $types = '';
+
+        foreach ($data as $key => $value) {
+            if ($key !== 'isbn') {
+                $fields[] = "{$key} = ?";
+                $values[] = $value;
+                $types .= is_int($value) ? 'i' : 's';
             }
-            
-            $row = $result->fetch_assoc();
-            return (int)($row['count'] ?? 0);
-        } catch (\Exception $e) {
-            error_log("Error getting books count: " . $e->getMessage());
-            return 0;
         }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $values[] = $isbn;
+        $types .= 's';
+
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE isbn = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param($types, ...$values);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Delete a book
+     */
+    public function deleteBook($isbn)
+    {
+        $sql = "DELETE FROM {$this->table} WHERE isbn = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $isbn);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Update book availability when borrowed
+     */
+    public function decreaseAvailability($isbn)
+    {
+        $sql = "UPDATE {$this->table} 
+                SET available = available - 1, borrowed = borrowed + 1 
+                WHERE isbn = ? AND available > 0";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $isbn);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Update book availability when returned
+     */
+    public function increaseAvailability($isbn)
+    {
+        $sql = "UPDATE {$this->table} 
+                SET available = available + 1, borrowed = borrowed - 1 
+                WHERE isbn = ?";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('s', $isbn);
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Get book statistics
+     */
+    public function getBookStats()
+    {
+        $sql = "SELECT 
+                COUNT(*) as total_books,
+                SUM(totalCopies) as total_copies,
+                SUM(available) as available_copies,
+                SUM(borrowed) as borrowed_copies
+                FROM {$this->table}";
+        
+        $result = $this->db->query($sql);
+        return $result->fetch_assoc();
     }
 }

@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'university-library/lms',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '53ea02a436b078c4080525122eb8772e8b186697',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -37,6 +37,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'picqer/php-barcode-generator' => array(
+            'pretty_version' => 'v3.2.3',
+            'version' => '3.2.3.0',
+            'reference' => 'fbb1de7454fcc8600133818bc1103abeb86479a4',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../picqer/php-barcode-generator',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'symfony/polyfill-ctype' => array(
             'pretty_version' => 'v1.33.0',
             'version' => '1.33.0.0',
@@ -65,9 +74,9 @@
             'dev_requirement' => false,
         ),
         'university-library/lms' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '53ea02a436b078c4080525122eb8772e8b186697',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
