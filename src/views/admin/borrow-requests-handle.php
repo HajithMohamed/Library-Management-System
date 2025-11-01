@@ -77,7 +77,7 @@ if ($action === 'mark_borrowed') {
     $stmt->close();
 
     if (!$book || $book['available'] <= 0) {
-        $_SESSION['error'] = 'Book is not available for borrowing.';
+        $_SESSION['error'] = 'Book is not available for borrowing. Available: ' . ($book['available'] ?? 0);
         header('Location: ' . $_SERVER['HTTP_REFERER']);
         exit;
     }
@@ -97,14 +97,14 @@ if ($action === 'mark_borrowed') {
     $stmt->execute();
     $stmt->close();
 
-    // Update borrow_requests status to Borrowed
-    $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Borrowed', updatedAt = NOW() WHERE id = ?");
+    // Do NOT set status to 'Borrowed' (not allowed by ENUM). Just update updatedAt.
+    $stmt = $conn->prepare("UPDATE borrow_requests SET updatedAt = NOW() WHERE id = ?");
     $stmt->bind_param("i", $requestId);
     $stmt->execute();
     $stmt->close();
 
     // Send notification to user
-    $notifStmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, relatedId) VALUES (?, 'Book Borrowed', ?, 'borrowed', 'high', ?)");
+    $notifStmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, relatedId) VALUES (?, 'Book Borrowed', ?, 'system', 'high', ?)");
     $notifMessage = "You have successfully borrowed the book (ISBN: {$request['isbn']}). Due date: {$dueDate}";
     $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
     $notifStmt->execute();
