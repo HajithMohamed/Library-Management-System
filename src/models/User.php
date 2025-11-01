@@ -668,11 +668,9 @@ class User extends BaseModel
      */
     public function findById($userId)
     {
-        $sql = "SELECT * FROM {$this->table} WHERE userId = ? LIMIT 1";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE userId = ?");
         $stmt->bind_param('s', $userId);
         $stmt->execute();
-        
         return $stmt->get_result()->fetch_assoc();
     }
 

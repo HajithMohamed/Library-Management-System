@@ -910,25 +910,25 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             href="<?= BASE_URL ?>admin/borrow-requests?status=pending">
             <i class="fas fa-clock"></i>
             <span>Pending</span>
-            <span class="tab-badge warning"><?= count(array_filter($requests ?? [], fn($r) => $r['status'] === 'Pending')) ?></span>
+            <span class="tab-badge warning"><?= $statusCounts['pending'] ?? 0 ?></span>
           </a>
           <a class="tab-link <?= ($currentStatus ?? '') === 'approved' ? 'active' : '' ?>"
             href="<?= BASE_URL ?>admin/borrow-requests?status=approved">
             <i class="fas fa-check"></i>
             <span>Approved</span>
-            <span class="tab-badge success"><?= count(array_filter($requests ?? [], fn($r) => $r['status'] === 'Approved')) ?></span>
+            <span class="tab-badge success"><?= $statusCounts['approved'] ?? 0 ?></span>
           </a>
           <a class="tab-link <?= ($currentStatus ?? '') === 'rejected' ? 'active' : '' ?>"
             href="<?= BASE_URL ?>admin/borrow-requests?status=rejected">
             <i class="fas fa-times"></i>
             <span>Rejected</span>
-            <span class="tab-badge danger"><?= count(array_filter($requests ?? [], fn($r) => $r['status'] === 'Rejected')) ?></span>
+            <span class="tab-badge danger"><?= $statusCounts['rejected'] ?? 0 ?></span>
           </a>
           <a class="tab-link <?= ($currentStatus ?? '') === 'all' ? 'active' : '' ?>"
             href="<?= BASE_URL ?>admin/borrow-requests?status=all">
             <i class="fas fa-list"></i>
             <span>All</span>
-            <span class="tab-badge primary"><?= count($requests ?? []) ?></span>
+            <span class="tab-badge primary"><?= $statusCounts['all'] ?? 0 ?></span>
           </a>
         </div>
       </div>

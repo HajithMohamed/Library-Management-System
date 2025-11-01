@@ -769,29 +769,16 @@ class BookController
      */
     public function getReservationQueue($isbn)
     {
-        global $mysqli;
-        
-        if (!$mysqli) {
-            return [];
-        }
-        
-        $stmt = $mysqli->prepare("
-            SELECT br.userId, br.createdAt, u.firstName, u.lastName
-            FROM book_reservations br
-            LEFT JOIN users u ON br.userId = u.userId
-            WHERE br.isbn = ? AND br.reservationStatus = 'Active'
-            ORDER BY br.createdAt ASC
-        ");
-        
+        global $conn;
+        $stmt = $conn->prepare("SELECT * FROM book_reservations WHERE isbn = ? AND reservationStatus IN ('Active', 'Notified') ORDER BY createdAt ASC");
+        $stmt->bind_param("s", $isbn);
+        $stmt->execute();
+        $result = $stmt->get_result();
         $queue = [];
-        if ($stmt) {
-            $stmt->bind_param("s", $isbn);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $queue = $result->fetch_all(MYSQLI_ASSOC);
-            $stmt->close();
+        while ($row = $result->fetch_assoc()) {
+            $queue[] = $row;
         }
-        
+        $stmt->close();
         return $queue;
     }
 
