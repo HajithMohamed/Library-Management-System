@@ -13,6 +13,9 @@ $currentPage = 'books';
 include APP_ROOT . '/views/layouts/header.php';
 ?>
 
+<!-- Font Awesome CDN for modern icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <style>
     .books-page {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -56,6 +59,16 @@ include APP_ROOT . '/views/layouts/header.php';
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         animation: textGlow 3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .books-header h1 i {
+        background: linear-gradient(45deg, #fff, #ffd700);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
     @keyframes textGlow {
@@ -104,6 +117,15 @@ include APP_ROOT . '/views/layouts/header.php';
         color: white;
         text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
         margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .stat-badge .stat-number i {
+        font-size: 2.5rem;
+        opacity: 0.8;
     }
     
     .stat-badge .stat-label {
@@ -117,8 +139,7 @@ include APP_ROOT . '/views/layouts/header.php';
     .search-container {
         max-width: 1400px;
         margin: 0 auto 30px;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
+        background: white;
         border-radius: 25px;
         padding: 35px;
         box-shadow: 0 15px 50px rgba(0,0,0,0.15);
@@ -133,20 +154,23 @@ include APP_ROOT . '/views/layouts/header.php';
     
     .search-input-main {
         width: 100%;
-        padding: 20px 60px 20px 25px;
-        border: 3px solid transparent;
-        border-radius: 50px;
-        font-size: 1.15rem;
+        padding: 18px 60px 18px 25px;
+        border: 2px solid #667eea;
+        border-radius: 15px;
+        font-size: 1rem;
         transition: all 0.3s ease;
-        background: linear-gradient(white, white), linear-gradient(135deg, #667eea, #764ba2);
-        background-origin: padding-box, border-box;
-        background-clip: padding-box, border-box;
+        background: white;
+        color: #6b7280;
+    }
+    
+    .search-input-main::placeholder {
+        color: #9ca3af;
     }
     
     .search-input-main:focus {
         outline: none;
-        transform: scale(1.02);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
     
     .search-icon {
@@ -154,10 +178,8 @@ include APP_ROOT . '/views/layouts/header.php';
         right: 25px;
         top: 50%;
         transform: translateY(-50%);
-        font-size: 1.6rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-size: 1.3rem;
+        color: #667eea;
         pointer-events: none;
     }
     
@@ -218,7 +240,7 @@ include APP_ROOT . '/views/layouts/header.php';
     
     .filters-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(3, 1fr) auto;
         gap: 15px;
         align-items: center;
     }
@@ -229,32 +251,58 @@ include APP_ROOT . '/views/layouts/header.php';
     
     .filter-select-modern {
         width: 100%;
-        padding: 15px 20px;
-        border: 2px solid #e5e7eb;
+        padding: 18px 45px 18px 50px;
+        border: 2px solid #d1d5db;
         border-radius: 15px;
         font-size: 1rem;
         background: white;
         cursor: pointer;
         transition: all 0.3s ease;
         appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        color: #6b7280;
+        font-weight: 500;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7280' d='M6 8L0 2h12z'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right 15px center;
-        padding-right: 45px;
+        background-position: right 20px center;
+    }
+    
+    .filter-group::before {
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #667eea;
+        pointer-events: none;
+        z-index: 1;
+        font-size: 1.1rem;
+    }
+    
+    .filter-group:nth-child(1)::before {
+        content: '\f02d';
+    }
+    
+    .filter-group:nth-child(2)::before {
+        content: '\f201';
+    }
+    
+    .filter-group:nth-child(3)::before {
+        content: '\f0c9';
     }
     
     .filter-select-modern:hover {
-        border-color: #667eea;
+        border-color: #9ca3af;
     }
     
     .filter-select-modern:focus {
         outline: none;
         border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
     
     .search-btn-modern {
-        padding: 15px 35px;
+        padding: 18px 40px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
@@ -269,7 +317,7 @@ include APP_ROOT . '/views/layouts/header.php';
     }
     
     .search-btn-modern:hover {
-        transform: translateY(-3px);
+        transform: translateY(-2px);
         box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
     }
     
@@ -318,6 +366,16 @@ include APP_ROOT . '/views/layouts/header.php';
         transform: scale(1.1);
     }
     
+    .book-placeholder-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        font-size: 7rem;
+        color: white;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+    }
+    
     .trending-badge {
         position: absolute;
         top: 15px;
@@ -330,6 +388,9 @@ include APP_ROOT . '/views/layouts/header.php';
         font-size: 0.85rem;
         box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
         animation: pulse 2s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
     
     .trending-badge.special {
@@ -373,7 +434,9 @@ include APP_ROOT . '/views/layouts/header.php';
     }
     
     .meta-tag {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         padding: 6px 14px;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         border-radius: 20px;
@@ -454,6 +517,10 @@ include APP_ROOT . '/views/layouts/header.php';
         border: none;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
     
     .btn-view-details {
@@ -503,6 +570,7 @@ include APP_ROOT . '/views/layouts/header.php';
         font-size: 6rem;
         margin-bottom: 25px;
         opacity: 0.3;
+        color: #667eea;
     }
     
     .empty-state-modern h3 {
@@ -543,26 +611,68 @@ include APP_ROOT . '/views/layouts/header.php';
 <div class="books-page">
     <!-- Header -->
     <div class="books-header">
-        <h1>📚 Digital Library</h1>
+        <h1><i class="fas fa-book-reader"></i> Digital Library</h1>
         <p>Discover, Search, and Borrow from Our Vast Collection</p>
     </div>
     
     <!-- Stats Banner -->
     <div class="stats-banner">
         <div class="stat-badge">
-            <div class="stat-number"><?= isset($totalBooks) ? number_format($totalBooks) : '0' ?></div>
+            <div class="stat-number">
+                <i class="fas fa-book"></i>
+                <?php 
+                if (isset($totalBooks)) {
+                    echo number_format($totalBooks);
+                } elseif (isset($books) && is_array($books)) {
+                    echo count($books);
+                } else {
+                    echo '0';
+                }
+                ?>
+            </div>
             <div class="stat-label">Total Books</div>
         </div>
         <div class="stat-badge">
-            <div class="stat-number"><?= isset($availableBooks) ? number_format($availableBooks) : '0' ?></div>
+            <div class="stat-number">
+                <i class="fas fa-check-circle"></i>
+                <?php 
+                if (isset($availableBooks)) {
+                    echo number_format($availableBooks);
+                } elseif (isset($books) && is_array($books)) {
+                    $available = 0;
+                    foreach ($books as $book) {
+                        if (isset($book['available']) && $book['available'] > 0) {
+                            $available++;
+                        }
+                    }
+                    echo $available;
+                } else {
+                    echo '0';
+                }
+                ?>
+            </div>
             <div class="stat-label">Available Now</div>
         </div>
         <div class="stat-badge">
-            <div class="stat-number"><?= isset($totalCategories) ? number_format($totalCategories) : '0' ?></div>
+            <div class="stat-number">
+                <i class="fas fa-building"></i>
+                <?php 
+                if (isset($totalCategories)) {
+                    echo number_format($totalCategories);
+                } elseif (isset($categories) && is_array($categories)) {
+                    echo count($categories);
+                } else {
+                    echo '0';
+                }
+                ?>
+            </div>
             <div class="stat-label">Publishers</div>
         </div>
         <div class="stat-badge">
-            <div class="stat-number"><?= isset($activeBorrows) ? number_format($activeBorrows) : '0' ?></div>
+            <div class="stat-number">
+                <i class="fas fa-users"></i>
+                <?= isset($activeBorrows) ? number_format($activeBorrows) : '0' ?>
+            </div>
             <div class="stat-label">Active Borrows</div>
         </div>
     </div>
@@ -575,17 +685,17 @@ include APP_ROOT . '/views/layouts/header.php';
                        name="q" 
                        id="searchInput"
                        class="search-input-main" 
-                       placeholder="🔍 Type to search books, authors, ISBN..." 
+                       placeholder="Type to search books, authors, ISBN..." 
                        value="<?= isset($_GET['q']) ? htmlspecialchars($_GET['q']) : '' ?>"
                        autocomplete="off">
-                <span class="search-icon">🔍</span>
+                <span class="search-icon"><i class="fas fa-search"></i></span>
                 <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
             </div>
             
             <div class="filters-row">
                 <div class="filter-group">
                     <select name="category" class="filter-select-modern" onchange="this.form.submit()">
-                        <option value="">📚 All Publishers</option>
+                        <option value="">All Publishers</option>
                         <?php if (!empty($categories) && is_array($categories)): ?>
                             <?php foreach ($categories as $category): ?>
                                 <option value="<?= htmlspecialchars($category) ?>" 
@@ -599,19 +709,19 @@ include APP_ROOT . '/views/layouts/header.php';
                 
                 <div class="filter-group">
                     <select name="status" class="filter-select-modern" onchange="this.form.submit()">
-                        <option value="">📊 All Availability</option>
+                        <option value="">All Availability</option>
                         <option value="available" <?= (isset($_GET['status']) && $_GET['status'] === 'available') ? 'selected' : '' ?>>
-                            ✓ Available Only
+                            Available Only
                         </option>
                         <option value="borrowed" <?= (isset($_GET['status']) && $_GET['status'] === 'borrowed') ? 'selected' : '' ?>>
-                            ✗ Currently Borrowed
+                            Currently Borrowed
                         </option>
                     </select>
                 </div>
                 
                 <div class="filter-group">
                     <select name="sort" class="filter-select-modern" onchange="this.form.submit()">
-                        <option value="">🔄 Sort By</option>
+                        <option value="">Sort By</option>
                         <option value="title" <?= (isset($_GET['sort']) && $_GET['sort'] === 'title') ? 'selected' : '' ?>>
                             Title (A-Z)
                         </option>
@@ -624,7 +734,7 @@ include APP_ROOT . '/views/layouts/header.php';
                     </select>
                 </div>
                 
-                <button type="submit" class="search-btn-modern">Search</button>
+                <button type="submit" class="search-btn-modern">SEARCH</button>
             </div>
         </form>
     </div>
@@ -638,15 +748,19 @@ include APP_ROOT . '/views/layouts/header.php';
                         <?php if (!empty($book['bookImage'])): ?>
                             <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
                         <?php else: ?>
-                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 7rem; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.3);">
-                                📚
+                            <div class="book-placeholder-icon">
+                                <i class="fas fa-book"></i>
                             </div>
                         <?php endif; ?>
                         
                         <?php if (!empty($book['isTrending'])): ?>
-                            <div class="trending-badge">🔥 Trending</div>
+                            <div class="trending-badge">
+                                <i class="fas fa-fire"></i> Trending
+                            </div>
                         <?php elseif (!empty($book['isSpecial'])): ?>
-                            <div class="trending-badge special">⭐ <?= htmlspecialchars($book['specialBadge'] ?? 'Special') ?></div>
+                            <div class="trending-badge special">
+                                <i class="fas fa-star"></i> <?= htmlspecialchars($book['specialBadge'] ?? 'Special') ?>
+                            </div>
                         <?php endif; ?>
                     </div>
                     
@@ -656,10 +770,14 @@ include APP_ROOT . '/views/layouts/header.php';
                         
                         <div class="book-meta-tags">
                             <?php if (!empty($book['publisherName'])): ?>
-                                <span class="meta-tag publisher">📘 <?= htmlspecialchars($book['publisherName']) ?></span>
+                                <span class="meta-tag publisher">
+                                    <i class="fas fa-building"></i> <?= htmlspecialchars($book['publisherName']) ?>
+                                </span>
                             <?php endif; ?>
                             <?php if (!empty($book['totalCopies'])): ?>
-                                <span class="meta-tag copies"><?= htmlspecialchars($book['totalCopies']) ?> copies</span>
+                                <span class="meta-tag copies">
+                                    <i class="fas fa-copy"></i> <?= htmlspecialchars($book['totalCopies']) ?> copies
+                                </span>
                             <?php endif; ?>
                         </div>
                         
@@ -676,14 +794,16 @@ include APP_ROOT . '/views/layouts/header.php';
                         
                         <div class="action-buttons-group">
                             <a href="<?= BASE_URL ?>faculty/book/<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-view-details">
-                                👁️ Details
+                                <i class="fas fa-eye"></i> Details
                             </a>
                             <?php if (isset($_SESSION['user_id']) || isset($_SESSION['userId'])): ?>
                                 <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-reserve">
-                                    🔖 Reserve
+                                    <i class="fas fa-bookmark"></i> Reserve
                                 </a>
                             <?php else: ?>
-                                <a href="<?= BASE_URL ?>login" class="action-button-modern btn-borrow">🔐 Login</a>
+                                <a href="<?= BASE_URL ?>login" class="action-button-modern btn-borrow">
+                                    <i class="fas fa-lock"></i> Login
+                                </a>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -691,7 +811,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <?php endforeach; ?>
         <?php else: ?>
             <div class="empty-state-modern">
-                <div class="icon">📚</div>
+                <div class="icon"><i class="fas fa-book-open"></i></div>
                 <h3>No Books Found</h3>
                 <p>Try adjusting your search criteria or explore our complete collection</p>
             </div>
@@ -738,7 +858,7 @@ async function fetchAutocomplete(query) {
 function displayAutocomplete(books) {
     autocompleteDropdown.innerHTML = books.slice(0, 5).map(book => `
         <div class="autocomplete-item" onclick="selectBook('${escapeHtml(book.bookName)}')">
-            ${book.bookImage ? `<img src="/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;">📚</div>'}
+            ${book.bookImage ? `<img src="/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
             <div class="autocomplete-item-text">
                 <div class="autocomplete-item-title">${escapeHtml(book.bookName)}</div>
                 <div class="autocomplete-item-author">by ${escapeHtml(book.authorName)}</div>
