@@ -269,27 +269,46 @@ class UserController extends BaseController
     /**
      * Reserve a book (send to borrow_requests table)
      */
-    public function reserve() {
+    public function reserve($params = []) {
+        error_log("=== RESERVE METHOD CALLED ===");
+        error_log("Session data: " . print_r($_SESSION, true));
+        error_log("GET params: " . print_r($_GET, true));
+        error_log("POST params: " . print_r($_POST, true));
+        error_log("Route params: " . print_r($params, true));
+        error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+        
         $this->requireLogin();
 
         $userId = $_SESSION['userId'];
-        $isbn = $_GET['isbn'] ?? null;
+        error_log("User ID: $userId");
+        
+        // FIXED: Support both /user/reserve?isbn=... and /user/reserve/{isbn}
+        $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? null);
+        error_log("ISBN extracted: " . ($isbn ?? 'NULL'));
 
         if (!$isbn) {
+            error_log("ERROR: No ISBN provided");
             $_SESSION['error'] = 'No book specified for reservation';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
 
         global $mysqli;
+        error_log("Database connection check: " . ($mysqli ? 'OK' : 'FAILED'));
 
         // Only allow POST for reservation
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            error_log("Processing POST reservation request");
+            
             // Check if already has a pending/approved request for this book
             $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
             $stmt->bind_param("ss", $userId, $isbn);
             $stmt->execute();
-            if ($stmt->get_result()->num_rows > 0) {
+            $existingCount = $stmt->get_result()->num_rows;
+            error_log("Existing requests count: $existingCount");
+            
+            if ($existingCount > 0) {
+                error_log("User already has pending/approved request");
                 $_SESSION['error'] = 'You already have a pending or approved request for this book.';
                 $stmt->close();
                 header('Location: ' . BASE_URL . 'user/books');
@@ -299,22 +318,29 @@ class UserController extends BaseController
 
             // Only allow reservation for 1 day
             $dueDate = date('Y-m-d', strtotime('+1 day'));
+            error_log("Due date set to: $dueDate");
 
             // Insert into borrow_requests
             $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, dueDate, status) VALUES (?, ?, ?, 'Pending')");
             $stmt->bind_param("sss", $userId, $isbn, $dueDate);
+            
             if ($stmt->execute()) {
+                error_log("✓ Reservation inserted successfully");
                 $_SESSION['success'] = 'Reservation request sent! Awaiting admin approval.';
             } else {
+                error_log("✗ Failed to insert reservation: " . $stmt->error);
                 $_SESSION['error'] = 'Failed to send reservation request.';
             }
             $stmt->close();
 
+            error_log("Redirecting to reserved-books page");
             header('Location: ' . BASE_URL . 'user/reserved-books');
             exit;
         }
 
         // GET: Show confirmation page
+        error_log("Loading reservation confirmation page");
+        
         $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
         $stmt->bind_param("s", $isbn);
         $stmt->execute();
@@ -322,13 +348,19 @@ class UserController extends BaseController
         $stmt->close();
 
         if (!$book) {
+            error_log("ERROR: Book not found for ISBN: $isbn");
             $_SESSION['error'] = 'Book not found';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
+        
+        error_log("Book found: " . print_r($book, true));
+        error_log("Loading view: users/reserve");
 
         $this->data['book'] = $book;
         $this->view('users/reserve', $this->data);
+        
+        error_log("=== RESERVE METHOD COMPLETED ===");
     }
 
     /**
@@ -362,10 +394,12 @@ class UserController extends BaseController
     /**
      * View book details - FIXED VERSION
      */
-    public function viewBook() {
+    public function viewBook($params = []) {
         error_log("=== VIEW BOOK METHOD CALLED ===");
         error_log("Full URL: " . $_SERVER['REQUEST_URI']);
         error_log("Session data: " . print_r($_SESSION, true));
+        error_log("GET params: " . print_r($_GET, true));
+        error_log("Route params: " . print_r($params, true));
         
         // SIMPLIFIED AUTHENTICATION - Just check if logged in
         if (!isset($_SESSION['userId'])) {
@@ -376,10 +410,12 @@ class UserController extends BaseController
         }
         
         $userId = $_SESSION['userId'];
-        error_log("User authenticated - ID: $userId");
+        $userType = $_SESSION['userType'] ?? 'Unknown';
+        error_log("User authenticated - ID: $userId, Type: $userType");
         
-        // Get ISBN from URL parameter
-        $isbn = $_GET['isbn'] ?? null;
+        // FIXED: Get ISBN from URL parameter or query string
+        $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? null);
+        error_log("ISBN extracted: " . ($isbn ?? 'NULL'));
         
         if (!$isbn) {
             error_log("ERROR: No ISBN provided");
@@ -391,6 +427,7 @@ class UserController extends BaseController
         error_log("Fetching book details for ISBN: $isbn");
         
         global $mysqli;
+        error_log("Database connection check: " . ($mysqli ? 'OK' : 'FAILED'));
         
         // Fetch book details
         $stmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
@@ -401,22 +438,19 @@ class UserController extends BaseController
         $stmt->close();
         
         if (!$book) {
+            error_log("ERROR: Book not found for ISBN: $isbn");
             $_SESSION['error'] = 'Book not found';
             header('Location: ' . BASE_URL . 'user/books');
             exit;
         }
         
-        // Check if user has active reservation
-        $resStmt = $mysqli->prepare("SELECT * FROM book_reservations WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'");
-        $resStmt->bind_param("ss", $userId, $isbn);
-        $resStmt->execute();
-        $hasReservation = $resStmt->get_result()->num_rows > 0;
-        $resStmt->close();
+        error_log("Book found: " . print_r($book, true));
+        error_log("Loading view: users/view-book");
         
-        error_log("=== LOADING VIEW-BOOK VIEW ===");
+        // FIXED: Use $this->view() method instead of require_once
+        $this->data['book'] = $book;
+        $this->view('users/view-book', $this->data);
         
-        // Load view-book view
-        $pageTitle = 'Book Details';
-        require_once APP_ROOT . '/views/users/view-book.php';
+        error_log("=== VIEW BOOK METHOD COMPLETED ===");
     }
 }

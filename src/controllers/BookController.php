@@ -785,9 +785,9 @@ class BookController
     /**
      * View details for a single book (user/student)
      */
-    public function viewBook()
+    public function viewBook($params = [])
     {
-        // Only redirect if user is Faculty or Admin
+        // Check user type and redirect if needed
         if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
             $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
             if ($userType === 'Faculty') {
@@ -799,10 +799,14 @@ class BookController
                 exit();
             }
         }
+        
         global $mysqli;
-        $isbn = $_GET['isbn'] ?? '';
+        
+        // FIXED: Get ISBN from params or query string
+        $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? '');
+        
         if (empty($isbn)) {
-            // Redirect to books page if no ISBN provided
+            $_SESSION['error'] = 'No book specified';
             header('Location: ' . BASE_URL . 'user/books');
             exit();
         }
@@ -816,11 +820,12 @@ class BookController
         $stmt->close();
 
         if (!$book) {
-            // Book not found
+            $_SESSION['error'] = 'Book not found';
             header('Location: ' . BASE_URL . 'user/books');
             exit();
         }
 
+        // FIXED: Pass data to view properly
         $pageTitle = 'Book Details';
         include APP_ROOT . '/views/users/view-book.php';
     }

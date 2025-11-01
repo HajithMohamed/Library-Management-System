@@ -154,12 +154,16 @@ class Router
             $path = '/';
         }
 
-        error_log("Routing: {$method} {$path}");
+        error_log("=== ROUTING DEBUG ===");
+        error_log("Method: {$method}");
+        error_log("Path: {$path}");
+        error_log("Full URI: " . $_SERVER['REQUEST_URI']);
+        error_log("Query String: " . ($_SERVER['QUERY_STRING'] ?? 'NONE'));
 
         // First try exact matches
         foreach ($this->routes as $route) {
             if ($route['method'] === $method && $route['path'] === $path) {
-                error_log("Exact route matched: {$route['controller']}::{$route['action']}");
+                error_log("✓ Exact route matched: {$route['path']} -> {$route['controller']}::{$route['action']}");
                 $this->callController($route['controller'], $route['action']);
                 
                 // Run after middleware
@@ -177,7 +181,9 @@ class Router
             $pattern = '#^' . $pattern . '$#';
 
             if ($route['method'] === $method && preg_match($pattern, $path, $matches)) {
-                error_log("Dynamic route matched: {$route['controller']}::{$route['action']}");
+                error_log("✓ Dynamic route matched: {$route['path']} -> {$route['controller']}::{$route['action']}");
+                error_log("Pattern: $pattern");
+                error_log("Matches: " . print_r($matches, true));
 
                 // Extract parameter names
                 preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $route['path'], $paramNames);
@@ -187,6 +193,8 @@ class Router
                 for ($i = 0; $i < count($paramNames[1]); $i++) {
                     $params[$paramNames[1][$i]] = $matches[$i + 1];
                 }
+                
+                error_log("Extracted params: " . print_r($params, true));
 
                 $this->callController($route['controller'], $route['action'], $params);
                 
@@ -199,7 +207,13 @@ class Router
         }
 
         // 404 Not Found
-        error_log("No route matched - 404");
+        error_log("✗ No route matched - 404");
+        error_log("Available routes for method $method:");
+        foreach ($this->routes as $route) {
+            if ($route['method'] === $method) {
+                error_log("  - {$route['path']}");
+            }
+        }
         $this->show404();
     }
 
@@ -559,11 +573,12 @@ $router->addRoute('POST', '/user/change-password', 'UserController', 'changePass
 
 // User Books
 $router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
-$router->addRoute('GET', '/user/book/{isbn}', 'BookController', 'viewBook');
+$router->addRoute('GET', '/user/book/{isbn}', 'UserController', 'viewBook'); // FIXED: Changed from BookController to UserController
 $router->addRoute('GET', '/user/reserve', 'UserController', 'reserve');
 $router->addRoute('POST', '/user/reserve', 'UserController', 'reserve');
 $router->addRoute('GET', '/user/reserve/{isbn}', 'UserController', 'reserve');
 $router->addRoute('POST', '/user/reserve/{isbn}', 'UserController', 'reserve');
+$router->addRoute('GET', '/user/reserved-books', 'UserController', 'reservedBooks'); // ADDED
 $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
 $router->addRoute('GET', '/user/return', 'BookController', 'return');

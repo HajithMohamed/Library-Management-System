@@ -474,14 +474,14 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
                         // Profile image handling
                         $profilePath = '';
-                        if (!empty($admin['adminId'])) {
+                        if (!empty($admin['userId'])) {
                             $possible = [
-                                APP_ROOT . '/public/assets/images/admins/' . $admin['adminId'] . '.jpg',
-                                APP_ROOT . '/public/assets/images/admins/' . $admin['adminId'] . '.jpeg',
-                                APP_ROOT . '/public/assets/images/admins/' . $admin['adminId'] . '.png'
+                                APP_ROOT . '/public/assets/images/admins/' . $admin['userId'] . '.jpg',
+                                APP_ROOT . '/public/assets/images/admins/' . $admin['userId'] . '.jpeg',
+                                APP_ROOT . '/public/assets/images/admins/' . $admin['userId'] . '.png'
                             ];
                             foreach ($possible as $p) {
-                                if (!empty($admin['adminId']) && file_exists($p)) {
+                                if (file_exists($p)) {
                                     $profilePath = $p;
                                     break;
                                 }
@@ -533,7 +533,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     </label>
                                     <input type="text" 
                                            class="form-input" 
-                                           value="<?= htmlspecialchars($admin['adminId'] ?? '') ?>" 
+                                           value="<?= htmlspecialchars($admin['userId'] ?? '') ?>" 
                                            disabled>
                                     <span class="disabled-badge">
                                         <i class="fas fa-lock"></i>

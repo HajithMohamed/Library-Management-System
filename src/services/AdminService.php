@@ -394,19 +394,30 @@ class AdminService
     global $conn;
 
     try {
-      $sql = "UPDATE transactions SET fineStatus = ?";
-
       if ($status === 'paid' && $paymentMethod) {
-        $sql .= ", finePaymentMethod = ?, finePaymentDate = CURDATE()";
-      }
-
-      $sql .= " WHERE tid = ?";
-
-      $stmt = $conn->prepare($sql);
-
-      if ($status === 'paid' && $paymentMethod) {
+        $sql = "UPDATE transactions 
+                SET fineStatus = ?,
+                    finePaymentMethod = ?,
+                    finePaymentDate = CURDATE(),
+                    lastFinePaymentDate = CURDATE()
+                WHERE tid = ? AND fineAmount > 0";
+        $stmt = $conn->prepare($sql);
         $stmt->bind_param("sss", $status, $paymentMethod, $transactionId);
+      } else if ($status === 'waived') {
+        $sql = "UPDATE transactions 
+                SET fineStatus = ?,
+                    fineAmount = 0,
+                    finePaymentDate = NULL,
+                    finePaymentMethod = NULL,
+                    lastFinePaymentDate = CURDATE()
+                WHERE tid = ? AND fineAmount > 0";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ss", $status, $transactionId);
       } else {
+        $sql = "UPDATE transactions 
+                SET fineStatus = ?
+                WHERE tid = ? AND fineAmount > 0";
+        $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $status, $transactionId);
       }
 
