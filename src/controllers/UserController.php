@@ -33,19 +33,40 @@ class UserController extends BaseController
             return;
         }
         
-        $userId = $_SESSION['userId'];
-        $userType = $_SESSION['userType'];
+        $userId = $_SESSION['userId'] ?? null;
+        $userType = $_SESSION['userType'] ?? 'Student';
         
-        // Get user statistics
-        $userStats = [
-            'borrowed_books' => $this->borrowModel->getActiveBorrowCount($userId),
-            'overdue_books' => $this->borrowModel->getOverdueCount($userId),
-            'total_fines' => $this->borrowModel->getTotalFines($userId),
-            'max_books' => $userType === 'Faculty' ? 5 : 3
-        ];
+        if (!$userId) {
+            $_SESSION['error'] = 'User ID not found. Please login again.';
+            $this->redirect('login');
+            return;
+        }
         
-        // Get recent activity
-        $recentActivity = $this->borrowModel->getRecentActivity($userId, 5);
+        try {
+            // Get user statistics with error handling
+            $userStats = [
+                'borrowed_books' => $this->borrowModel->getActiveBorrowCount($userId) ?? 0,
+                'overdue_books' => $this->borrowModel->getOverdueCount($userId) ?? 0,
+                'total_fines' => $this->borrowModel->getTotalFines($userId) ?? 0,
+                'max_books' => $userType === 'Faculty' ? 5 : 3
+            ];
+            
+            // Get recent activity with error handling
+            $recentActivity = $this->borrowModel->getRecentActivity($userId, 5);
+            if (!is_array($recentActivity)) {
+                $recentActivity = [];
+            }
+        } catch (\Exception $e) {
+            error_log("Error loading dashboard data: " . $e->getMessage());
+            // Set default values on error
+            $userStats = [
+                'borrowed_books' => 0,
+                'overdue_books' => 0,
+                'total_fines' => 0,
+                'max_books' => $userType === 'Faculty' ? 5 : 3
+            ];
+            $recentActivity = [];
+        }
         
         // Pass data to view
         $this->data['userStats'] = $userStats;
