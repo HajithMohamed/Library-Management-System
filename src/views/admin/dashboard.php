@@ -732,6 +732,10 @@ $currentAdminId = $_SESSION['userId'] ?? '';
         <button class="header-btn">
           <i class="fas fa-search"></i>
         </button>
+        <a href="<?= BASE_URL ?>admin/profile" class="header-btn">
+          <i class="fas fa-user-circle"></i>
+          <span>Profile</span>
+        </a>
         <a href="<?= BASE_URL ?>logout" class="header-btn">
           <i class="fas fa-sign-out-alt"></i>
           <span>Logout</span>

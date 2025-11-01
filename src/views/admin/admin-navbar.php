@@ -574,13 +574,15 @@
 
         <!-- Sidebar Footer -->
         <div class="sidebar-footer">
-            <div class="user-profile">
-                <div class="user-avatar"><?= $adminInitial ?></div>
-                <div class="user-info">
-                    <div class="user-name"><?= htmlspecialchars($adminName) ?></div>
-                    <div class="user-role">Administrator</div>
+            <a href="<?= BASE_URL ?>admin/profile" style="text-decoration:none;">
+                <div class="user-profile">
+                    <div class="user-avatar"><?= $adminInitial ?></div>
+                    <div class="user-info">
+                        <div class="user-name"><?= htmlspecialchars($adminName) ?></div>
+                        <div class="user-role">Administrator</div>
+                    </div>
                 </div>
-            </div>
+            </a>
             <a href="<?= BASE_URL ?>logout" class="logout-btn">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>

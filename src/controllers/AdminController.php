@@ -999,4 +999,31 @@ class AdminController
 
     $this->render('admin/reserved-books', ['requests' => $requests]);
   }
+
+  /**
+   * Admin Profile
+   */
+  public function profile()
+  {
+    $this->authHelper->requireAdmin();
+
+    // Fetch admin data from session or database
+    $adminId = $_SESSION['userId'] ?? null;
+    global $mysqli;
+    $admin = [];
+
+    if ($adminId) {
+        $stmt = $mysqli->prepare("SELECT * FROM users WHERE userId = ? AND userType = 'Admin' LIMIT 1");
+        $stmt->bind_param("s", $adminId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $admin = $result->fetch_assoc();
+        $stmt->close();
+    }
+
+    $_SESSION['admin'] = $admin;
+
+    $pageTitle = 'Admin Profile';
+    include APP_ROOT . '/views/admin/admin-profile.php';
+  }
 }
