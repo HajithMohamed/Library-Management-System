@@ -345,7 +345,12 @@ class FacultyController extends BaseController
     {
         $this->requireLogin(['Faculty']);
         $userId = $_SESSION['userId'];
+        // Get all borrow records (active and returned)
         $history = $this->borrowModel->getBorrowHistory($userId);
+        // Optionally, sort by borrowDate descending (if not already sorted)
+        usort($history, function($a, $b) {
+            return strtotime($b['borrowDate']) <=> strtotime($a['borrowDate']);
+        });
         $this->data['history'] = $history;
         $this->view('faculty/borrow-history', $this->data);
     }

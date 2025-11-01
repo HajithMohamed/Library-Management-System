@@ -293,10 +293,25 @@ class AdminController
     $this->authHelper->requireAdmin();
 
     $status = $_GET['status'] ?? 'pending';
-    $requests = $this->adminService->getBorrowRequests($status);
+
+    // Fix: Fetch all requests if status is 'all'
+    global $mysqli;
+    if ($status === 'all') {
+        $requests = [];
+        $sql = "SELECT br.*, u.username as userName, b.bookName as bookTitle, b.authorName
+                FROM borrow_requests br
+                LEFT JOIN users u ON br.userId = u.userId
+                LEFT JOIN books b ON br.isbn = b.isbn
+                ORDER BY br.requestDate DESC";
+        $result = $mysqli->query($sql);
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = $row;
+        }
+    } else {
+        $requests = $this->adminService->getBorrowRequests($status);
+    }
 
     // --- NEW: Fetch counts for all statuses ---
-    global $mysqli;
     $statusCounts = [
       'pending' => 0,
       'approved' => 0,

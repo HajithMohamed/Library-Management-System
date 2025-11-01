@@ -124,9 +124,10 @@ class BorrowRecord extends BaseModel
         return $stmt->execute();
     }
 
-    public function getBorrowHistory($userId)
+    public function getBorrowHistory($userId = null)
     {
-        $sql = "SELECT t.*, b.bookName as title, b.authorName as author, b.isbn 
+        // Use correct aliases for bookName and authorName
+        $sql = "SELECT t.*, b.bookName, b.authorName, b.isbn 
                 FROM {$this->table} t
                 JOIN books b ON t.isbn = b.isbn
                 WHERE t.userId = ?
@@ -134,6 +135,13 @@ class BorrowRecord extends BaseModel
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        foreach ($results as &$row) {
+            if (empty($row['dueDate']) && !empty($row['borrowDate'])) {
+                $row['dueDate'] = date('Y-m-d', strtotime($row['borrowDate'] . ' + 14 days'));
+            }
+        }
+        return $results;
     }
 }
