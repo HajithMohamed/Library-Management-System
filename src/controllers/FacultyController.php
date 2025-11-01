@@ -49,8 +49,17 @@ class FacultyController extends BaseController
             return strtotime($dueDate) < time();
         });
         
-        // Get reserved books (placeholder - implement if you have reservations table)
+        // Get reserved books
+        global $mysqli;
         $reservedBooks = [];
+        $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND status IN ('Pending','Approved')");
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $reservedBooks[] = $row;
+        }
+        $stmt->close();
         
         // Get notifications
         $notifications = $this->userModel->getNotifications($userId);
@@ -171,11 +180,13 @@ class FacultyController extends BaseController
     /**
      * Reserve a book (send to borrow_requests table)
      */
-    public function reserve() {
+    public function reserve($params = [])
+    {
         $this->requireLogin(['Faculty']);
 
         $userId = $_SESSION['userId'];
-        $isbn = $_GET['isbn'] ?? null;
+        // Support both /faculty/reserve?isbn=... and /faculty/reserve/{isbn}
+        $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? null);
 
         if (!$isbn) {
             $_SESSION['error'] = 'No book specified for reservation';
@@ -319,30 +330,22 @@ class FacultyController extends BaseController
     {
         $this->requireLogin(['Faculty']);
         
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $borrowId = $_POST['borrow_id'] ?? 0;
-            
-            if ($this->borrowModel->returnBook($borrowId)) {
-                $_SESSION['success'] = 'Book returned successfully';
-            } else {
-                $_SESSION['error'] = 'Failed to return book';
-            }
-        }
-        
+        // Only show books that have been returned by this user
         $userId = $_SESSION['userId'];
-        $borrowedBooks = $this->borrowModel->getActiveBorrows($userId);
-        
-        $this->data['borrowedBooks'] = $borrowedBooks;
+        // Fetch only returned books (returnDate is not null)
+        $returnedBooks = $this->borrowModel->getBorrowHistory($userId);
+        $returnedBooks = array_filter($returnedBooks, function($book) {
+            return !empty($book['returnDate']);
+        });
+        $this->data['returnedBooks'] = $returnedBooks;
         $this->view('faculty/return', $this->data);
     }
 
     public function borrowHistory()
     {
         $this->requireLogin(['Faculty']);
-        
         $userId = $_SESSION['userId'];
         $history = $this->borrowModel->getBorrowHistory($userId);
-        
         $this->data['history'] = $history;
         $this->view('faculty/borrow-history', $this->data);
     }
@@ -398,59 +401,47 @@ class FacultyController extends BaseController
     public function search()
     {
         $this->requireLogin(['Faculty']);
-        
         $searchTerm = $_GET['q'] ?? '';
         $category = $_GET['category'] ?? '';
-        
         $books = $this->bookModel->advancedSearch($searchTerm, $category);
-        
         $this->data['books'] = $books;
         $this->data['searchTerm'] = $searchTerm;
         $this->data['category'] = $category;
-        
         $this->view('faculty/search', $this->data);
     }
 
     public function feedback()
     {
         $this->requireLogin(['Faculty']);
-        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Handle feedback submission
             $feedback = $_POST['feedback'] ?? '';
             $bookId = $_POST['book_id'] ?? 0;
-            
             // Save feedback logic here
             $_SESSION['success'] = 'Feedback submitted successfully';
         }
-        
         $this->view('faculty/feedback', $this->data);
     }
 
     public function bookRequest()
     {
         $this->requireLogin(['Faculty']);
-        
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Handle book request
             $bookTitle = $_POST['book_title'] ?? '';
             $author = $_POST['author'] ?? '';
             $reason = $_POST['reason'] ?? '';
-            
             // Save book request logic here
             $_SESSION['success'] = 'Book request submitted successfully';
         }
-        
         $this->view('faculty/book-request', $this->data);
     }
 
     public function notifications()
     {
         $this->requireLogin(['Faculty']);
-        
         $userId = $_SESSION['userId'];
         $userType = 'Faculty';
-        
         // Handle mark as read
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
@@ -464,10 +455,8 @@ class FacultyController extends BaseController
             $this->redirect('faculty/notifications');
             return;
         }
-        
         // Get notifications with proper user email and type based on userId
         global $mysqli;
-        
         $sql = "SELECT 
                     n.id,
                     n.userId,
@@ -485,17 +474,14 @@ class FacultyController extends BaseController
                 LEFT JOIN users u ON n.userId = u.userId
                 WHERE n.userId = ? OR n.userId IS NULL
                 ORDER BY n.isRead ASC, n.createdAt DESC";
-        
         $stmt = $mysqli->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $result = $stmt->get_result();
-        
         $notifications = [];
         while ($row = $result->fetch_assoc()) {
             $notifications[] = $row;
         }
-        
         $this->data['notifications'] = $notifications;
         $this->data['userType'] = $userType;
         $this->view('faculty/notifications', $this->data);

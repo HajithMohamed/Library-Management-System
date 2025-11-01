@@ -319,100 +319,122 @@ class AdminController
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         global $mysqli;
-        
+
         $requestId = $_POST['requestId'] ?? '';
         $action = $_POST['action'] ?? '';
         $adminId = $_SESSION['userId'];
 
         switch ($action) {
             case 'approve':
-                // Get request details
+                // Approve: only update status, do not create transaction or update book
                 $stmt = $mysqli->prepare("SELECT userId, isbn FROM borrow_requests WHERE id = ?");
                 $stmt->bind_param("i", $requestId);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 $request = $result->fetch_assoc();
-                
+
                 if (!$request) {
                     $_SESSION['error'] = 'Request not found.';
                     break;
                 }
-                
-                // Check book availability
-                $bookStmt = $mysqli->prepare("SELECT available, bookName FROM books WHERE isbn = ?");
-                $bookStmt->bind_param("s", $request['isbn']);
-                $bookStmt->execute();
-                $bookResult = $bookStmt->get_result();
-                $book = $bookResult->fetch_assoc();
-                
-                if (!$book || $book['available'] <= 0) {
-                    $_SESSION['error'] = 'Book is not available for borrowing.';
-                    break;
-                }
-                
-                // Calculate due date (14 days from now)
-                $dueDate = date('Y-m-d', strtotime('+14 days'));
-                
-                // Update request status
+
+                $dueDate = $_POST['dueDate'] ?? date('Y-m-d', strtotime('+14 days'));
+
                 $updateStmt = $mysqli->prepare("
                     UPDATE borrow_requests 
                     SET status = 'Approved', approvedBy = ?, dueDate = ? 
                     WHERE id = ?
                 ");
                 $updateStmt->bind_param("ssi", $adminId, $dueDate, $requestId);
-                
+
                 if ($updateStmt->execute()) {
-                    // Create transaction
-                    $tid = 'TXN' . time() . rand(100, 999);
-                    $borrowDate = date('Y-m-d');
-                    
-                    $txnStmt = $mysqli->prepare("
-                        INSERT INTO transactions (tid, userId, isbn, borrowDate, fineAmount, fineStatus) 
-                        VALUES (?, ?, ?, ?, 0.00, 'pending')
-                    ");
-                    $txnStmt->bind_param("ssss", $tid, $request['userId'], $request['isbn'], $borrowDate);
-                    $txnStmt->execute();
-                    
-                    // Update book availability
-                    $mysqli->query("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = '{$request['isbn']}'");
-                    
                     // Send notification to user
                     $notifStmt = $mysqli->prepare("
                         INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
                         VALUES (?, 'Borrow Request Approved', ?, 'approval', 'high', ?)
                     ");
-                    $notifMessage = "Your request to borrow '{$book['bookName']}' has been approved! Due date: {$dueDate}";
+                    $notifMessage = "Your request to borrow '{$request['isbn']}' has been approved! Please visit the library to collect your book.";
                     $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
                     $notifStmt->execute();
-                    
-                    $_SESSION['success'] = 'Borrow request approved successfully. User has been notified.';
+
+                    $_SESSION['success'] = 'Borrow request approved. Awaiting user to collect the book.';
                 } else {
                     $_SESSION['error'] = 'Failed to approve borrow request.';
                 }
                 break;
 
+            case 'mark_borrowed':
+                // Mark as borrowed: move to books_borrowed, update book, update request status
+                $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE id = ?");
+                $stmt->bind_param("i", $requestId);
+                $stmt->execute();
+                $request = $stmt->get_result()->fetch_assoc();
+
+                if (!$request || $request['status'] !== 'Approved') {
+                    $_SESSION['error'] = 'Request not found or not approved.';
+                    break;
+                }
+
+                // Check book availability
+                $bookStmt = $mysqli->prepare("SELECT available FROM books WHERE isbn = ?");
+                $bookStmt->bind_param("s", $request['isbn']);
+                $bookStmt->execute();
+                $book = $bookStmt->get_result()->fetch_assoc();
+
+                if (!$book || $book['available'] <= 0) {
+                    $_SESSION['error'] = 'Book is not available for borrowing.';
+                    break;
+                }
+
+                $borrowDate = $_POST['borrowDate'] ?? date('Y-m-d');
+                $dueDate = $request['dueDate'];
+
+                // Insert into books_borrowed
+                $stmt = $mysqli->prepare("INSERT INTO books_borrowed (userId, isbn, borrowDate, dueDate, status, addedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'Active', ?, NOW(), NOW())");
+                $stmt->bind_param("sssss", $request['userId'], $request['isbn'], $borrowDate, $dueDate, $adminId);
+                $stmt->execute();
+
+                // Update book availability
+                $mysqli->query("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = '{$request['isbn']}'");
+
+                // Update borrow_requests status to Borrowed
+                $updateStmt = $mysqli->prepare("UPDATE borrow_requests SET status = 'Borrowed', updatedAt = NOW() WHERE id = ?");
+                $updateStmt->bind_param("i", $requestId);
+                $updateStmt->execute();
+
+                // Send notification to user
+                $notifStmt = $mysqli->prepare("
+                    INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
+                    VALUES (?, 'Book Borrowed', ?, 'borrowed', 'high', ?)
+                ");
+                $notifMessage = "You have successfully borrowed the book (ISBN: {$request['isbn']}). Due date: {$dueDate}";
+                $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
+                $notifStmt->execute();
+
+                $_SESSION['success'] = 'Book marked as borrowed and recorded in books_borrowed.';
+                break;
+
             case 'reject':
                 $reason = trim($_POST['reason'] ?? 'Request rejected by administrator');
-                
+
                 // Get request details for notification
                 $stmt = $mysqli->prepare("SELECT userId, isbn FROM borrow_requests WHERE id = ?");
                 $stmt->bind_param("i", $requestId);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 $request = $result->fetch_assoc();
-                
+
                 if (!$request) {
                     $_SESSION['error'] = 'Request not found.';
                     break;
                 }
-                
+
                 // Get book name
                 $bookStmt = $mysqli->prepare("SELECT bookName FROM books WHERE isbn = ?");
                 $bookStmt->bind_param("s", $request['isbn']);
                 $bookStmt->execute();
-                $bookResult = $bookStmt->get_result();
-                $book = $bookResult->fetch_assoc();
-                
+                $book = $bookStmt->get_result()->fetch_assoc();
+
                 // Update request status
                 $updateStmt = $mysqli->prepare("
                     UPDATE borrow_requests 
@@ -420,22 +442,24 @@ class AdminController
                     WHERE id = ?
                 ");
                 $updateStmt->bind_param("ssi", $reason, $adminId, $requestId);
-                
-                if ($updateStmt->execute()) {
-                    // Send notification to user
-                    $notifStmt = $mysqli->prepare("
-                        INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
-                        VALUES (?, 'Borrow Request Rejected', ?, 'approval', 'high', ?)
-                    ");
-                    $bookName = $book['bookName'] ?? 'the requested book';
-                    $notifMessage = "Your request to borrow '{$bookName}' has been rejected. Reason: {$reason}";
-                    $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
-                    $notifStmt->execute();
-                    
-                    $_SESSION['success'] = 'Borrow request rejected. User has been notified.';
-                } else {
-                    $_SESSION['error'] = 'Failed to reject borrow request.';
-                }
+                $updateStmt->execute();
+
+                // Insert into book_reservations for record-keeping
+                $stmt = $mysqli->prepare("INSERT INTO book_reservations (userId, isbn, reservationStatus, notifiedDate, expiryDate, createdAt, updatedAt) VALUES (?, ?, 'Rejected', NOW(), NULL, NOW(), NOW())");
+                $stmt->bind_param("ss", $request['userId'], $request['isbn']);
+                $stmt->execute();
+
+                // Send notification to user
+                $notifStmt = $mysqli->prepare("
+                    INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
+                    VALUES (?, 'Borrow Request Rejected', ?, 'approval', 'high', ?)
+                ");
+                $bookName = $book['bookName'] ?? 'the requested book';
+                $notifMessage = "Your request to borrow '{$bookName}' has been rejected. Reason: {$reason}";
+                $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
+                $notifStmt->execute();
+
+                $_SESSION['success'] = 'Borrow request rejected. User has been notified and reservation recorded.';
                 break;
         }
     }
