@@ -564,249 +564,248 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
     </style>
 
     <div class="admin-layout">
+    <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
 
-<?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
-
-        <main class="main-content">
-            <div class="reports-container">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <h1 class="page-title">
-                        <i class="fas fa-chart-bar"></i>
-                        Reports & Analytics
-                    </h1>
-                    <a href="<?= BASE_URL ?>admin/dashboard" class="back-btn">
-                        <i class="fas fa-arrow-left"></i> Back to Dashboard
-                    </a>
-                </div>
-
-                <!-- Filter Card -->
-                <div class="filter-card">
-                    <div class="filter-header">
-                        <i class="fas fa-filter"></i>
-                        Report Filters
-                    </div>
-                    <form method="GET" action="" class="filter-form">
-                        <div class="form-group">
-                            <label for="report_type" class="form-label">Report Type</label>
-                            <select class="form-control" id="report_type" name="type">
-                                <option value="overview" <?= $reportType === 'overview' ? 'selected' : '' ?>>Overview</option>
-                                <option value="borrowing" <?= $reportType === 'borrowing' ? 'selected' : '' ?>>Borrowing Activity</option>
-                                <option value="fines" <?= $reportType === 'fines' ? 'selected' : '' ?>>Fines</option>
-                                <option value="users" <?= $reportType === 'users' ? 'selected' : '' ?>>Users</option>
-                                <option value="books" <?= $reportType === 'books' ? 'selected' : '' ?>>Books</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" 
-                                   value="<?= $startDate ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" 
-                                   value="<?= $endDate ?>">
-                        </div>
-                        <div class="form-group">
-                            <div class="button-group">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-search"></i> Generate Report
-                                </button>
-                                <button type="button" class="btn btn-success" onclick="exportReport()">
-                                    <i class="fas fa-download"></i> Export
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Report Content -->
-                <div class="report-card">
-                    <div class="report-header">
-                        <h2 class="report-title">
-                            <i class="fas fa-chart-line"></i>
-                            <?= ucfirst($reportType) ?> Report
-                            <span class="report-period">(<?= $startDate ?> to <?= $endDate ?>)</span>
-                        </h2>
-                    </div>
-
-                    <?php if ($reportType === 'overview'): ?>
-                        <!-- Overview Report -->
-                        <div class="stats-grid">
-                            <div class="stat-card blue">
-                                <div class="stat-label">Total Transactions</div>
-                                <div class="stat-number"><?= $report['total_transactions'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card green">
-                                <div class="stat-label">Total Users</div>
-                                <div class="stat-number"><?= $report['total_users'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card cyan">
-                                <div class="stat-label">Total Books</div>
-                                <div class="stat-number"><?= $report['total_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card orange">
-                                <div class="stat-label">Total Fines</div>
-                                <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
-                            </div>
-                        </div>
-                        
-                        <div class="two-col-grid">
-                            <div class="info-card">
-                                <div class="info-card-header">Active Borrowings</div>
-                                <div class="info-card-value"><?= $report['active_borrowings'] ?? 0 ?></div>
-                            </div>
-                            <div class="info-card">
-                                <div class="info-card-header">Overdue Books</div>
-                                <div class="info-card-value"><?= $report['overdue_books'] ?? 0 ?></div>
-                            </div>
-                        </div>
-
-                    <?php elseif ($reportType === 'borrowing'): ?>
-                        <!-- Borrowing Report -->
-                        <div class="stats-grid">
-                            <div class="stat-card blue">
-                                <div class="stat-label">Total Borrowings</div>
-                                <div class="stat-number"><?= $report['total_borrowings'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card green">
-                                <div class="stat-label">Returned Books</div>
-                                <div class="stat-number"><?= $report['returned_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card purple">
-                                <div class="stat-label">Active Loans</div>
-                                <div class="stat-number"><?= $report['active_loans'] ?? 0 ?></div>
-                            </div>
-                        </div>
-
-                    <?php elseif ($reportType === 'fines'): ?>
-                        <!-- Fines Report -->
-                        <div class="stats-grid">
-                            <div class="stat-card orange">
-                                <div class="stat-label">Total Fines</div>
-                                <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
-                            </div>
-                            <div class="stat-card green">
-                                <div class="stat-label">Collected Fines</div>
-                                <div class="stat-number">₹<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
-                            </div>
-                            <div class="stat-card pink">
-                                <div class="stat-label">Pending Fines</div>
-                                <div class="stat-number">₹<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
-                            </div>
-                            <div class="stat-card orange">
-                                <div class="stat-label">Overdue Books</div>
-                                <div class="stat-number"><?= $report['overdue_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card cyan">
-                                <div class="stat-label">Period</div>
-                                <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
-                            </div>
-                        </div>
-
-                    <?php elseif ($reportType === 'users'): ?>
-                        <!-- Users Report -->
-                        <div class="stats-grid">
-                            <div class="stat-card blue">
-                                <div class="stat-label">Total Users</div>
-                                <div class="stat-number"><?= $report['total_users'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card green">
-                                <div class="stat-label">Active Users</div>
-                                <div class="stat-number"><?= $report['active_users'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card cyan">
-                                <div class="stat-label">New Users</div>
-                                <div class="stat-number"><?= $report['new_users'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card purple">
-                                <div class="stat-label">Period</div>
-                                <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
-                            </div>
-                        </div>
-
-                    <?php elseif ($reportType === 'books'): ?>
-                        <!-- Books Report -->
-                        <div class="stats-grid">
-                            <div class="stat-card blue">
-                                <div class="stat-label">Total Books</div>
-                                <div class="stat-number"><?= $report['total_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card green">
-                                <div class="stat-label">Available Books</div>
-                                <div class="stat-number"><?= $report['available_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card orange">
-                                <div class="stat-label">Borrowed Books</div>
-                                <div class="stat-number"><?= $report['borrowed_books'] ?? 0 ?></div>
-                            </div>
-                            <div class="stat-card cyan">
-                                <div class="stat-label">Period</div>
-                                <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
-                            </div>
-                        </div>
-
-                        <?php if (!empty($report['popular_books'])): ?>
-                        <div class="table-card">
-                            <div class="table-header">
-                                <i class="fas fa-star"></i> Popular Books
-                            </div>
-                            <div class="responsive-table">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Book Name</th>
-                                            <th>Author</th>
-                                            <th>Borrow Count</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($report['popular_books'] as $book): ?>
-                                            <tr>
-                                                <td><strong><?= htmlspecialchars($book['bookName']) ?></strong></td>
-                                                <td><?= htmlspecialchars($book['authorName']) ?></td>
-                                                <td><span class="badge badge-primary"><?= $book['borrow_count'] ?? 0 ?></span></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-
-                    <?php endif; ?>
-                </div>
-                
+    <main class="main-content">
+        <div class="reports-container">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Reports & Analytics
+                </h1>
+                <a href="<?= BASE_URL ?>admin/dashboard" class="back-btn">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
             </div>
-               <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
-        </main>
-      
-    </div>
 
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-        }
+            <!-- Filter Card -->
+            <div class="filter-card">
+                <div class="filter-header">
+                    <i class="fas fa-filter"></i>
+                    Report Filters
+                </div>
+                <form method="GET" action="" class="filter-form">
+                    <div class="form-group">
+                        <label for="report_type" class="form-label">Report Type</label>
+                        <select class="form-control" id="report_type" name="type">
+                            <option value="overview" <?= $reportType === 'overview' ? 'selected' : '' ?>>Overview</option>
+                            <option value="borrowing" <?= $reportType === 'borrowing' ? 'selected' : '' ?>>Borrowing Activity</option>
+                            <option value="fines" <?= $reportType === 'fines' ? 'selected' : '' ?>>Fines</option>
+                            <option value="users" <?= $reportType === 'users' ? 'selected' : '' ?>>Users</option>
+                            <option value="books" <?= $reportType === 'books' ? 'selected' : '' ?>>Books</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="<?= $startDate ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" 
+                               value="<?= $endDate ?>">
+                    </div>
+                    <div class="form-group">
+                        <div class="button-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Generate Report
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="exportReport()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
-        function exportReport() {
-            const reportType = '<?= $reportType ?>';
-            const startDate = '<?= $startDate ?>';
-            const endDate = '<?= $endDate ?>';
+            <!-- Report Content -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <i class="fas fa-chart-line"></i>
+                        <?= ucfirst($reportType) ?> Report
+                        <span class="report-period">(<?= $startDate ?> to <?= $endDate ?>)</span>
+                    </h2>
+                </div>
+
+                <?php if ($reportType === 'overview'): ?>
+                    <!-- Overview Report -->
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-label">Total Transactions</div>
+                            <div class="stat-number"><?= $report['total_transactions'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-number"><?= $report['total_users'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card cyan">
+                            <div class="stat-label">Total Books</div>
+                            <div class="stat-number"><?= $report['total_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-label">Total Fines</div>
+                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                        </div>
+                    </div>
+                    
+                    <div class="two-col-grid">
+                        <div class="info-card">
+                            <div class="info-card-header">Active Borrowings</div>
+                            <div class="info-card-value"><?= $report['active_borrowings'] ?? 0 ?></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-header">Overdue Books</div>
+                            <div class="info-card-value"><?= $report['overdue_books'] ?? 0 ?></div>
+                        </div>
+                    </div>
+
+                <?php elseif ($reportType === 'borrowing'): ?>
+                    <!-- Borrowing Report -->
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-label">Total Borrowings</div>
+                            <div class="stat-number"><?= $report['total_borrowings'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-label">Returned Books</div>
+                            <div class="stat-number"><?= $report['returned_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card purple">
+                            <div class="stat-label">Active Loans</div>
+                            <div class="stat-number"><?= $report['active_loans'] ?? 0 ?></div>
+                        </div>
+                    </div>
+
+                <?php elseif ($reportType === 'fines'): ?>
+                    <!-- Fines Report -->
+                    <div class="stats-grid">
+                        <div class="stat-card orange">
+                            <div class="stat-label">Total Fines</div>
+                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-label">Collected Fines</div>
+                            <div class="stat-number">₹<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
+                        </div>
+                        <div class="stat-card pink">
+                            <div class="stat-label">Pending Fines</div>
+                            <div class="stat-number">₹<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-label">Overdue Books</div>
+                            <div class="stat-number"><?= $report['overdue_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card cyan">
+                            <div class="stat-label">Period</div>
+                            <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
+                        </div>
+                    </div>
+
+                <?php elseif ($reportType === 'users'): ?>
+                    <!-- Users Report -->
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-number"><?= $report['total_users'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-label">Active Users</div>
+                            <div class="stat-number"><?= $report['active_users'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card cyan">
+                            <div class="stat-label">New Users</div>
+                            <div class="stat-number"><?= $report['new_users'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card purple">
+                            <div class="stat-label">Period</div>
+                            <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
+                        </div>
+                    </div>
+
+                <?php elseif ($reportType === 'books'): ?>
+                    <!-- Books Report -->
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div class="stat-label">Total Books</div>
+                            <div class="stat-number"><?= $report['total_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-label">Available Books</div>
+                            <div class="stat-number"><?= $report['available_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-label">Borrowed Books</div>
+                            <div class="stat-number"><?= $report['borrowed_books'] ?? 0 ?></div>
+                        </div>
+                        <div class="stat-card cyan">
+                            <div class="stat-label">Period</div>
+                            <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($report['popular_books'])): ?>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <i class="fas fa-star"></i> Popular Books
+                        </div>
+                        <div class="responsive-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Book Name</th>
+                                        <th>Author</th>
+                                        <th>Borrow Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($report['popular_books'] as $book): ?>
+                                        <tr>
+                                            <td><strong><?= htmlspecialchars($book['bookName']) ?></strong></td>
+                                            <td><?= htmlspecialchars($book['authorName']) ?></td>
+                                            <td><span class="badge badge-primary"><?= $book['borrow_count'] ?? 0 ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                <?php endif; ?>
+            </div>
             
-            alert('Exporting ' + reportType + ' report from ' + startDate + ' to ' + endDate);
-            
-            // Example: Redirect to export endpoint
-            // window.location.href = '<?= BASE_URL ?>admin/reports/export?type=' + reportType + '&start=' + startDate + '&end=' + endDate;
-        }
+        </div>
+           <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+    </main>
+  
+</div>
 
-        // Add smooth scroll behavior
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
+<script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    function exportReport() {
+        const reportType = '<?= $reportType ?>';
+        const startDate = '<?= $startDate ?>';
+        const endDate = '<?= $endDate ?>';
+        
+        alert('Exporting ' + reportType + ' report from ' + startDate + ' to ' + endDate);
+        
+        // Example: Redirect to export endpoint
+        // window.location.href = '<?= BASE_URL ?>admin/reports/export?type=' + reportType + '&start=' + startDate + '&end=' + endDate;
+    }
+
+    // Add smooth scroll behavior
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
         });
-    </script>
+    });
+</script>

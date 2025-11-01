@@ -63,14 +63,16 @@ class BaseController
         if (!isset($_SESSION['userId'])) {
             $_SESSION['error'] = 'Please login to access this page';
             $this->redirect('login');
-            return;
+            exit;
         }
-        
-        // Check user type if specified
-        if (!empty($allowedTypes) && !in_array($_SESSION['userType'], $allowedTypes)) {
-            $_SESSION['error'] = 'Access denied';
-            $this->redirect('login');
-            return;
+        if (!empty($allowedTypes)) {
+            $userType = strtolower($_SESSION['userType'] ?? '');
+            $allowedTypesLower = array_map('strtolower', $allowedTypes);
+            if (!in_array($userType, $allowedTypesLower)) {
+                $_SESSION['error'] = 'Access denied';
+                $this->redirect('login');
+                exit;
+            }
         }
     }
 
@@ -147,5 +149,31 @@ class BaseController
         header('Content-Type: application/json');
         echo json_encode($data);
         exit;
+    }
+
+    /**
+     * Require user authentication
+     */
+    protected function requireAuth()
+    {
+        if (!isset($_SESSION['userId'])) {
+            header('Location: ' . BASE_URL . 'login');
+            exit;
+        }
+    }
+
+    /**
+     * Require user to have specific role
+     */
+    protected function requireRole($allowedRoles)
+    {
+        $this->requireAuth();
+        
+        $userType = $_SESSION['userType'] ?? null;
+        
+        if (!in_array($userType, (array)$allowedRoles)) {
+            header('Location: ' . BASE_URL . '403');
+            exit;
+        }
     }
 }

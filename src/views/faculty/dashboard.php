@@ -439,21 +439,25 @@ include APP_ROOT . '/views/layouts/header.php';
             <i class="fas fa-search"></i>
         </div>
         <div class="action-buttons">
-            <a href="/faculty/books" class="action-btn primary">
+            <a href="<?= BASE_URL ?>faculty/books" class="action-btn primary">
                 <i class="fas fa-book"></i>
                 Browse Books
             </a>
-            <a href="/faculty/borrow-history" class="action-btn primary">
+            <a href="<?= BASE_URL ?>faculty/borrow-history" class="action-btn primary">
                 <i class="fas fa-history"></i>
                 Borrow History
             </a>
-            <a href="/faculty/book-request" class="action-btn secondary">
+            <a href="<?= BASE_URL ?>faculty/book-request" class="action-btn secondary">
                 <i class="fas fa-plus-circle"></i>
                 Request New Book
             </a>
-            <a href="/faculty/return" class="action-btn secondary">
+            <a href="<?= BASE_URL ?>faculty/return" class="action-btn secondary">
                 <i class="fas fa-undo"></i>
                 Return Books
+            </a>
+            <a href="<?= BASE_URL ?>faculty/reserved-books" class="action-btn secondary">
+                <i class="fas fa-bookmark"></i>
+                View Reserved Books
             </a>
         </div>
     </div>
@@ -580,7 +584,8 @@ function handleQuickSearch(event) {
         event.preventDefault();
         const searchTerm = document.getElementById('quickSearch').value.trim();
         if (searchTerm) {
-            window.location.href = '/faculty/books?q=' + encodeURIComponent(searchTerm);
+            // Use 'search' parameter to match controller logic
+            window.location.href = '/faculty/books?search=' + encodeURIComponent(searchTerm);
         }
     }
 }
@@ -593,5 +598,4 @@ if (!document.querySelector('link[href*="font-awesome"]')) {
     document.head.appendChild(link);
 }
 </script>
-
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

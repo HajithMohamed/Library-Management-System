@@ -5,6 +5,7 @@ namespace App\Models;
 class User extends BaseModel
 {
     protected $table = 'users';
+    private $lastError = null;
     
     public function __construct()
     {
@@ -586,27 +587,39 @@ class User extends BaseModel
         $values = [];
         $types = '';
 
-        if (isset($data['email'])) {
+        if (isset($data['username'])) {
+            $fields[] = "username = ?";
+            $values[] = $data['username'];
+            $types .= 's';
+        }
+
+        if (isset($data['emailId'])) {
             $fields[] = "emailId = ?";
-            $values[] = $data['email'];
+            $values[] = $data['emailId'];
             $types .= 's';
         }
         
-        if (isset($data['phone'])) {
+        if (isset($data['gender'])) {
+            $fields[] = "gender = ?";
+            $values[] = $data['gender'];
+            $types .= 's';
+        }
+
+        if (isset($data['dob'])) {
+            $fields[] = "dob = ?";
+            $values[] = $data['dob'];
+            $types .= 's';
+        }
+
+        if (isset($data['phoneNumber'])) {
             $fields[] = "phoneNumber = ?";
-            $values[] = $data['phone'];
+            $values[] = $data['phoneNumber'];
             $types .= 's';
         }
         
         if (isset($data['address'])) {
             $fields[] = "address = ?";
             $values[] = $data['address'];
-            $types .= 's';
-        }
-
-        if (isset($data['department'])) {
-            $fields[] = "department = ?";
-            $values[] = $data['department'];
             $types .= 's';
         }
 
@@ -619,6 +632,9 @@ class User extends BaseModel
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . ", updatedAt = NOW() WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
+        if (!$stmt) {
+            return false;
+        }
         $stmt->bind_param($types, ...$values);
         
         return $stmt->execute();
@@ -634,6 +650,7 @@ class User extends BaseModel
         $result = $stmt->get_result()->fetch_assoc();
         
         if (!$result || !password_verify($currentPassword, $result['password'])) {
+            $this->lastError = 'Incorrect current password.';
             return false;
         }
         
@@ -703,6 +720,11 @@ class User extends BaseModel
             error_log("Error updating user password: " . $e->getMessage());
             return false;
         }
+    }
+
+    public function getLastError()
+    {
+        return $this->lastError;
     }
 }
 ?>

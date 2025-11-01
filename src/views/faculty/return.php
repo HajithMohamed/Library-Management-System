@@ -3,10 +3,10 @@ if (!defined('APP_ROOT')) {
     die('Direct access not permitted');
 }
 
-$pageTitle = 'Return Books';
+$pageTitle = 'Returned Books';
 include APP_ROOT . '/views/layouts/header.php';
 
-$borrowedBooks = $borrowedBooks ?? [];
+$returnedBooks = $returnedBooks ?? [];
 ?>
 
 <style>
@@ -274,34 +274,6 @@ $borrowedBooks = $borrowedBooks ?? [];
         color: #10b981;
     }
     
-    /* Return Button */
-    .return-btn {
-        width: 100%;
-        padding: 0.875rem 1.5rem;
-        border-radius: 12px;
-        border: none;
-        font-weight: 700;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-    }
-    
-    .return-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
-    }
-    
-    .return-btn:active {
-        transform: translateY(0);
-    }
-    
     /* Status Badge */
     .status-badge {
         display: inline-flex;
@@ -478,19 +450,19 @@ $borrowedBooks = $borrowedBooks ?? [];
                 <div class="header-title">
                     <h1>
                         <i class="fas fa-undo"></i>
-                        Return Books
+                        Returned Books
                     </h1>
-                    <p>Select books to return to the library</p>
+                    <p>Books you have returned to the library</p>
                 </div>
                 <div class="header-actions">
                     <a href="<?= BASE_URL ?>faculty/dashboard" class="back-button">
                         <i class="fas fa-arrow-left"></i>
                         <span>Back to Dashboard</span>
                     </a>
-                    <?php if (!empty($borrowedBooks)): ?>
+                    <?php if (!empty($returnedBooks)): ?>
                         <span class="books-count">
                             <i class="fas fa-book"></i>
-                            <?= count($borrowedBooks) ?> <?= count($borrowedBooks) === 1 ? 'Book' : 'Books' ?>
+                            <?= count($returnedBooks) ?> <?= count($returnedBooks) === 1 ? 'Book' : 'Books' ?>
                         </span>
                     <?php endif; ?>
                 </div>
@@ -499,86 +471,52 @@ $borrowedBooks = $borrowedBooks ?? [];
 
         <!-- Body -->
         <div class="return-body">
-            <?php if (!empty($borrowedBooks)): ?>
-                <!-- Info Alert -->
+            <?php if (!empty($returnedBooks)): ?>
                 <div class="info-alert">
                     <div class="info-alert-icon">
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div class="info-alert-content">
-                        <h5>Return Policy</h5>
-                        <p>Please ensure books are returned in good condition. Late returns may incur fines. Check the due date for each book below.</p>
+                        <h5>Returned Books</h5>
+                        <p>Below is the list of books you have returned. Thank you for using the library responsibly!</p>
                     </div>
                 </div>
 
-                <!-- Books Grid -->
                 <div class="books-grid">
-                    <?php foreach ($borrowedBooks as $book): 
-                        $borrowDate = strtotime($book['borrowDate']);
-                        $dueDate = strtotime('+14 days', $borrowDate);
-                        $today = time();
-                        $daysUntilDue = ceil(($dueDate - $today) / (60 * 60 * 24));
-                        
-                        if ($daysUntilDue < 0) {
-                            $statusClass = 'overdue';
-                            $statusText = abs($daysUntilDue) . ' days overdue';
-                            $statusIcon = '⚠️';
-                        } elseif ($daysUntilDue <= 3) {
-                            $statusClass = 'due-soon';
-                            $statusText = 'Due in ' . $daysUntilDue . ' ' . ($daysUntilDue == 1 ? 'day' : 'days');
-                            $statusIcon = '⏰';
-                        } else {
-                            $statusClass = 'ok';
-                            $statusText = 'Due in ' . $daysUntilDue . ' days';
-                            $statusIcon = '✅';
-                        }
+                    <?php foreach ($returnedBooks as $book): 
+                        $borrowDateStr = $book['borrowDate'] ?? null;
+                        $returnDateStr = $book['returnDate'] ?? null;
+                        if (!$borrowDateStr || strtotime($borrowDateStr) === false) continue;
+                        if (!$returnDateStr || strtotime($returnDateStr) === false) continue;
+                        $borrowDate = strtotime($borrowDateStr);
+                        $returnDate = strtotime($returnDateStr);
                     ?>
                         <div class="book-card">
-                            <span class="status-badge <?= $statusClass ?>">
-                                <?= $statusIcon ?> <?= $statusText ?>
-                            </span>
-                            
                             <div class="book-info">
                                 <h3 class="book-title"><?= htmlspecialchars($book['title'] ?? $book['bookName'] ?? 'Unknown Book') ?></h3>
                                 <p class="book-author"><?= htmlspecialchars($book['author'] ?? $book['authorName'] ?? 'Unknown Author') ?></p>
-                                <p class="book-isbn"><?= htmlspecialchars($book['isbn']) ?></p>
+                                <p class="book-isbn"><?= htmlspecialchars($book['isbn'] ?? '') ?></p>
                             </div>
-                            
                             <div class="book-meta">
                                 <div class="meta-row">
                                     <span class="meta-label">Borrowed</span>
                                     <span class="meta-value"><?= date('M d, Y', $borrowDate) ?></span>
                                 </div>
                                 <div class="meta-row">
-                                    <span class="meta-label">Due Date</span>
-                                    <span class="meta-value <?= $statusClass ?>"><?= date('M d, Y', $dueDate) ?></span>
+                                    <span class="meta-label">Returned</span>
+                                    <span class="meta-value ok"><?= date('M d, Y', $returnDate) ?></span>
                                 </div>
-                                <?php if ($daysUntilDue < 0): ?>
-                                <div class="meta-row">
-                                    <span class="meta-label">Fine</span>
-                                    <span class="meta-value overdue">₹<?= abs($daysUntilDue) * 5 ?></span>
-                                </div>
-                                <?php endif; ?>
                             </div>
-                            
-                            <form method="POST" action="<?= BASE_URL ?>faculty/return">
-                                <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($book['tid'] ?? $book['id'] ?? '') ?>">
-                                <button type="submit" class="return-btn">
-                                    <i class="fas fa-check-circle"></i>
-                                    <span>Return Book</span>
-                                </button>
-                            </form>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
-                <!-- Empty State -->
                 <div class="empty-state">
                     <div class="empty-state-icon">
                         <i class="fas fa-check-circle"></i>
                     </div>
-                    <h4>No Books to Return</h4>
-                    <p>You don't have any borrowed books at the moment. Browse the library to find your next read!</p>
+                    <h4>No Books Returned Yet</h4>
+                    <p>You haven't returned any books yet. Once you return books, they will appear here.</p>
                     <a href="<?= BASE_URL ?>faculty/books" class="browse-btn">
                         <i class="fas fa-book"></i>
                         <span>Browse Books</span>

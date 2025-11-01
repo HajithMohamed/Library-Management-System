@@ -809,10 +809,91 @@ INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, 
 ('USR008', '9780141439518', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
 
 -- ====================================================================
--- Re-enable FK checks after all inserts
+-- FINE CALCULATION SYSTEM (Simplified - No stored procedures needed)
 -- ====================================================================
+
+-- Create a simple view to calculate fines on-the-fly
+CREATE OR REPLACE VIEW transaction_fines AS
+SELECT 
+    t.tid,
+    t.userId,
+    t.isbn,
+    t.borrowDate,
+    t.returnDate,
+    t.fineStatus,
+    t.finePaymentDate,
+    t.finePaymentMethod,
+    b.bookName,
+    u.emailId,
+    u.userType,
+    -- Calculate days overdue (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0)
+        ELSE 0
+    END AS daysOverdue,
+    -- Calculate fine amount (safe from negative overflow)
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(500.00, GREATEST(0, DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00)
+        ELSE 0.00
+    END AS calculatedFine,
+    t.fineAmount AS storedFine
+FROM transactions t
+JOIN books b ON t.isbn = b.isbn
+JOIN users u ON t.userId = u.userId;
+
+-- Update existing transaction fines based on calculation (safe version)
+UPDATE transactions t
+SET t.fineAmount = (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+)
+WHERE (t.returnDate IS NULL OR t.fineStatus = 'pending')
+  AND t.fineAmount != (
+    CASE 
+        WHEN DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) > 0
+        THEN LEAST(
+            500.00,
+            (DATEDIFF(IFNULL(t.returnDate, CURDATE()), DATE_ADD(t.borrowDate, INTERVAL 14 DAY)) - 0) * 5.00
+        )
+        ELSE 0.00
+    END
+  );
+
+-- ====================================================================
+-- End of fine calculation system
+-- ====================================================================
+
+-- Re-enable FK checks after all inserts
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ====================================================================
 -- End of database schema and dummy data
 -- ====================================================================
+-- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ...existing code...
+
+-- ====================================================================
+-- Table structure for table `saved_cards`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `card_holder` varchar(100) NOT NULL,
+  `card_number_masked` varchar(25) NOT NULL,
+  `card_expiry` varchar(7) NOT NULL,
+  `card_type` varchar(20) DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ...existing code...

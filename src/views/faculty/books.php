@@ -679,15 +679,9 @@ include APP_ROOT . '/views/layouts/header.php';
                                 👁️ Details
                             </a>
                             <?php if (isset($_SESSION['user_id']) || isset($_SESSION['userId'])): ?>
-                                <?php if (($book['available'] ?? 0) > 0): ?>
-                                    <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-borrow">
-                                        📖 Borrow
-                                    </a>
-                                <?php else: ?>
-                                    <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-reserve">
-                                        🔖 Reserve
-                                    </a>
-                                <?php endif; ?>
+                                <a href="<?= BASE_URL ?>faculty/reserve?isbn=<?= urlencode($book['isbn'] ?? '') ?>" class="action-button-modern btn-reserve">
+                                    🔖 Reserve
+                                </a>
                             <?php else: ?>
                                 <a href="<?= BASE_URL ?>login" class="action-button-modern btn-borrow">🔐 Login</a>
                             <?php endif; ?>

@@ -510,13 +510,30 @@ if (!empty($fines)) {
                                         <tr>
                                             <th>Book Details</th>
                                             <th>Borrowed Date</th>
+                                            <th>Due Date</th>
+                                            <th>Days Overdue</th>
                                             <th>Fine Amount</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                    <?php foreach ($fines as $fine) { 
+                                    <?php 
+                                    // Get fine settings once for all calculations
+                                    $maxBorrowDays = 14; // Will be fetched from controller
+                                    
+                                    foreach ($fines as $fine) { 
                                         $fineAmount = (float)($fine['fineAmount'] ?? 0);
+                                        
+                                        // Calculate due date and days overdue
+                                        $borrowDate = new DateTime($fine['borrowDate']);
+                                        // Use max_borrow_days from fine settings if available in $fine array
+                                        $maxBorrowDays = isset($fine['max_borrow_days']) ? (int)$fine['max_borrow_days'] : 14;
+                                        $dueDate = clone $borrowDate;
+                                        $dueDate->add(new DateInterval("P{$maxBorrowDays}D"));
+                                        
+                                        $currentDate = new DateTime();
+                                        $interval = $dueDate->diff($currentDate);
+                                        $daysOverdue = $currentDate > $dueDate ? $interval->days : 0;
                                     ?>
                                         <tr>
                                             <td data-label="Book Details">
@@ -532,8 +549,24 @@ if (!empty($fines)) {
                                             <td data-label="Borrowed Date">
                                                 <span class="date-badge">
                                                     <i class="fas fa-calendar-alt"></i>
-                                                    <?= htmlspecialchars(date('M d, Y', strtotime($fine['borrowDate']))) ?>
+                                                    <?= htmlspecialchars($borrowDate->format('M d, Y')) ?>
                                                 </span>
+                                            </td>
+                                            <td data-label="Due Date">
+                                                <span class="date-badge" style="background: <?= $daysOverdue > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' ?>; color: <?= $daysOverdue > 0 ? '#ef4444' : '#10b981' ?>;">
+                                                    <i class="fas fa-calendar-check"></i>
+                                                    <?= $dueDate->format('M d, Y') ?>
+                                                </span>
+                                            </td>
+                                            <td data-label="Days Overdue">
+                                                <?php if ($daysOverdue > 0): ?>
+                                                    <span class="date-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        <?= $daysOverdue ?> days
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td data-label="Fine Amount">
                                                 <span class="fine-amount">
@@ -542,14 +575,26 @@ if (!empty($fines)) {
                                                 </span>
                                             </td>
                                             <td data-label="Action">
-                                                <form method="POST" action="<?= BASE_URL ?>faculty/fines" style="display:inline">
-                                                    <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
-                                                    <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
-                                                    <button type="submit" class="btn-pay">
-                                                        <i class="fas fa-credit-card"></i>
-                                                        <span>Pay Now</span>
+                                                <?php if ($fineAmount > 0): ?>
+                                                    <form method="POST" action="<?= BASE_URL ?>faculty/fines" style="display:inline">
+                                                        <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
+                                                        <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
+                                                        <button type="submit" class="btn-pay">
+                                                            <i class="fas fa-credit-card"></i>
+                                                            <span>Pay Now (Cash)</span>
+                                                        </button>
+                                                    </form>
+                                                    <!-- Online Payment Button -->
+                                                    <button type="button" class="btn-pay" onclick="openPaymentModal('<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>', '<?= htmlspecialchars($fineAmount) ?>')">
+                                                        <i class="fas fa-globe"></i>
+                                                        <span>Pay Online</span>
                                                     </button>
-                                                </form>
+                                                <?php else: ?>
+                                                    <span class="no-fine-badge">
+                                                        <i class="fas fa-check"></i>
+                                                        No Fine
+                                                    </span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php } ?>
@@ -585,5 +630,97 @@ if (!empty($fines)) {
         </div>
     </div>
 </div>
+
+<!-- Online Payment Modal -->
+<div id="paymentModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:16px; max-width:400px; margin:auto; padding:2rem; position:relative;">
+        <button onclick="closePaymentModal()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; color:#888; cursor:pointer;">&times;</button>
+        <h3 style="margin-bottom:1rem;">Pay Fine Online</h3>
+        <form id="onlinePaymentForm" method="POST" action="<?= BASE_URL ?>faculty/fines" autocomplete="off" onsubmit="return validateCardForm()">
+            <input type="hidden" name="borrow_id" id="modal_borrow_id">
+            <input type="hidden" name="amount" id="modal_amount">
+            <input type="hidden" name="pay_online" value="1">
+            <div style="margin-bottom:1rem;">
+                <label>Card Holder Name</label>
+                <input type="text" name="card_holder" id="card_holder" class="form-control" required maxlength="100" style="width:100%;">
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label>Card Number</label>
+                <input type="text" name="card_number" id="card_number" class="form-control" required maxlength="19" pattern="\d{13,19}" inputmode="numeric" style="width:100%;" placeholder="XXXX XXXX XXXX XXXX">
+            </div>
+            <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                <div style="flex:1;">
+                    <label>Expiry (MM/YY)</label>
+                    <input type="text" name="card_expiry" id="card_expiry" class="form-control" required maxlength="5" pattern="\d{2}/\d{2}" placeholder="MM/YY" style="width:100%;">
+                </div>
+                <div style="flex:1;">
+                    <label>CVV</label>
+                    <input type="password" name="card_cvv" id="card_cvv" class="form-control" required maxlength="4" pattern="\d{3,4}" inputmode="numeric" style="width:100%;">
+                </div>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <input type="checkbox" name="save_card" id="save_card" value="1">
+                <label for="save_card">Save this card for future payments</label>
+            </div>
+            <button type="submit" class="btn-pay" style="width:100%;"><i class="fas fa-lock"></i> Pay Now</button>
+        </form>
+        <div id="cardError" style="color:#ef4444; margin-top:0.5rem; display:none;"></div>
+    </div>
+</div>
+
+<script>
+function openPaymentModal(borrowId, amount) {
+    document.getElementById('paymentModal').style.display = 'flex';
+    document.getElementById('modal_borrow_id').value = borrowId;
+    document.getElementById('modal_amount').value = amount;
+    document.getElementById('onlinePaymentForm').reset();
+    document.getElementById('cardError').style.display = 'none';
+}
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
+function validateCardForm() {
+    var holder = document.getElementById('card_holder').value.trim();
+    var number = document.getElementById('card_number').value.replace(/\s+/g, '');
+    var expiry = document.getElementById('card_expiry').value.trim();
+    var cvv = document.getElementById('card_cvv').value.trim();
+    var error = '';
+
+    // Card number: 13-19 digits, Luhn check
+    if (!/^\d{13,19}$/.test(number) || !luhnCheck(number)) {
+        error = 'Invalid card number.';
+    }
+    // Expiry: MM/YY, must be valid and not expired
+    else if (!/^\d{2}\/\d{2}$/.test(expiry)) {
+        error = 'Invalid expiry format.';
+    } else {
+        var parts = expiry.split('/');
+        var mm = parseInt(parts[0], 10), yy = parseInt(parts[1], 10);
+        var now = new Date();
+        var expDate = new Date(2000 + yy, mm - 1, 1);
+        if (mm < 1 || mm > 12) error = 'Invalid expiry month.';
+        else if (expDate < new Date(now.getFullYear(), now.getMonth(), 1)) error = 'Card expired.';
+    }
+    // CVV: 3 or 4 digits
+    if (!error && !/^\d{3,4}$/.test(cvv)) {
+        error = 'Invalid CVV.';
+    }
+    if (!error && holder.length < 2) {
+        error = 'Card holder name required.';
+    }
+    if (error) {
+        document.getElementById('cardError').innerText = error;
+        document.getElementById('cardError').style.display = 'block';
+        return false;
+    }
+    return true;
+}
+// Luhn algorithm for card number validation
+function luhnCheck(num) {
+    var arr = (num + '').split('').reverse().map(x => parseInt(x));
+    var sum = arr.reduce((acc, val, idx) => acc + (idx % 2 ? ((val *= 2) > 9 ? val - 9 : val) : val), 0);
+    return sum % 10 === 0;
+}
+</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

@@ -4,10 +4,21 @@
  * Run this once: http://localhost:8080/download-book-covers.php
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Define APP_ROOT if not already defined
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__));
+}
 
-$database = new App\Config\Database();
+// Include database connection
+require_once APP_ROOT . '/config/config.php';
+require_once APP_ROOT . '/config/dbConnection.php';
+
+// Use global $mysqli from dbConnection.php
 global $mysqli;
+
+if (!$mysqli) {
+    die("Database connection failed");
+}
 
 $uploadsDir = __DIR__ . '/uploads/books/';
 if (!is_dir($uploadsDir)) {
