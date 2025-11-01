@@ -835,6 +835,12 @@ class AdminController
           $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
           break;
 
+        case 'mark_returned':
+          $id = $_POST['id'] ?? '';
+          $result = $this->adminService->markBookAsReturned($id);
+          $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
+          break;
+
         case 'delete':
           $id = $_POST['id'] ?? '';
           $result = $this->adminService->deleteBorrowedBook($id);
@@ -851,7 +857,7 @@ class AdminController
     $userId = $_GET['userId'] ?? null;
     $isbn = $_GET['isbn'] ?? null;
 
-    // Get data
+    // Get data using AdminService methods
     $borrowedBooks = $this->adminService->getAllBorrowedBooks($status, $userId, $isbn);
     $stats = $this->adminService->getBorrowedBooksStats();
 

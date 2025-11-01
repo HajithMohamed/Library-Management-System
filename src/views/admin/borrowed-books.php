@@ -9,38 +9,38 @@ global $mysqli;
 $statusFilter = $_GET['status'] ?? '';
 $userTypeFilter = $_GET['userType'] ?? '';
 
-// Build query
+// Build query - Updated to use books_borrowed table
 $sql = "SELECT 
-    t.id,
-    t.userId,
-    u.userType,
-    t.isbn,
-    t.borrowDate,
-    t.dueDate,
-    t.returnDate,
-    t.status,
-    t.notes,
-    t.addedBy,
+    bb.id,
+    bb.userId,
+    bb.isbn,
+    bb.borrowDate,
+    bb.dueDate,
+    bb.returnDate,
+    bb.status,
+    bb.notes,
+    bb.addedBy,
     u.username,
     u.emailId,
+    u.userType,
     b.bookName,
     b.authorName,
     b.barcode,
-    DATEDIFF(CURDATE(), t.dueDate) as daysOverdue
-FROM books_borrowed t
-LEFT JOIN users u ON t.userId = u.userId
-LEFT JOIN books b ON t.isbn = b.isbn
+    DATEDIFF(CURDATE(), bb.dueDate) as daysOverdue
+FROM books_borrowed bb
+LEFT JOIN users u ON bb.userId = u.userId
+LEFT JOIN books b ON bb.isbn = b.isbn
 WHERE 1=1";
 
 if ($statusFilter) {
-    $sql .= " AND t.status = '$statusFilter'";
+    $sql .= " AND bb.status = '$statusFilter'";
 }
 
 if ($userTypeFilter) {
-    $sql .= " AND t.userType = '$userTypeFilter'";
+    $sql .= " AND u.userType = '$userTypeFilter'";
 }
 
-$sql .= " ORDER BY t.borrowDate DESC";
+$sql .= " ORDER BY bb.borrowDate DESC";
 
 $result = $mysqli->query($sql);
 $borrowedBooks = [];
@@ -48,16 +48,16 @@ while ($row = $result->fetch_assoc()) {
     $borrowedBooks[] = $row;
 }
 
-// Get statistics
+// Get statistics - Updated to use books_borrowed table
 $statsQuery = "SELECT 
-    COUNT(t.id) as total,
-    SUM(CASE WHEN t.status = 'Active' THEN 1 ELSE 0 END) as active,
-    SUM(CASE WHEN t.status = 'Returned' THEN 1 ELSE 0 END) as returned,
-    SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END) as overdue,
+    COUNT(bb.id) as total,
+    SUM(CASE WHEN bb.status = 'Active' THEN 1 ELSE 0 END) as active,
+    SUM(CASE WHEN bb.status = 'Returned' THEN 1 ELSE 0 END) as returned,
+    SUM(CASE WHEN bb.status = 'Overdue' THEN 1 ELSE 0 END) as overdue,
     SUM(CASE WHEN u.userType = 'Student' THEN 1 ELSE 0 END) as students,
     SUM(CASE WHEN u.userType = 'Faculty' THEN 1 ELSE 0 END) as faculty
-FROM books_borrowed t
-LEFT JOIN users u ON t.userId = u.userId";
+FROM books_borrowed bb
+LEFT JOIN users u ON bb.userId = u.userId";
 $statsResult = $mysqli->query($statsQuery);
 $stats = $statsResult->fetch_assoc();
 
@@ -737,6 +737,13 @@ while ($row = $booksResult->fetch_assoc()) {
                                     </td>
                                     <td>
                                         <div class="action-buttons">
+                                            <?php if ($item['status'] !== 'Returned'): ?>
+                                                <button class="btn-action" style="background: #d1fae5; color: #065f46;" 
+                                                        onclick="markAsReturned(<?= $item['id'] ?>)" 
+                                                        title="Mark as Returned">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </button>
+                                            <?php endif; ?>
                                             <button class="btn-action btn-edit" onclick='editItem(<?= json_encode($item) ?>)'>
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -926,6 +933,29 @@ function editItem(item) {
     document.getElementById('edit_notes').value = item.notes || '';
     
     document.getElementById('editModal').classList.add('show');
+}
+
+function markAsReturned(id) {
+    if (confirm('Mark this book as returned? This will update the book availability and change the status.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '<?= BASE_URL ?>admin/borrowed-books';
+        
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'mark_returned';
+        
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'id';
+        idInput.value = id;
+        
+        form.appendChild(actionInput);
+        form.appendChild(idInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function deleteItem(id) {

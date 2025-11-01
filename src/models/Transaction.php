@@ -17,20 +17,16 @@ class Transaction
      */
     public function createTransaction($data)
     {
-        $sql = "INSERT INTO transactions (tid, userId, isbn, fineAmount, fineStatus, borrowDate, returnDate, lastFinePaymentDate, finePaymentDate, finePaymentMethod) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO transactions (tid, userId, isbn, fine, borrowDate, returnDate, lastFinePaymentDate) VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('sssdssssss', 
+        $stmt->bind_param('sssisss', 
             $data['tid'], 
             $data['userId'], 
             $data['isbn'], 
-            $data['fineAmount'] ?? 0.00,
-            $data['fineStatus'] ?? 'pending',
-            $data['borrowDate'],
+            $data['fine'], 
+            $data['borrowDate'], 
             $data['returnDate'] ?? null,
-            $data['lastFinePaymentDate'] ?? null,
-            $data['finePaymentDate'] ?? null,
-            $data['finePaymentMethod'] ?? null
+            $data['lastFinePaymentDate'] ?? null
         );
         
         return $stmt->execute();
@@ -357,25 +353,13 @@ class Transaction
     public function updateFine($tid, $fineAmount)
     {
         try {
-            $stmt = $this->db->prepare("
-                UPDATE transactions 
-                SET fineAmount = ?,
-                    fineStatus = CASE 
-                        WHEN ? > 0 THEN 'pending'
-                        ELSE fineStatus
-                    END,
-                    lastFinePaymentDate = CASE 
-                        WHEN ? > 0 THEN NULL
-                        ELSE lastFinePaymentDate
-                    END
-                WHERE tid = ?
-            ");
+            $stmt = $this->db->prepare("UPDATE transactions SET fineAmount = ? WHERE tid = ?");
             
             if (!$stmt) {
                 throw new \Exception("Prepare failed: " . $this->db->error);
             }
             
-            $stmt->bind_param("ddds", $fineAmount, $fineAmount, $fineAmount, $tid);
+            $stmt->bind_param("ds", $fineAmount, $tid);
             return $stmt->execute();
         } catch (\Exception $e) {
             error_log("Error updating fine: " . $e->getMessage());

@@ -33,19 +33,91 @@ class UserController extends BaseController
             return;
         }
         
-        $userId = $_SESSION['userId'];
-        $userType = $_SESSION['userType'];
+        $userId = $_SESSION['userId'] ?? null;
+        $userType = $_SESSION['userType'] ?? 'Student';
         
-        // Get user statistics
-        $userStats = [
-            'borrowed_books' => $this->borrowModel->getActiveBorrowCount($userId),
-            'overdue_books' => $this->borrowModel->getOverdueCount($userId),
-            'total_fines' => $this->borrowModel->getTotalFines($userId),
-            'max_books' => $userType === 'Faculty' ? 5 : 3
-        ];
+        if (!$userId) {
+            $_SESSION['error'] = 'User ID not found. Please login again.';
+            $this->redirect('login');
+            return;
+        }
         
-        // Get recent activity
-        $recentActivity = $this->borrowModel->getRecentActivity($userId, 5);
+        global $mysqli;
+        
+        try {
+            // Get count of currently borrowed books (not returned)
+            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userid = ? AND returnDate IS NULL");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $borrowedCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+            $stmt->close();
+            
+            // Get count of overdue books (dueDate passed and not returned)
+            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $overdueCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+            $stmt->close();
+            
+            // Calculate total fines (₹5 per day for overdue books)
+            $stmt = $mysqli->prepare("SELECT isbn, dueDate FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $totalFines = 0;
+            while ($row = $result->fetch_assoc()) {
+                $dueDate = new \DateTime($row['dueDate']);
+                $today = new \DateTime();
+                $interval = $today->diff($dueDate);
+                $daysOverdue = $interval->days;
+                $totalFines += $daysOverdue * 5; // ₹5 per day
+            }
+            $stmt->close();
+            
+            // Get user statistics
+            $userStats = [
+                'borrowed_books' => $borrowedCount,
+                'overdue_books' => $overdueCount,
+                'total_fines' => $totalFines,
+                'max_books' => $userType === 'Faculty' ? 5 : 3
+            ];
+            
+            // Get recent activity (last 5 transactions)
+            $stmt = $mysqli->prepare("
+                SELECT 
+                    bb.borrowDate as borrow_date,
+                    bb.returnDate as return_date,
+                    bb.dueDate as due_date,
+                    b.bookName as title,
+                    b.authorName as author
+                FROM books_borrowed bb
+                LEFT JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userid = ?
+                ORDER BY bb.borrowDate DESC
+                LIMIT 5
+            ");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $recentActivity = [];
+            while ($row = $result->fetch_assoc()) {
+                $recentActivity[] = $row;
+            }
+            $stmt->close();
+            
+        } catch (\Exception $e) {
+            error_log("Error loading dashboard data: " . $e->getMessage());
+            // Set default values on error
+            $userStats = [
+                'borrowed_books' => 0,
+                'overdue_books' => 0,
+                'total_fines' => 0,
+                'max_books' => $userType === 'Faculty' ? 5 : 3
+            ];
+            $recentActivity = [];
+        }
         
         // Pass data to view
         $this->data['userStats'] = $userStats;
@@ -452,5 +524,170 @@ class UserController extends BaseController
         $this->view('users/view-book', $this->data);
         
         error_log("=== VIEW BOOK METHOD COMPLETED ===");
+    }
+    
+    /**
+     * Show user's borrow history
+     */
+    public function borrowHistory() {
+        $this->requireLogin();
+        
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+        
+        // Query from books_borrowed table with correct column names
+        $sql = "SELECT 
+                    bb.id,
+                    bb.userid,
+                    bb.isbn,
+                    bb.borrowDate,
+                    bb.dueDate,
+                    bb.returnDate,
+                    bb.status,
+                    bb.notes,
+                    bb.addedBy,
+                    b.bookName,
+                    b.authorName
+                FROM books_borrowed bb
+                LEFT JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userid = ?
+                ORDER BY bb.borrowDate DESC";
+        
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $borrowHistory = [];
+        while ($row = $result->fetch_assoc()) {
+            // Map to format expected by the view
+            $borrowHistory[] = [
+                'id' => $row['id'],
+                'isbn' => $row['isbn'],
+                'bookName' => $row['bookName'] ?? 'Unknown',
+                'authorName' => $row['authorName'] ?? 'N/A',
+                'borrowDate' => $row['borrowDate'],
+                'returnDate' => $row['returnDate'],
+                'dueDate' => $row['dueDate'],
+                'status' => $row['status'],
+                'fineAmount' => 0, // Calculate fine if needed
+                'fineStatus' => 'Paid' // Default value
+            ];
+        }
+        $stmt->close();
+        
+        // Calculate fines for overdue books
+        foreach ($borrowHistory as &$record) {
+            if (!$record['returnDate'] && $record['dueDate']) {
+                $dueDate = new \DateTime($record['dueDate']);
+                $today = new \DateTime();
+                
+                if ($today > $dueDate) {
+                    $interval = $today->diff($dueDate);
+                    $daysOverdue = $interval->days;
+                    $record['fineAmount'] = $daysOverdue * 5; // ₹5 per day
+                    $record['fineStatus'] = 'Unpaid';
+                }
+            }
+        }
+        
+        $this->data['borrowHistory'] = $borrowHistory;
+        $this->view('users/borrow-history', $this->data);
+    }
+    
+    /**
+     * Submit a book review
+     */
+    public function submitReview() {
+        $this->requireLogin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('user/borrow-history');
+            return;
+        }
+        
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+        $isbn = $_POST['isbn'] ?? '';
+        $rating = $_POST['rating'] ?? 0;
+        $reviewText = $_POST['reviewText'] ?? '';
+        
+        if (!$isbn || !$rating) {
+            $_SESSION['error'] = 'Please provide both ISBN and rating';
+            $this->redirect('user/borrow-history');
+            return;
+        }
+        
+        // Check if user has borrowed this book from books_borrowed table
+        $stmt = $mysqli->prepare("SELECT id FROM books_borrowed WHERE userid = ? AND isbn = ?");
+        $stmt->bind_param("ss", $userId, $isbn);
+        $stmt->execute();
+        if (!$stmt->get_result()->fetch_assoc()) {
+            $_SESSION['error'] = 'You can only review books you have borrowed';
+            $stmt->close();
+            $this->redirect('user/borrow-history');
+            return;
+        }
+        $stmt->close();
+        
+        // Check if review already exists
+        $stmt = $mysqli->prepare("SELECT id FROM book_reviews WHERE userId = ? AND isbn = ?");
+        $stmt->bind_param("ss", $userId, $isbn);
+        $stmt->execute();
+        if ($stmt->get_result()->fetch_assoc()) {
+            $_SESSION['error'] = 'You have already reviewed this book';
+            $stmt->close();
+            $this->redirect('user/borrow-history');
+            return;
+        }
+        $stmt->close();
+        
+        // Insert review
+        $stmt = $mysqli->prepare("INSERT INTO book_reviews (userId, isbn, rating, reviewText, createdAt) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->bind_param("ssis", $userId, $isbn, $rating, $reviewText);
+        
+        if ($stmt->execute()) {
+            $_SESSION['success'] = 'Thank you for your review!';
+        } else {
+            $_SESSION['error'] = 'Failed to submit review';
+        }
+        $stmt->close();
+        
+        $this->redirect('user/borrow-history');
+    }
+    
+    /**
+     * Show all books returned by the user
+     */
+    public function returns()
+    {
+        $this->requireLogin();
+        
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+        
+        $sql = "SELECT 
+                    bb.isbn,
+                    bb.returnDate,
+                    b.bookName,
+                    b.authorName
+                FROM books_borrowed bb
+                LEFT JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userid = ? AND bb.returnDate IS NOT NULL
+                ORDER BY bb.returnDate DESC";
+        
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $returnedBooks = [];
+        while ($row = $result->fetch_assoc()) {
+            $returnedBooks[] = $row;
+        }
+        $stmt->close();
+        
+        $this->data['returnedBooks'] = $returnedBooks;
+        $this->view('users/returns', $this->data);
     }
 }
