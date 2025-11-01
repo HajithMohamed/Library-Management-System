@@ -40,33 +40,26 @@ class Book extends BaseModel
      */
     public function advancedSearch($searchTerm = '', $category = '')
     {
-        $sql = "SELECT * FROM {$this->table} WHERE 1=1";
+        $sql = "SELECT * FROM books WHERE 1";
         $params = [];
         $types = '';
 
-        if (!empty($searchTerm)) {
-            $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ?)";
-            $searchParam = '%' . $searchTerm . '%';
-            $params[] = $searchParam;
-            $params[] = $searchParam;
-            $params[] = $searchParam;
-            $types .= 'sss';
+        if ($searchTerm) {
+            $sql .= " AND (bookName LIKE ? OR authorName LIKE ?)";
+            $params[] = "%$searchTerm%";
+            $params[] = "%$searchTerm%";
+            $types .= 'ss';
         }
-
-        if (!empty($category)) {
+        if ($category) {
             $sql .= " AND category = ?";
             $params[] = $category;
             $types .= 's';
         }
 
-        $sql .= " ORDER BY bookName ASC";
-
         $stmt = $this->db->prepare($sql);
-        
-        if (!empty($params)) {
+        if ($params) {
             $stmt->bind_param($types, ...$params);
         }
-        
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
