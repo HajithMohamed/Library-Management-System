@@ -185,7 +185,6 @@ class FacultyController extends BaseController
         $this->requireLogin(['Faculty']);
 
         $userId = $_SESSION['userId'];
-        // Support both /faculty/reserve?isbn=... and /faculty/reserve/{isbn}
         $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? null);
 
         if (!$isbn) {
@@ -216,6 +215,29 @@ class FacultyController extends BaseController
             $stmt = $mysqli->prepare("INSERT INTO borrow_requests (userId, isbn, dueDate, status) VALUES (?, ?, ?, 'Pending')");
             $stmt->bind_param("sss", $userId, $isbn, $dueDate);
             if ($stmt->execute()) {
+                // --- Notify all admins of the new request ---
+                $adminQ = $mysqli->query("SELECT userId FROM users WHERE userType = 'Admin'");
+                $admins = [];
+                while ($row = $adminQ->fetch_assoc()) {
+                    $admins[] = $row['userId'];
+                }
+                $bookQ = $mysqli->prepare("SELECT bookName FROM books WHERE isbn = ?");
+                $bookQ->bind_param("s", $isbn);
+                $bookQ->execute();
+                $bookRow = $bookQ->get_result()->fetch_assoc();
+                $bookName = $bookRow['bookName'] ?? $isbn;
+                $bookQ->close();
+                foreach ($admins as $adminId) {
+                    $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority, isRead, relatedId) VALUES (?, ?, ?, 'approval', 'high', 0, ?)");
+                    $title = "New Borrow Request";
+                    $message = "A new borrow request for \"{$bookName}\" was made by user {$userId}.";
+                    $relatedId = $stmt->insert_id;
+                    $notifStmt->bind_param("ssss", $adminId, $title, $message, $relatedId);
+                    $notifStmt->execute();
+                    $notifStmt->close();
+                }
+                // --- End admin notification ---
+
                 $_SESSION['success'] = 'Reservation request sent! Awaiting admin approval.';
             } else {
                 $_SESSION['error'] = 'Failed to send reservation request.';
