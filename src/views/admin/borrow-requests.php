@@ -1051,6 +1051,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <i class="fas fa-eye"></i>
                           </button>
                         </div>
+                      <?php elseif ($request['status'] === 'Approved'): ?>
+                        <div class="action-buttons">
+                          <button class="btn-action success" onclick="markAsBorrowed(<?= $request['id'] ?>)">
+                            <i class="fas fa-book"></i> Mark as Borrowed
+                          </button>
+                          <button class="btn-action info" onclick="viewDetails(<?= $request['id'] ?>)">
+                            <i class="fas fa-eye"></i>
+                          </button>
+                        </div>
                       <?php elseif ($request['status'] === 'Rejected' && !empty($request['rejectionReason'])): ?>
                         <div class="action-buttons">
                           <button class="btn-action info" onclick="viewDetails(<?= $request['id'] ?>)">
@@ -1173,6 +1182,37 @@ include APP_ROOT . '/views/layouts/admin-header.php';
   </div>
 </div>
 
+<!-- Mark as Borrowed Modal -->
+<div class="modal" id="markBorrowedModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Mark as Borrowed</h5>
+        <button type="button" class="btn-close" onclick="closeModal('markBorrowedModal')">×</button>
+      </div>
+      <form method="POST" action="<?= BASE_URL ?>admin/borrow-requests-handle">
+        <div class="modal-body">
+          <input type="hidden" name="action" value="mark_borrowed">
+          <input type="hidden" name="requestId" id="markBorrowedRequestId">
+          <div class="mb-3">
+            <label for="borrowDate" class="form-label">Borrow Date</label>
+            <input type="date" class="form-control" id="borrowDate" name="borrowDate"
+              value="<?= date('Y-m-d') ?>" required>
+          </div>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            This will record the book as borrowed and update inventory.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('markBorrowedModal')">Cancel</button>
+          <button type="submit" class="btn btn-success">Confirm Borrowed</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
   // Sidebar functions
   function toggleSidebar() {
@@ -1226,6 +1266,11 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         console.error('Error:', error);
         alert('Failed to load request details');
       });
+  }
+
+  function markAsBorrowed(requestId) {
+    document.getElementById('markBorrowedRequestId').value = requestId;
+    document.getElementById('markBorrowedModal').classList.add('show');
   }
 
   function approveAllPending() {

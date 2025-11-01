@@ -344,10 +344,8 @@ class FacultyController extends BaseController
     public function borrowHistory()
     {
         $this->requireLogin(['Faculty']);
-        
         $userId = $_SESSION['userId'];
         $history = $this->borrowModel->getBorrowHistory($userId);
-        
         $this->data['history'] = $history;
         $this->view('faculty/borrow-history', $this->data);
     }

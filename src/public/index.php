@@ -290,6 +290,9 @@ try {
                 case 'return':
                     $ctrl->returnBook();
                     break;
+                case 'borrow-history':
+                    $ctrl->borrowHistory();
+                    break;
                 default:
                     $ctrl->dashboard();
             }
