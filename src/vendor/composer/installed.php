@@ -3,7 +3,7 @@
         'name' => 'university-library/lms',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '53ea02a436b078c4080525122eb8772e8b186697',
+        'reference' => '462cbb264dec16c0caffc7bf0cca38f595811066',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -76,7 +76,7 @@
         'university-library/lms' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '53ea02a436b078c4080525122eb8772e8b186697',
+            'reference' => '462cbb264dec16c0caffc7bf0cca38f595811066',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
