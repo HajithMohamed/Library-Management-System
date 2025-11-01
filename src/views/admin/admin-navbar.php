@@ -117,6 +117,7 @@
         /* Sidebar Navigation */
         .sidebar-nav {
             padding: 1rem 0;
+            padding-bottom: 180px; /* Add space for the footer */
         }
 
         .nav-section {
@@ -220,13 +221,20 @@
 
         /* Sidebar Footer */
         .sidebar-footer {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
-            right: 0;
+            width: 280px;
             padding: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .sidebar.collapsed .sidebar-footer {
+            width: 80px;
         }
 
         .user-profile {
@@ -352,6 +360,10 @@
                 transform: translateX(0);
             }
 
+            .sidebar-footer {
+                width: 280px;
+            }
+
             /* Mobile Overlay */
             .mobile-overlay {
                 display: none;
@@ -406,7 +418,7 @@
     ?>
 
     <!-- Mobile Overlay -->
-    <div class="mobile-overlay" onclick="toggleMobileSidebar()"></div>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -428,14 +440,14 @@
                 <div class="nav-section-title">Main</div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/dashboard" class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/dashboard" class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" data-title="Dashboard">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>Dashboard</span>
                     </a>
                 </div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/analytics" class="nav-link <?= $currentPage === 'analytics' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/analytics" class="nav-link <?= $currentPage === 'analytics' ? 'active' : '' ?>" data-title="Analytics">
                         <i class="fas fa-chart-line"></i>
                         <span>Analytics</span>
                     </a>
@@ -447,21 +459,21 @@
                 <div class="nav-section-title">Library Management</div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/books" class="nav-link <?= $currentPage === 'books' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/books" class="nav-link <?= $currentPage === 'books' ? 'active' : '' ?>" data-title="Books">
                         <i class="fas fa-book"></i>
                         <span>Books</span>
                     </a>
                 </div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/borrowed-books" class="nav-link <?= $currentPage === 'borrowed-books' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/borrowed-books" class="nav-link <?= $currentPage === 'borrowed-books' ? 'active' : '' ?>" data-title="Borrowed Books">
                         <i class="fas fa-book-reader"></i>
                         <span>Borrowed Books</span>
                     </a>
                 </div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/borrow-requests" class="nav-link <?= $currentPage === 'borrow-requests' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/borrow-requests" class="nav-link <?= $currentPage === 'borrow-requests' ? 'active' : '' ?>" data-title="Borrow Requests">
                         <i class="fas fa-hand-paper"></i>
                         <span>Borrow Requests</span>
                         <?php
@@ -487,7 +499,7 @@
                 <div class="nav-section-title">User Management</div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/users" class="nav-link <?= $currentPage === 'users' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/users" class="nav-link <?= $currentPage === 'users' ? 'active' : '' ?>" data-title="Users">
                         <i class="fas fa-users"></i>
                         <span>Users</span>
                     </a>
@@ -499,7 +511,7 @@
                 <div class="nav-section-title">Financial</div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/fines" class="nav-link <?= $currentPage === 'fines' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/fines" class="nav-link <?= $currentPage === 'fines' ? 'active' : '' ?>" data-title="Fines">
                         <i class="fas fa-dollar-sign"></i>
                         <span>Fines</span>
                         <?php
@@ -524,14 +536,14 @@
                 <div class="nav-section-title">System</div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/reports" class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/reports" class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>" data-title="Reports">
                         <i class="fas fa-chart-bar"></i>
                         <span>Reports</span>
                     </a>
                 </div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/notifications" class="nav-link <?= $currentPage === 'notifications' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/notifications" class="nav-link <?= $currentPage === 'notifications' ? 'active' : '' ?>" data-title="Notifications">
                         <i class="fas fa-bell"></i>
                         <span>Notifications</span>
                         <?php
@@ -552,7 +564,7 @@
                 </div>
                 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/maintenance" class="nav-link <?= $currentPage === 'maintenance' ? 'active' : '' ?>">
+                    <a href="<?= BASE_URL ?>admin/maintenance" class="nav-link <?= $currentPage === 'maintenance' ? 'active' : '' ?>" data-title="Maintenance">
                         <i class="fas fa-tools"></i>
                         <span>Maintenance</span>
                     </a>
@@ -569,6 +581,10 @@
                     <div class="user-role">Administrator</div>
                 </div>
             </div>
+            <a href="<?= BASE_URL ?>logout" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
         </div>
     </aside>
 
