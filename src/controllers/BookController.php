@@ -517,7 +517,13 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all available books - UPDATED: Fetch all fields
+        // Get filter parameters
+        $searchQuery = $_GET['q'] ?? '';
+        $categoryFilter = $_GET['category'] ?? '';
+        $statusFilter = $_GET['status'] ?? '';
+        $sortBy = $_GET['sort'] ?? 'title';
+        
+        // Build SQL query with filters
         $sql = "SELECT 
                     isbn,
                     bookName,
@@ -534,34 +540,96 @@ class BookController
                     isSpecial,
                     specialBadge
                 FROM books
-                WHERE available > 0
-                ORDER BY bookName ASC";
+                WHERE 1=1";
         
-        $result = $mysqli->query($sql);
+        $params = [];
+        $types = '';
+        
+        // Search filter
+        if (!empty($searchQuery)) {
+            $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR publisherName LIKE ? OR isbn LIKE ?)";
+            $like = '%' . $searchQuery . '%';
+            $params = array_merge($params, [$like, $like, $like, $like]);
+            $types .= 'ssss';
+        }
+        
+        // Publisher filter
+        if (!empty($categoryFilter)) {
+            $sql .= " AND publisherName = ?";
+            $params[] = $categoryFilter;
+            $types .= 's';
+        }
+        
+        // Availability status filter
+        if ($statusFilter === 'available') {
+            $sql .= " AND available > 0";
+        } elseif ($statusFilter === 'borrowed') {
+            $sql .= " AND borrowed > 0";
+        }
+        
+        // Sorting
+        switch ($sortBy) {
+            case 'title':
+                $sql .= " ORDER BY bookName ASC";
+                break;
+            case 'author':
+                $sql .= " ORDER BY authorName ASC";
+                break;
+            case 'available':
+                $sql .= " ORDER BY available DESC";
+                break;
+            default:
+                $sql .= " ORDER BY bookName ASC";
+        }
+        
+        // Execute query
+        $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            error_log("SQL Prepare Error in userBooks: " . $mysqli->error);
+            die("Error preparing query: " . $mysqli->error);
+        }
+        
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
         
         if (!$result) {
             error_log("SQL Error in userBooks: " . $mysqli->error);
+            $stmt->close();
             die("Error fetching books: " . $mysqli->error);
         }
         
         $books = [];
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                // Add 'image' alias for backward compatibility if needed
-                $row['image'] = $row['bookImage'];
-                $books[] = $row;
-            }
-            $result->free();
+        while ($row = $result->fetch_assoc()) {
+            // Add 'image' alias for backward compatibility if needed
+            $row['image'] = $row['bookImage'];
+            $books[] = $row;
         }
+        $stmt->close();
         
-        // Calculate statistics
-        $totalBooks = count($books);
-        $totalAvailable = 0;
-        $totalBorrowed = 0;
-        
-        foreach ($books as $book) {
-            $totalAvailable += ($book['available'] ?? 0);
-            $totalBorrowed += ($book['borrowed'] ?? 0);
+        // Calculate statistics (from all books, not filtered)
+        $statsSql = "SELECT 
+                        COUNT(*) as totalBooks,
+                        SUM(available) as totalAvailable,
+                        SUM(borrowed) as totalBorrowed
+                    FROM books";
+        $statsResult = $mysqli->query($statsSql);
+        if ($statsResult) {
+            $stats = $statsResult->fetch_assoc();
+            $totalBooks = $stats['totalBooks'] ?? 0;
+            $totalAvailable = $stats['totalAvailable'] ?? 0;
+            $totalBorrowed = $stats['totalBorrowed'] ?? 0;
+        } else {
+            $totalBooks = count($books);
+            $totalAvailable = 0;
+            $totalBorrowed = 0;
+            foreach ($books as $book) {
+                $totalAvailable += ($book['available'] ?? 0);
+                $totalBorrowed += ($book['borrowed'] ?? 0);
+            }
         }
         
         // Get categories for filter dropdown (publishers in this case)
