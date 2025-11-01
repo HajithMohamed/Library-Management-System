@@ -5,11 +5,8 @@ if (!defined('APP_ROOT')) {
 $pageTitle = 'Book Details';
 include APP_ROOT . '/views/layouts/header.php';
 
-// Simple authentication check - just verify user is logged in
-if (!isset($_SESSION['userId'])) {
-    header('Location: ' . BASE_URL . 'login');
-    exit();
-}
+// Note: Authentication is already checked in BookController::viewBook()
+// No additional permission checks needed here - Students are allowed
 ?>
 
 <style>

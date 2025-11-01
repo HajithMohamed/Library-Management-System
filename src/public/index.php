@@ -559,11 +559,14 @@ $router->addRoute('POST', '/user/change-password', 'UserController', 'changePass
 
 // User Books
 $router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
+// Support both path parameter and query parameter formats
+$router->addRoute('GET', '/user/book', 'BookController', 'viewBook');
 $router->addRoute('GET', '/user/book/{isbn}', 'BookController', 'viewBook');
 $router->addRoute('GET', '/user/reserve', 'UserController', 'reserve');
 $router->addRoute('POST', '/user/reserve', 'UserController', 'reserve');
 $router->addRoute('GET', '/user/reserve/{isbn}', 'UserController', 'reserve');
 $router->addRoute('POST', '/user/reserve/{isbn}', 'UserController', 'reserve');
+$router->addRoute('GET', '/user/reserved-books', 'UserController', 'reservedBooks');
 $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
 $router->addRoute('GET', '/user/return', 'BookController', 'return');
