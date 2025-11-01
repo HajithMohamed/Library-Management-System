@@ -645,11 +645,11 @@ $recentActivity = $recentActivity ?? [];
                 <div class="action-icon">
                     <i class="fas fa-undo"></i>
                 </div>
-                <h5>Return Books</h5>
-                <p>Return your borrowed books quickly and easily</p>
-                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/return" class="action-btn">
+                <h5>Returns</h5>
+                <p>View all books you have returned</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/returns" class="action-btn">
                     <i class="fas fa-undo"></i>
-                    <span>Return Now</span>
+                    <span>View Returns</span>
                 </a>
             </div>
             

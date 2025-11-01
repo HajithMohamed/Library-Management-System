@@ -573,6 +573,7 @@ $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
 $router->addRoute('GET', '/user/return', 'BookController', 'return');
 $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
+$router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 
 // User Fines
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');

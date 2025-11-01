@@ -655,4 +655,39 @@ class UserController extends BaseController
         
         $this->redirect('user/borrow-history');
     }
+    
+    /**
+     * Show all books returned by the user
+     */
+    public function returns()
+    {
+        $this->requireLogin();
+        
+        global $mysqli;
+        $userId = $_SESSION['userId'];
+        
+        $sql = "SELECT 
+                    bb.isbn,
+                    bb.returnDate,
+                    b.bookName,
+                    b.authorName
+                FROM books_borrowed bb
+                LEFT JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userid = ? AND bb.returnDate IS NOT NULL
+                ORDER BY bb.returnDate DESC";
+        
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $returnedBooks = [];
+        while ($row = $result->fetch_assoc()) {
+            $returnedBooks[] = $row;
+        }
+        $stmt->close();
+        
+        $this->data['returnedBooks'] = $returnedBooks;
+        $this->view('users/returns', $this->data);
+    }
 }
