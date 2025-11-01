@@ -295,9 +295,29 @@ class AdminController
     $status = $_GET['status'] ?? 'pending';
     $requests = $this->adminService->getBorrowRequests($status);
 
+    // --- NEW: Fetch counts for all statuses ---
+    global $mysqli;
+    $statusCounts = [
+      'pending' => 0,
+      'approved' => 0,
+      'rejected' => 0,
+      'all' => 0
+    ];
+    $result = $mysqli->query("SELECT status, COUNT(*) as cnt FROM borrow_requests GROUP BY status");
+    while ($row = $result->fetch_assoc()) {
+      $key = strtolower($row['status']);
+      if (isset($statusCounts[$key])) {
+        $statusCounts[$key] = (int)$row['cnt'];
+      }
+    }
+    // Total count
+    $result = $mysqli->query("SELECT COUNT(*) as cnt FROM borrow_requests");
+    $statusCounts['all'] = (int)($result->fetch_assoc()['cnt'] ?? 0);
+
     $this->render('admin/borrow-requests', [
       'requests' => $requests,
-      'currentStatus' => $status
+      'currentStatus' => $status,
+      'statusCounts' => $statusCounts // pass to view
     ]);
   }
 
@@ -397,15 +417,15 @@ class AdminController
                 // Update book availability
                 $mysqli->query("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = '{$request['isbn']}'");
 
-                // Update borrow_requests status to Borrowed
-                $updateStmt = $mysqli->prepare("UPDATE borrow_requests SET status = 'Borrowed', updatedAt = NOW() WHERE id = ?");
+                // Do NOT set status to 'Borrowed' (not allowed by ENUM). Just update updatedAt.
+                $updateStmt = $mysqli->prepare("UPDATE borrow_requests SET updatedAt = NOW() WHERE id = ?");
                 $updateStmt->bind_param("i", $requestId);
                 $updateStmt->execute();
 
                 // Send notification to user
                 $notifStmt = $mysqli->prepare("
                     INSERT INTO notifications (userId, title, message, type, priority, relatedId) 
-                    VALUES (?, 'Book Borrowed', ?, 'borrowed', 'high', ?)
+                    VALUES (?, 'Book Borrowed', ?, 'system', 'high', ?)
                 ");
                 $notifMessage = "You have successfully borrowed the book (ISBN: {$request['isbn']}). Due date: {$dueDate}";
                 $notifStmt->bind_param("ssi", $request['userId'], $notifMessage, $requestId);
