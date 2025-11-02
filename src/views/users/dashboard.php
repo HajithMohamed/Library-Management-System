@@ -650,7 +650,7 @@ $recentActivity = $recentActivity ?? [];
             
             <div class="stat-card danger">
                 <div class="stat-info">
-                    <h4>₹<?= $userStats['total_fines'] ?></h4>
+                    <h4>LKR<?= $userStats['total_fines'] ?></h4>
                     <p>Total Fines</p>
                 </div>
                 <div class="stat-icon">

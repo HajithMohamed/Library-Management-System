@@ -486,4 +486,28 @@ class FacultyController extends BaseController
         $this->data['userType'] = $userType;
         $this->view('faculty/notifications', $this->data);
     }
+
+    public function borrowedBooks()
+    {
+        $this->requireLogin(['Faculty']);
+        
+        $userId = $_SESSION['userId'];
+        
+        // Get all currently borrowed books (not returned)
+        $borrowedBooks = $this->borrowModel->getAllBorrowedBooks($userId);
+        
+        // Get filter if provided
+        $status = $_GET['status'] ?? 'all';
+        
+        if ($status === 'overdue') {
+            $borrowedBooks = array_filter($borrowedBooks, function($book) {
+                return !empty($book['isOverdue']);
+            });
+        }
+        
+        $this->data['borrowedBooks'] = $borrowedBooks;
+        $this->data['status'] = $status;
+        
+        $this->view('faculty/borrowed-books', $this->data);
+    }
 }

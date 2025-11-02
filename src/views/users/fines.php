@@ -618,7 +618,7 @@ if (!empty($fines)) {
                 <?php if (!empty($fines) && $totalFine > 0) { ?>
                 <div class="total-badge">
                     <div class="total-badge-label">Total Outstanding</div>
-                    <div class="total-badge-amount">₹<?= number_format($totalFine, 2) ?></div>
+                    <div class="total-badge-amount">LKR<?= number_format($totalFine, 2) ?></div>
                 </div>
                 <?php } ?>
             </div>
@@ -658,13 +658,18 @@ if (!empty($fines)) {
                             $fineAmount = (float)($fine['fineAmount'] ?? 0);
                             
                             $borrowDate = new DateTime($fine['borrowDate']);
-                            $maxBorrowDays = isset($fine['max_borrow_days']) ? (int)$fine['max_borrow_days'] : 14;
                             $dueDate = clone $borrowDate;
-                            $dueDate->add(new DateInterval("P{$maxBorrowDays}D"));
+                            $dueDate->add(new DateInterval("P14D")); // 14 days standard
                             
                             $currentDate = new DateTime();
                             $interval = $dueDate->diff($currentDate);
                             $daysOverdue = $currentDate > $dueDate ? $interval->days : 0;
+                            
+                            // Use database fineAmount or calculate if not returned yet
+                            if ($fine['returnDate'] === null && $daysOverdue > 0) {
+                                $calculatedFine = $daysOverdue * 5;
+                                $fineAmount = max($fineAmount, $calculatedFine);
+                            }
                         ?>
                             <tr>
                                 <td data-label="Book Details">
@@ -707,19 +712,12 @@ if (!empty($fines)) {
                                 </td>
                                 <td data-label="Action">
                                     <?php if ($fineAmount > 0): ?>
-                                        <form method="POST" action="<?= BASE_URL ?>user/fines" style="display:inline">
-                                            <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
-                                            <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
-                                            <button type="submit" class="btn-pay">
-                                                <i class="fas fa-credit-card"></i>
-                                                <span>Pay Now</span>
-                                            </button>
-                                        </form>
+                                        <a href="<?php echo BASE_URL; ?>user/payFine?tid=<?php echo urlencode($fine['tid']); ?>&amount=<?php echo urlencode($fine['fineAmount']); ?>" 
+                                           class="btn btn-success btn-sm">
+                                            <i class="fas fa-credit-card"></i> Pay Now
+                                        </a>
                                     <?php else: ?>
-                                        <span class="no-fine-badge">
-                                            <i class="fas fa-check"></i>
-                                            No Fine
-                                        </span>
+                                        <span class="badge bg-success">Paid</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

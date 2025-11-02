@@ -577,6 +577,8 @@ $router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 
 // User Fines
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
+$router->addRoute('GET', '/user/payFine', 'UserController', 'showPaymentForm');
+$router->addRoute('POST', '/user/payFine', 'UserController', 'payFine');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
 
 // User Notifications

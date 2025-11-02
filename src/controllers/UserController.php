@@ -5,12 +5,14 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Models\Book;
 use App\Models\BorrowRecord;
+use App\Models\Transaction;
 
 class UserController extends BaseController
 {
     private $userModel;
     private $bookModel;
     private $borrowModel;
+    private $transactionModel;
 
     public function __construct()
     {
@@ -18,6 +20,7 @@ class UserController extends BaseController
         $this->userModel = new User();
         $this->bookModel = new Book();
         $this->borrowModel = new BorrowRecord();
+        $this->transactionModel = new Transaction();
     }
 
     /**
@@ -59,7 +62,7 @@ class UserController extends BaseController
             $overdueCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
             $stmt->close();
             
-            // Calculate total fines (₹5 per day for overdue books)
+            // Calculate total fines (LKR5 per day for overdue books)
             $stmt = $mysqli->prepare("SELECT isbn, dueDate FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
             $stmt->bind_param("s", $userId);
             $stmt->execute();
@@ -71,7 +74,7 @@ class UserController extends BaseController
                 $today = new \DateTime();
                 $interval = $today->diff($dueDate);
                 $daysOverdue = $interval->days;
-                $totalFines += $daysOverdue * 5; // ₹5 per day
+                $totalFines += $daysOverdue * 5; // LKR5 per day
             }
             $stmt->close();
             
@@ -219,10 +222,67 @@ class UserController extends BaseController
         }
         
         $userId = $_SESSION['userId'];
-        $fines = $this->borrowModel->getUserFines($userId);
+        
+        // Get fines from Transaction model
+        $fines = $this->transactionModel->getFinesByUserId($userId);
+        
+        // Ensure all records have proper structure
+        foreach ($fines as &$fine) {
+            $fine['title'] = $fine['bookName'] ?? 'Unknown Book';
+            $fine['borrowDate'] = $fine['borrowDate'] ?? date('Y-m-d');
+            $fine['fineAmount'] = $fine['fineAmount'] ?? 0;
+        }
         
         $this->data['fines'] = $fines;
         $this->view('users/fines', $this->data);
+    }
+
+    /**
+     * Show payment form for fine payment
+     */
+    public function showPaymentForm()
+    {
+        $this->requireLogin();
+        
+        // Redirect Faculty users to their own fines page
+        if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            $this->redirect('faculty/fines');
+            return;
+        }
+        
+        $transactionId = $_GET['tid'] ?? '';
+        $amount = $_GET['amount'] ?? 0;
+        
+        if (!$transactionId || !$amount) {
+            $_SESSION['error'] = 'Invalid payment request';
+            $this->redirect('user/fines');
+            return;
+        }
+        
+        global $mysqli;
+        
+        // Verify the transaction belongs to this user
+        $userId = $_SESSION['userId'];
+        $stmt = $mysqli->prepare("
+            SELECT t.*, b.bookName 
+            FROM transactions t
+            LEFT JOIN books b ON t.isbn = b.isbn
+            WHERE t.tid = ? AND t.userId = ? AND t.fineStatus = 'unpaid'
+        ");
+        $stmt->bind_param("ss", $transactionId, $userId);
+        $stmt->execute();
+        $transaction = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$transaction) {
+            $_SESSION['error'] = 'Transaction not found or already paid';
+            $this->redirect('user/fines');
+            return;
+        }
+        
+        $this->data['transaction'] = $transaction;
+        $this->data['amount'] = $amount;
+        $this->view('users/payment-form', $this->data);
     }
 
     /**
@@ -243,16 +303,139 @@ class UserController extends BaseController
             return;
         }
         
-        $borrowId = $_POST['borrow_id'] ?? 0;
+        $transactionId = $_POST['borrow_id'] ?? $_POST['transaction_id'] ?? '';
         $amount = $_POST['amount'] ?? 0;
+        $cardNumber = $_POST['card_number'] ?? '';
+        $cardName = $_POST['card_name'] ?? '';
+        $expiryDate = $_POST['expiry_date'] ?? '';
+        $cvv = $_POST['cvv'] ?? '';
+        $paymentMethod = $_POST['payment_method'] ?? 'credit_card';
         
-        if ($this->borrowModel->payFine($borrowId, $amount)) {
-            $_SESSION['success'] = 'Fine paid successfully';
-        } else {
+        // Validate payment details
+        $errors = [];
+        
+        if (empty($cardName)) {
+            $errors[] = 'Cardholder name is required';
+        }
+        
+        if (empty($cardNumber)) {
+            $errors[] = 'Card number is required';
+        } elseif (!$this->validateCardNumber($cardNumber)) {
+            $errors[] = 'Invalid card number';
+        }
+        
+        if (empty($expiryDate)) {
+            $errors[] = 'Expiry date is required';
+        } elseif (!$this->validateExpiryDate($expiryDate)) {
+            $errors[] = 'Invalid or expired card';
+        }
+        
+        if (empty($cvv)) {
+            $errors[] = 'CVV is required';
+        } elseif (!preg_match('/^\d{3,4}$/', $cvv)) {
+            $errors[] = 'Invalid CVV';
+        }
+        
+        if (!empty($errors)) {
+            $_SESSION['error'] = implode('<br>', $errors);
+            header('Location: ' . BASE_URL . 'user/payFine?tid=' . $transactionId . '&amount=' . $amount);
+            exit;
+        }
+        
+        global $mysqli;
+        
+        try {
+            // Update fine status and set finePaymentDate
+            $stmt = $mysqli->prepare("
+                UPDATE transactions 
+                SET fineStatus = 'paid', 
+                    finePaymentDate = CURDATE(), 
+                    lastFinePaymentDate = CURDATE() 
+                WHERE tid = ?
+            ");
+            $stmt->bind_param("s", $transactionId);
+            
+            if ($stmt->execute()) {
+                // Log the payment
+                $logStmt = $mysqli->prepare("
+                    INSERT INTO payment_logs 
+                    (userId, transactionId, amount, paymentMethod, cardLastFour, paymentDate, status) 
+                    VALUES (?, ?, ?, ?, ?, NOW(), 'success')
+                ");
+                $cardLastFour = substr($cardNumber, -4);
+                $logStmt->bind_param("ssdss", 
+                    $_SESSION['userId'], 
+                    $transactionId, 
+                    $amount, 
+                    $paymentMethod, 
+                    $cardLastFour
+                );
+                $logStmt->execute();
+                $logStmt->close();
+                
+                $_SESSION['success'] = 'Payment of ₹' . number_format($amount, 2) . ' processed successfully!';
+            } else {
+                $_SESSION['error'] = 'Failed to process payment';
+            }
+            $stmt->close();
+        } catch (\Exception $e) {
+            error_log("Error paying fine: " . $e->getMessage());
             $_SESSION['error'] = 'Failed to process payment';
         }
         
         $this->redirect('user/fines');
+    }
+    
+    /**
+     * Validate card number using Luhn algorithm
+     */
+    private function validateCardNumber($number)
+    {
+        $number = preg_replace('/\s+/', '', $number);
+        
+        if (!preg_match('/^\d{13,19}$/', $number)) {
+            return false;
+        }
+        
+        $sum = 0;
+        $length = strlen($number);
+        
+        for ($i = 0; $i < $length; $i++) {
+            $digit = (int)$number[$length - $i - 1];
+            
+            if ($i % 2 === 1) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            
+            $sum += $digit;
+        }
+        
+        return ($sum % 10 === 0);
+    }
+    
+    /**
+     * Validate expiry date
+     */
+    private function validateExpiryDate($expiryDate)
+    {
+        if (!preg_match('/^(0[1-9]|1[0-2])\/(\d{2})$/', $expiryDate, $matches)) {
+            return false;
+        }
+        
+        $month = (int)$matches[1];
+        $year = (int)$matches[2] + 2000;
+        
+        $currentYear = (int)date('Y');
+        $currentMonth = (int)date('m');
+        
+        if ($year < $currentYear || ($year === $currentYear && $month < $currentMonth)) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -585,7 +768,7 @@ class UserController extends BaseController
                 if ($today > $dueDate) {
                     $interval = $today->diff($dueDate);
                     $daysOverdue = $interval->days;
-                    $record['fineAmount'] = $daysOverdue * 5; // ₹5 per day
+                    $record['fineAmount'] = $daysOverdue * 5; // LKR5 per day
                     $record['fineStatus'] = 'Unpaid';
                 }
             }

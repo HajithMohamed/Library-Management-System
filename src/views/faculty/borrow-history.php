@@ -250,12 +250,11 @@ include APP_ROOT . '/views/layouts/header.php';
                                 <?php if (empty($item['returnDate'])): ?>
                                     <div style="display:flex; flex-direction:column; gap:8px;">
                                         <button class="extend-btn"
-                                            onclick="openExtendModal('<?= htmlspecialchars($item['tid'] ?? $item['transactionId'] ?? '') ?>', '<?= htmlspecialchars($item['bookName'] ?? $item['title'] ?? '') ?>', '<?= htmlspecialchars($item['dueDate'] ?? '') ?>')"
+                                            onclick="openExtendModal('<?= htmlspecialchars($item['id'] ?? '') ?>', '<?= htmlspecialchars($item['bookName'] ?? '') ?>', '<?= htmlspecialchars($item['dueDate'] ?? '') ?>')"
                                             <?= !empty($item['extend_requested']) && $item['extend_requested'] ? 'disabled title="Already requested"' : '' ?>>
                                             <i class="fas fa-clock"></i>
                                             <?= !empty($item['extend_requested']) && $item['extend_requested'] ? 'Requested' : 'Extend Due Date' ?>
                                         </button>
-                                        <!-- You can add more actions here if needed -->
                                     </div>
                                 <?php else: ?>
                                     <span style="color:#a1a1aa;">-</span>
