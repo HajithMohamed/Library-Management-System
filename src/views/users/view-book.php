@@ -115,7 +115,7 @@ if (!$book) {
         overflow: hidden;
         box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
         transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        margin-bottom: 2.5rem;
+        margin-bottom: 2rem;
         position: relative;
         z-index: 1;
     }
@@ -152,6 +152,54 @@ if (!$book) {
     
     .book-image-wrapper:hover .book-image {
         transform: scale(1.05);
+    }
+    
+    /* ISBN Badge - Left Side (Below Image) */
+    .book-isbn-badge-left {
+        width: 280px;
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.25);
+        text-align: center;
+        z-index: 10;
+        border: 2px solid rgba(102, 126, 234, 0.15);
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.8s ease-out 0.4s both;
+        margin-bottom: 2rem;
+    }
+
+    .book-isbn-badge-left:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.35);
+    }
+
+    .book-isbn-badge-left .label {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .book-isbn-badge-left .label i {
+        font-size: 0.9rem;
+    }
+
+    .book-isbn-badge-left .value {
+        font-size: 1.1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 800;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 1px;
     }
     
     /* Decorative Elements Container */
@@ -295,66 +343,6 @@ if (!$book) {
             transform: scale(1.2);
             opacity: 0.5;
         }
-    }
-    
-    /* ISBN Badge - Now in Right Section Top */
-    .book-isbn-badge-top {
-        position: absolute;
-        top: 2rem;
-        right: 2rem;
-        background: white;
-        padding: 0.75rem 1.5rem;
-        border-radius: 50px;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.25);
-        text-align: center;
-        z-index: 10;
-        border: 2px solid rgba(102, 126, 234, 0.15);
-        transition: all 0.3s ease;
-        animation: slideInRight 0.6s ease-out 0.3s both;
-    }
-    
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    .book-isbn-badge-top:hover {
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.35);
-    }
-    
-    .book-isbn-badge-top .label {
-        font-size: 0.65rem;
-        color: #9ca3af;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-    }
-    
-    .book-isbn-badge-top .label i {
-        font-size: 0.75rem;
-    }
-    
-    .book-isbn-badge-top .value {
-        font-size: 0.95rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 800;
-        font-family: 'Courier New', monospace;
-        letter-spacing: 0.5px;
     }
     
     /* Right Side - Book Details */
@@ -722,6 +710,10 @@ if (!$book) {
             width: 240px;
             height: 340px;
         }
+        
+        .book-isbn-badge-left {
+            width: 240px;
+        }
     }
     
     @media (max-width: 992px) {
@@ -738,7 +730,10 @@ if (!$book) {
         .book-image-wrapper {
             width: 220px;
             height: 310px;
-            margin-bottom: 2rem;
+        }
+        
+        .book-isbn-badge-left {
+            width: 220px;
         }
         
         .book-details-section {
@@ -779,16 +774,6 @@ if (!$book) {
         .book-details-section {
             padding: 2.5rem 2rem;
         }
-        
-        .book-isbn-badge-top {
-            top: 1.5rem;
-            right: 1.5rem;
-            padding: 0.6rem 1.2rem;
-        }
-        
-        .book-isbn-badge-top .value {
-            font-size: 0.85rem;
-        }
     }
     
     @media (max-width: 480px) {
@@ -803,6 +788,15 @@ if (!$book) {
         .availability-banner {
             flex-direction: column;
             text-align: center;
+        }
+        
+        .book-image-wrapper {
+            width: 200px;
+            height: 280px;
+        }
+        
+        .book-isbn-badge-left {
+            width: 200px;
         }
     }
 </style>
@@ -836,6 +830,14 @@ if (!$book) {
                     <?php endif; ?>
                 </div>
                 
+                <!-- ISBN Badge - Below Book Image -->
+                <div class="book-isbn-badge-left">
+                    <div class="label">
+                        <i class="fas fa-barcode"></i> ISBN
+                    </div>
+                    <div class="value"><?= htmlspecialchars($book['isbn']) ?></div>
+                </div>
+                
                 <!-- Decorative Animated Elements -->
                 <div class="decorative-elements">
                     <!-- Floating Book Icons -->
@@ -865,14 +867,6 @@ if (!$book) {
             
             <!-- Right Side - Book Details -->
             <div class="book-details-section">
-                <!-- ISBN Badge - Top Right -->
-                <div class="book-isbn-badge-top">
-                    <div class="label">
-                        <i class="fas fa-barcode"></i> ISBN
-                    </div>
-                    <div class="value"><?= htmlspecialchars($book['isbn']) ?></div>
-                </div>
-                
                 <div class="book-header-top">
                     <h1 class="book-title"><?= htmlspecialchars($book['bookName']) ?></h1>
                     <p class="book-author">

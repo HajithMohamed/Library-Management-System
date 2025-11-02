@@ -25,7 +25,7 @@ body::-webkit-scrollbar {
 .reserved-modern-bg {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 4rem 2rem;
+    padding: 3rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -69,8 +69,8 @@ body::-webkit-scrollbar {
     backdrop-filter: blur(10px);
     border-radius: 32px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
-    max-width: 1600px;
-    width: 95%;
+    max-width: 1800px;
+    width: 98%;
     margin: 0 auto;
     overflow: hidden;
     animation: slideUpFade 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -257,8 +257,11 @@ body::-webkit-scrollbar {
 /* Modern Table */
 .table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
     border-radius: 20px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    max-height: 600px;
+    min-height: 500px;
     /* Hide scrollbar but keep functionality */
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
@@ -273,6 +276,7 @@ body::-webkit-scrollbar {
     border-collapse: separate;
     border-spacing: 0;
     margin-top: 0;
+    table-layout: fixed;
 }
 
 .reserved-modern-table thead {
@@ -296,10 +300,32 @@ body::-webkit-scrollbar {
 
 .reserved-modern-table th:first-child {
     border-radius: 20px 0 0 0;
+    width: 18%;
+}
+
+.reserved-modern-table th:nth-child(2) {
+    width: 16%;
+}
+
+.reserved-modern-table th:nth-child(3) {
+    width: 13%;
+}
+
+.reserved-modern-table th:nth-child(4) {
+    width: 12%;
+}
+
+.reserved-modern-table th:nth-child(5) {
+    width: 13%;
+}
+
+.reserved-modern-table th:nth-child(6) {
+    width: 12%;
 }
 
 .reserved-modern-table th:last-child {
     border-radius: 0 20px 0 0;
+    width: 16%;
 }
 
 .reserved-modern-table tbody tr {
@@ -331,28 +357,32 @@ body::-webkit-scrollbar {
     font-weight: 600;
     color: #374151;
     border: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .book-title-cell {
     font-weight: 800;
     color: #1f2937;
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .author-cell {
     color: #667eea;
     font-weight: 700;
+    font-size: 0.95rem;
 }
 
 .isbn-cell {
     font-family: 'Courier New', monospace;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: #6b7280;
 }
 
 .date-cell {
     color: #6b7280;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 /* Status Badges */
@@ -548,8 +578,8 @@ body::-webkit-scrollbar {
     
     .reserved-modern-table th,
     .reserved-modern-table td {
-        padding: 1rem 0.75rem;
-        font-size: 0.9rem;
+        padding: 0.85rem 0.6rem;
+        font-size: 0.8rem;
     }
     
     .stats-summary {
@@ -565,12 +595,12 @@ body::-webkit-scrollbar {
     }
     
     .reserved-modern-table {
-        font-size: 0.85rem;
+        font-size: 0.75rem;
     }
     
     .status-badge-modern {
         padding: 0.5rem 1rem;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 }
 </style>
@@ -655,10 +685,10 @@ body::-webkit-scrollbar {
                         <tbody>
                             <?php foreach ($requests as $req): ?>
                             <tr>
-                                <td class="book-title-cell">
+                                <td class="book-title-cell" title="<?= htmlspecialchars($req['bookName'] ?? 'N/A') ?>">
                                     <?= htmlspecialchars($req['bookName'] ?? 'N/A') ?>
                                 </td>
-                                <td class="author-cell">
+                                <td class="author-cell" title="<?= htmlspecialchars($req['authorName'] ?? 'N/A') ?>">
                                     <?= htmlspecialchars($req['authorName'] ?? 'N/A') ?>
                                 </td>
                                 <td class="isbn-cell">
@@ -675,7 +705,14 @@ body::-webkit-scrollbar {
                                 <td class="date-cell">
                                     <?= !empty($req['dueDate']) ? date('M d, Y', strtotime($req['dueDate'])) : '-' ?>
                                 </td>
-                                <td>
+                                <td title="<?php
+                                    $status = $req['status'] ?? 'Pending';
+                                    if ($status === 'Rejected') {
+                                        echo htmlspecialchars($req['rejectionReason'] ?? '-');
+                                    } else {
+                                        echo htmlspecialchars($req['approvedBy'] ?? '-');
+                                    }
+                                    ?>">
                                     <?php
                                     $status = $req['status'] ?? 'Pending';
                                     if ($status === 'Rejected') {

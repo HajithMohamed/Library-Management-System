@@ -754,14 +754,14 @@ class BookController
                     $updateStmt->close();
                 }
                 
-                header('Location: /user/return');
+                header('Location: /users/returns');
                 exit();
             }
         }
         
         // Load user return view
         $pageTitle = 'Return Books';
-        include APP_ROOT . '/views/users/return.php';
+        include APP_ROOT . '/views/users/returns.php';
     }
 
     /**
