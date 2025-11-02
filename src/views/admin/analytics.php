@@ -573,7 +573,7 @@ $recentActivities = $recentActivities ?? [];
         <div class="stat-header">
           <div>
             <div class="stat-title">Total Fines</div>
-            <div class="stat-value">₹<?= number_format($stats['total_fines'] ?? 0, 2) ?></div>
+            <div class="stat-value">LKR<?= number_format($stats['total_fines'] ?? 0, 2) ?></div>
             <div class="stat-subtitle">
               <?php
               $pendingFines = 0;
@@ -581,7 +581,7 @@ $recentActivities = $recentActivities ?? [];
                 $pendingFines += $stat['pendingFines'] ?? 0;
               }
               ?>
-              ₹<?= number_format($pendingFines, 2) ?> pending
+              LKR<?= number_format($pendingFines, 2) ?> pending
             </div>
           </div>
           <div class="stat-icon warning">
@@ -928,7 +928,7 @@ $recentActivities = $recentActivities ?? [];
           cornerRadius: 8,
           callbacks: {
             label: function(context) {
-              return context.dataset.label + ': ₹' + context.parsed.y.toFixed(2);
+              return context.dataset.label + ': LKR' + context.parsed.y.toFixed(2);
             }
           }
         }
@@ -943,7 +943,7 @@ $recentActivities = $recentActivities ?? [];
           ticks: {
             padding: 10,
             callback: function(value) {
-              return '₹' + value;
+              return 'LKR' + value;
             }
           }
         },

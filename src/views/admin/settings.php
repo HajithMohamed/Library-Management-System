@@ -490,7 +490,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="fine_per_day" class="form-label">Fine Per Day (₹)</label>
+                                            <label for="fine_per_day" class="form-label">Fine Per Day (LKR)</label>
                                             <input type="number" class="form-control" id="fine_per_day" 
                                                    name="settings[fine_per_day]" 
                                                    value="<?= $fineSettings['fine_per_day'] ?? '5' ?>" 
@@ -531,7 +531,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="max_fine_amount" class="form-label">Maximum Fine Amount (₹)</label>
+                                            <label for="max_fine_amount" class="form-label">Maximum Fine Amount (LKR)</label>
                                             <input type="number" class="form-control" id="max_fine_amount" 
                                                    name="settings[max_fine_amount]" 
                                                    value="<?= $fineSettings['max_fine_amount'] ?? '500' ?>" 
