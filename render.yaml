@@ -12,7 +12,6 @@ services:
     dockerfilePath: ./docker/php/Dockerfile
     dockerContext: .
     startCommand: /usr/local/bin/render-start.sh
-    # 'ports' field is not used for Docker services; port is auto-detected.
     envVars:
       - key: TZ
         value: Asia/Kolkata
@@ -49,8 +48,6 @@ services:
     dockerfilePath: ./docker/nginx/Dockerfile.render
     dockerContext: .
     plan: free
-    # Corrected: Removed the 'ports' field. It's not valid for Docker services.
-    # Render will auto-detect port 80 exposed in the Nginx Dockerfile.
     envVars:
       - key: PHP_HOST
         fromService:
@@ -69,9 +66,10 @@ services:
   - type: web
     name: ils-phpmyadmin
     env: docker
-    # Corrected: The field is 'image', not 'dockerImage'.
-    image: phpmyadmin/phpmyadmin:latest
     plan: free
+    # Corrected: 'image' must be an object with a 'url' key.
+    image:
+      url: phpmyadmin/phpmyadmin:latest
     envVars:
       - key: PMA_HOST
         fromService:
@@ -97,8 +95,7 @@ databases:
     databaseName: integrated_library_system
     user: library_user
     plan: free
-    # Corrected: The field is 'engine', not 'type'.
-    engine: mysql
+    # Corrected: Removed the invalid 'engine: mysql' field.
 
 #-----------------------------------
 # Environment Variable Group
