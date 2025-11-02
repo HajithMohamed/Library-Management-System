@@ -4,7 +4,7 @@ namespace App\Models;
 
 class BorrowRecord extends BaseModel
 {
-    protected $table = 'transactions';
+    protected $table = 'books_borrowed';
 
     public function getActiveBorrowCount($userId)
     {
@@ -38,7 +38,7 @@ class BorrowRecord extends BaseModel
         try {
             $sql = "SELECT COUNT(*) as count FROM {$this->table} 
                     WHERE userId = ? AND returnDate IS NULL 
-                    AND borrowDate < DATE_SUB(CURDATE(), INTERVAL 14 DAY)";
+                    AND dueDate < CURDATE()";
             $stmt = $this->db->prepare($sql);
             if (!$stmt) {
                 error_log("Failed to prepare statement in getOverdueCount: " . $this->db->error);
@@ -91,11 +91,11 @@ class BorrowRecord extends BaseModel
     public function getRecentActivity($userId, $limit = 5)
     {
         try {
-            $sql = "SELECT t.*, b.bookName as title, b.authorName as author 
-                    FROM {$this->table} t
-                    JOIN books b ON t.isbn = b.isbn
-                    WHERE t.userId = ?
-                    ORDER BY t.borrowDate DESC
+            $sql = "SELECT bb.*, b.bookName as title, b.authorName as author 
+                    FROM {$this->table} bb
+                    JOIN books b ON bb.isbn = b.isbn
+                    WHERE bb.userId = ?
+                    ORDER BY bb.borrowDate DESC
                     LIMIT ?";
             $stmt = $this->db->prepare($sql);
             if (!$stmt) {
@@ -121,7 +121,7 @@ class BorrowRecord extends BaseModel
                 $activity[] = [
                     'borrow_date' => $row['borrowDate'] ?? null,
                     'return_date' => $row['returnDate'] ?? null,
-                    'due_date' => !empty($row['borrowDate']) ? date('Y-m-d', strtotime($row['borrowDate'] . ' + 14 days')) : null,
+                    'due_date' => $row['dueDate'] ?? null,
                     'title' => $row['title'] ?? 'Unknown',
                     'author' => $row['author'] ?? 'Unknown'
                 ];
@@ -136,11 +136,13 @@ class BorrowRecord extends BaseModel
 
     public function getUserFines($userId)
     {
-        $sql = "SELECT t.*, b.bookName as title, b.authorName as author 
-                FROM {$this->table} t
-                JOIN books b ON t.isbn = b.isbn
-                WHERE t.userId = ? AND t.fineAmount > 0 AND t.fineStatus = 'pending'
-                ORDER BY t.borrowDate DESC";
+        // Note: Assuming fines are tracked in books_borrowed or separate table
+        // Adjust if needed based on your schema
+        $sql = "SELECT bb.*, b.bookName as title, b.authorName as author 
+                FROM {$this->table} bb
+                JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userId = ? AND bb.status = 'Overdue'
+                ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
@@ -168,11 +170,11 @@ class BorrowRecord extends BaseModel
 
     public function getActiveBorrows($userId)
     {
-        $sql = "SELECT t.*, b.bookName as title, b.authorName as author, b.isbn 
-                FROM {$this->table} t
-                JOIN books b ON t.isbn = b.isbn
-                WHERE t.userId = ? AND t.returnDate IS NULL
-                ORDER BY t.borrowDate DESC";
+        $sql = "SELECT bb.*, b.bookName as title, b.authorName as author, b.isbn 
+                FROM {$this->table} bb
+                JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userId = ? AND bb.returnDate IS NULL
+                ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
@@ -182,31 +184,98 @@ class BorrowRecord extends BaseModel
     public function returnBook($borrowId)
     {
         $sql = "UPDATE {$this->table} 
-                SET returnDate = CURDATE() 
-                WHERE tid = ?";
+                SET returnDate = CURDATE(), status = 'Returned' 
+                WHERE id = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $borrowId);
+        $stmt->bind_param('i', $borrowId);
         return $stmt->execute();
     }
 
     public function getBorrowHistory($userId = null)
     {
-        // Use correct aliases for bookName and authorName
-        $sql = "SELECT t.*, b.bookName, b.authorName, b.isbn 
-                FROM {$this->table} t
-                JOIN books b ON t.isbn = b.isbn
-                WHERE t.userId = ?
-                ORDER BY t.borrowDate DESC";
+        $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn 
+                FROM {$this->table} bb
+                JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userId = ?
+                ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+        return $results;
+    }
+
+    public function getAllBorrowedBooks($userId = null)
+    {
+        if ($userId) {
+            $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn, b.category,
+                    u.username, u.emailId, u.userType
+                    FROM {$this->table} bb
+                    JOIN books b ON bb.isbn = b.isbn
+                    JOIN users u ON bb.userId = u.userId
+                    WHERE bb.userId = ? AND bb.returnDate IS NULL
+                    ORDER BY bb.borrowDate DESC";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param('s', $userId);
+        } else {
+            $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn, b.category,
+                    u.username, u.emailId, u.userType
+                    FROM {$this->table} bb
+                    JOIN books b ON bb.isbn = b.isbn
+                    JOIN users u ON bb.userId = u.userId
+                    WHERE bb.returnDate IS NULL
+                    ORDER BY bb.borrowDate DESC";
+            $stmt = $this->db->prepare($sql);
+        }
+        
+        $stmt->execute();
+        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        // Calculate if overdue
         foreach ($results as &$row) {
-            if (empty($row['dueDate']) && !empty($row['borrowDate'])) {
-                $row['dueDate'] = date('Y-m-d', strtotime($row['borrowDate'] . ' + 14 days'));
+            $row['isOverdue'] = !empty($row['dueDate']) && strtotime($row['dueDate']) < time();
+        }
+        
+        return $results;
+    }
+
+    public function getAllBorrowRecords($filters = [])
+    {
+        $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn, b.category,
+                u.username, u.emailId, u.userType
+                FROM {$this->table} bb
+                JOIN books b ON bb.isbn = b.isbn
+                JOIN users u ON bb.userId = u.userId
+                WHERE 1=1";
+        
+        $params = [];
+        $types = '';
+        
+        if (!empty($filters['userId'])) {
+            $sql .= " AND bb.userId = ?";
+            $params[] = $filters['userId'];
+            $types .= 's';
+        }
+        
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'active') {
+                $sql .= " AND bb.returnDate IS NULL";
+            } elseif ($filters['status'] === 'returned') {
+                $sql .= " AND bb.returnDate IS NOT NULL";
+            } elseif ($filters['status'] === 'overdue') {
+                $sql .= " AND bb.returnDate IS NULL AND bb.dueDate < CURDATE()";
             }
         }
-        return $results;
+        
+        $sql .= " ORDER BY bb.borrowDate DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
 }
