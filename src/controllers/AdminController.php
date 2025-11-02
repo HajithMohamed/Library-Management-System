@@ -1005,6 +1005,48 @@ class AdminController
 
     $this->render('admin/reserved-books', ['requests' => $requests]);
   }
+  
+    /**
+   * Export Report
+   */
+  public function exportReport()
+  {
+    $this->authHelper->requireAdmin();
+
+    $startDate = $_GET['start_date'] ?? date('Y-m-01');
+    $endDate = $_GET['end_date'] ?? date('Y-m-d');
+    $reportType = $_GET['type'] ?? 'overview';
+
+    $report = $this->adminService->generateReport($reportType, $startDate, $endDate);
+    
+    $filename = "report_{$reportType}_{$startDate}_to_{$endDate}.txt";
+    
+    header('Content-Type: text/plain');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $content = "Library Report\n";
+    $content .= "Type: " . ucfirst($reportType) . "\n";
+    $content .= "Period: {$startDate} to {$endDate}\n";
+    $content .= "=================================================\n\n";
+
+    if (empty($report)) {
+        $content .= "No data available for this report.";
+    } else {
+        foreach ($report as $key => $value) {
+            if (is_array($value)) {
+                $content .= ucfirst(str_replace('_', ' ', $key)) . ":\n";
+                foreach($value as $sub_key => $sub_value) {
+                     $content .= "  - " . ucfirst(str_replace('_', ' ', $sub_key)) . ": " . $sub_value . "\n";
+                }
+            } else {
+                $content .= ucfirst(str_replace('_', ' ', $key)) . ": " . $value . "\n";
+            }
+        }
+    }
+    
+    echo $content;
+    exit;
+  }
 
   /**
    * Admin Profile
