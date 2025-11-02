@@ -1120,7 +1120,7 @@ class AdminService
   }
 
   /**
-   * Get all borrowed books with filters
+   * Get all borrowed books with filters - FIXED WITH NULL SAFETY
    */
   public function getAllBorrowedBooks($status = null, $userId = null, $isbn = null)
   {
@@ -1137,54 +1137,73 @@ class AdminService
             bb.notes,
             bb.addedBy,
             bb.createdAt,
-            u.username,
-            u.emailId,
-            u.userType,
-            b.bookName,
-            b.authorName,
-            b.barcode,
+            COALESCE(u.username, 'Unknown') as username,
+            COALESCE(u.emailId, '') as emailId,
+            COALESCE(u.userType, 'Unknown') as userType,
+            COALESCE(b.bookName, 'Unknown Book') as bookName,
+            COALESCE(b.authorName, 'Unknown Author') as authorName,
+            COALESCE(b.barcode, '') as barcode,
             DATEDIFF(CURDATE(), bb.dueDate) as daysOverdue
         FROM books_borrowed bb
         LEFT JOIN users u ON bb.userId = u.userId
         LEFT JOIN books b ON bb.isbn = b.isbn
         WHERE 1=1";
         
-        $params = [];
-        $types = '';
+    $params = [];
+    $types = '';
+    
+    if ($status) {
+        $sql .= " AND bb.status = ?";
+        $params[] = $status;
+        $types .= 's';
+    }
+    
+    if ($userId) {
+        $sql .= " AND bb.userId = ?";
+        $params[] = $userId;
+        $types .= 's';
+    }
+    
+    if ($isbn) {
+        $sql .= " AND bb.isbn = ?";
+        $params[] = $isbn;
+        $types .= 's';
+    }
+    
+    $sql .= " ORDER BY bb.borrowDate DESC";
+    
+    $stmt = $mysqli->prepare($sql);
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $borrowedBooks = [];
+    while ($row = $result->fetch_assoc()) {
+        // CRITICAL FIX: Force string conversion with proper null handling
+        $row['id'] = (int)($row['id'] ?? 0);
+        $row['userId'] = strval($row['userId'] ?? '');
+        $row['isbn'] = strval($row['isbn'] ?? '');
+        $row['borrowDate'] = strval($row['borrowDate'] ?? date('Y-m-d'));
+        $row['dueDate'] = strval($row['dueDate'] ?? date('Y-m-d'));
+        $row['returnDate'] = $row['returnDate'] ? strval($row['returnDate']) : null;
+        $row['status'] = strval($row['status'] ?? 'Active');
+        $row['notes'] = strval($row['notes'] ?? '');
+        $row['addedBy'] = strval($row['addedBy'] ?? '');
+        $row['createdAt'] = strval($row['createdAt'] ?? date('Y-m-d H:i:s'));
+        $row['username'] = strval($row['username'] ?? 'Unknown');
+        $row['emailId'] = strval($row['emailId'] ?? '');
+        $row['userType'] = strval($row['userType'] ?? 'Unknown');
+        $row['bookName'] = strval($row['bookName'] ?? 'Unknown Book');
+        $row['authorName'] = strval($row['authorName'] ?? 'Unknown Author');
+        $row['barcode'] = strval($row['barcode'] ?? '');
+        $row['daysOverdue'] = (int)($row['daysOverdue'] ?? 0);
         
-        if ($status) {
-            $sql .= " AND bb.status = ?";
-            $params[] = $status;
-            $types .= 's';
-        }
-        
-        if ($userId) {
-            $sql .= " AND bb.userId = ?";
-            $params[] = $userId;
-            $types .= 's';
-        }
-        
-        if ($isbn) {
-            $sql .= " AND bb.isbn = ?";
-            $params[] = $isbn;
-            $types .= 's';
-        }
-        
-        $sql .= " ORDER BY bb.borrowDate DESC";
-        
-        $stmt = $mysqli->prepare($sql);
-        if (!empty($params)) {
-            $stmt->bind_param($types, ...$params);
-        }
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $borrowedBooks = [];
-        while ($row = $result->fetch_assoc()) {
-            $borrowedBooks[] = $row;
-        }
-        
-        return $borrowedBooks;
+        $borrowedBooks[] = $row;
+    }
+    
+    return $borrowedBooks;
   }
 
   /**
@@ -1196,16 +1215,26 @@ class AdminService
       
       $sql = "SELECT 
           COUNT(bb.id) as total,
-          SUM(CASE WHEN bb.status = 'Active' THEN 1 ELSE 0 END) as active,
-          SUM(CASE WHEN bb.status = 'Returned' THEN 1 ELSE 0 END) as returned,
-          SUM(CASE WHEN bb.status = 'Overdue' THEN 1 ELSE 0 END) as overdue,
+          SUM(CASE WHEN bb.status = 'Active' THEN 1 ELSE 0 END) as total_active,
+          SUM(CASE WHEN bb.status = 'Returned' THEN 1 ELSE 0 END) as total_returned,
+          SUM(CASE WHEN bb.status = 'Overdue' THEN 1 ELSE 0 END) as total_overdue,
           SUM(CASE WHEN u.userType = 'Student' THEN 1 ELSE 0 END) as students,
           SUM(CASE WHEN u.userType = 'Faculty' THEN 1 ELSE 0 END) as faculty
       FROM books_borrowed bb
       LEFT JOIN users u ON bb.userId = u.userId";
       
       $result = $mysqli->query($sql);
-      return $result->fetch_assoc();
+      $stats = $result->fetch_assoc();
+      
+      // Ensure all values are integers
+      return [
+          'total' => (int)($stats['total'] ?? 0),
+          'total_active' => (int)($stats['total_active'] ?? 0),
+          'total_returned' => (int)($stats['total_returned'] ?? 0),
+          'total_overdue' => (int)($stats['total_overdue'] ?? 0),
+          'students' => (int)($stats['students'] ?? 0),
+          'faculty' => (int)($stats['faculty'] ?? 0)
+      ];
   }
 
   /**

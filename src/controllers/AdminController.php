@@ -871,7 +871,7 @@ class AdminController
     }
 
     $books = [];
-    $booksResult = $mysqli->query("SELECT isbn, bookName, authorName, available FROM books ORDER BY bookName");
+    $booksResult = $mysqli->query("SELECT isbn, COALESCE(bookName, 'Unknown Book') as bookName, COALESCE(authorName, 'Unknown Author') as authorName, COALESCE(available, 0) as available FROM books ORDER BY bookName");
     while ($row = $booksResult->fetch_assoc()) {
       $books[] = $row;
     }
