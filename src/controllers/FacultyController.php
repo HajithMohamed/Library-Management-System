@@ -5,12 +5,14 @@ namespace App\Controllers;
 use App\Models\Book;
 use App\Models\BorrowRecord;
 use App\Models\User;
+use App\Models\Transaction;
 
 class FacultyController extends BaseController
 {
     private $bookModel;
     private $borrowModel;
     private $userModel;
+    private $transactionModel;
 
     public function __construct()
     {
@@ -18,6 +20,7 @@ class FacultyController extends BaseController
         $this->bookModel = new Book();
         $this->borrowModel = new BorrowRecord();
         $this->userModel = new User();
+        $this->transactionModel = new Transaction();
     }
 
     public function dashboard()
@@ -273,57 +276,145 @@ class FacultyController extends BaseController
 
     public function fines()
     {
+        // Use consistent session check with the rest of the controller
         $this->requireLogin(['Faculty']);
         
-        $userId = $_SESSION['userId'];
+        global $conn;
         
+        // Use the correct session variable name (userId with capital I)
+        $userId = $_SESSION['userId'];
+
+        // Handle payment submission
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $borrowId = $_POST['borrow_id'] ?? 0;
+            $borrowId = $_POST['borrow_id'] ?? '';
             $amount = $_POST['amount'] ?? 0;
-
-            // Online payment
-            if (isset($_POST['pay_online'])) {
-                $cardHolder = trim($_POST['card_holder'] ?? '');
-                $cardNumber = preg_replace('/\D/', '', $_POST['card_number'] ?? '');
-                $cardExpiry = $_POST['card_expiry'] ?? '';
-                $saveCard = !empty($_POST['save_card']);
-                // Card type detection (simple)
-                $cardType = '';
-                if (preg_match('/^4/', $cardNumber)) $cardType = 'Visa';
-                elseif (preg_match('/^5[1-5]/', $cardNumber)) $cardType = 'MasterCard';
-                elseif (preg_match('/^3[47]/', $cardNumber)) $cardType = 'Amex';
-                elseif (preg_match('/^6/', $cardNumber)) $cardType = 'Discover';
-
-                // Save card if requested (mask number, never save CVV)
-                if ($saveCard && strlen($cardNumber) >= 4) {
-                    global $mysqli;
-                    $masked = str_repeat('X', strlen($cardNumber) - 4) . substr($cardNumber, -4);
-                    $stmt = $mysqli->prepare("INSERT INTO saved_cards (userId, card_holder, card_number_masked, card_expiry, card_type) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->bind_param('sssss', $userId, $cardHolder, $masked, $cardExpiry, $cardType);
+            $payOnline = isset($_POST['pay_online']) && $_POST['pay_online'] == '1';
+            
+            if (!empty($borrowId) && $amount > 0) {
+                try {
+                    $conn->begin_transaction();
+                    
+                    $paymentMethod = 'cash';
+                    $paymentDetails = null;
+                    
+                    if ($payOnline) {
+                        $paymentMethod = $_POST['payment_method'] ?? 'credit_card';
+                        
+                        // Process card payment
+                        $cardNumber = $_POST['card_number'] ?? '';
+                        $cardHolder = $_POST['card_name'] ?? '';
+                        $expiryDate = $_POST['expiry_date'] ?? '';
+                        $cvv = $_POST['cvv'] ?? '';
+                        
+                        if (!empty($cardNumber) && !empty($cardHolder) && !empty($expiryDate) && !empty($cvv)) {
+                            $cardLast4 = substr(str_replace(' ', '', $cardNumber), -4);
+                            $cardType = $this->detectCardType($cardNumber);
+                            
+                            $paymentDetails = json_encode([
+                                'card_last4' => $cardLast4,
+                                'card_holder' => $cardHolder,
+                                'card_type' => $cardType
+                            ]);
+                            
+                            // Save card if requested
+                            if (isset($_POST['save_card']) && $_POST['save_card'] == '1') {
+                                $this->saveCard($userId, $cardNumber, $cardHolder, $expiryDate);
+                            }
+                        }
+                    }
+                    
+                    // Update transaction with payment - use userId instead of uid
+                    $stmt = $conn->prepare("
+                        UPDATE transactions 
+                        SET fineStatus = 'paid',
+                            finePaymentDate = NOW(),
+                            finePaymentMethod = ?,
+                            finePaymentDetails = ?
+                        WHERE tid = ? AND userId = ?
+                    ");
+                    $stmt->bind_param("ssss", $paymentMethod, $paymentDetails, $borrowId, $userId);
                     $stmt->execute();
                     $stmt->close();
+                    
+                    $conn->commit();
+                    $_SESSION['success'] = 'Payment successful! Fine has been cleared.';
+                } catch (\Exception $e) {
+                    $conn->rollback();
+                    error_log("Payment error: " . $e->getMessage());
+                    $_SESSION['error'] = 'Payment failed: ' . $e->getMessage();
                 }
-
-                // Mark fine as paid (simulate payment)
-                if ($this->borrowModel->payFine($borrowId, $amount, 'online')) {
-                    $_SESSION['success'] = 'Fine paid successfully via online payment';
-                } else {
-                    $_SESSION['error'] = 'Failed to process online payment';
-                }
-            } else {
-                // Cash payment
-                if ($this->borrowModel->payFine($borrowId, $amount)) {
-                    $_SESSION['success'] = 'Fine paid successfully';
-                } else {
-                    $_SESSION['error'] = 'Failed to process payment';
-                }
+                
+                $this->redirect('faculty/fines');
+                return;
             }
         }
-        
-        $fines = $this->borrowModel->getUserFines($userId);
+
+        // Get all fines (both paid and unpaid) using transactionModel
+        $fines = $this->transactionModel->getFinesByUserId($userId);
         
         $this->data['fines'] = $fines;
         $this->view('faculty/fines', $this->data);
+    }
+
+    /**
+     * Detect card type from card number
+     */
+    private function detectCardType($cardNumber)
+    {
+        $cardNumber = str_replace(' ', '', $cardNumber);
+        
+        if (preg_match('/^4/', $cardNumber)) {
+            return 'Visa';
+        } elseif (preg_match('/^5[1-5]/', $cardNumber)) {
+            return 'Mastercard';
+        } elseif (preg_match('/^3[47]/', $cardNumber)) {
+            return 'Amex';
+        } elseif (preg_match('/^6(?:011|5)/', $cardNumber)) {
+            return 'Discover';
+        }
+        
+        return 'Unknown';
+    }
+    
+    /**
+     * Save card details for future use
+     */
+    private function saveCard($userId, $cardNumber, $cardHolder, $expiry)
+    {
+        global $conn;
+        
+        $cardNumber = str_replace(' ', '', $cardNumber);
+        $cardLast4 = substr($cardNumber, -4);
+        $cardType = $this->detectCardType($cardNumber);
+        
+        // Parse expiry (MM/YY format)
+        list($month, $year) = explode('/', $expiry);
+        $year = '20' . $year;
+        
+        // Check if card already exists
+        $stmt = $conn->prepare("
+            SELECT id FROM saved_cards 
+            WHERE userid = ? AND cardLastFour = ? AND expiryMonth = ? AND expiryYear = ?
+        ");
+        $stmt->bind_param("ssss", $userId, $cardLast4, $month, $year);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $stmt->close();
+            return;
+        }
+        $stmt->close();
+        
+        // Insert new card
+        $stmt = $conn->prepare("
+            INSERT INTO saved_cards 
+            (userid, cardType, cardLastFour, cardHolderName, expiryMonth, expiryYear, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->bind_param("ssssss", $userId, $cardType, $cardLast4, $cardHolder, $month, $year);
+        $stmt->execute();
+        $stmt->close();
     }
 
     public function returnBook()
@@ -510,4 +601,84 @@ class FacultyController extends BaseController
         
         $this->view('faculty/borrowed-books', $this->data);
     }
-}
+
+    /**
+     * Show payment form for faculty fines
+     */
+    public function showPaymentForm()
+    {
+        // Use consistent session check
+        $this->requireLogin(['Faculty']);
+
+        global $conn;
+        
+        // Use the correct session variable name
+        $userId = $_SESSION['userId'];
+        
+        // Get transaction details from URL parameters
+        $borrowId = $_GET['borrow_id'] ?? '';
+        $amount = $_GET['amount'] ?? 0;
+        $bookName = $_GET['book_name'] ?? '';
+        
+        // Fetch transaction details from database
+        $transaction = ['tid' => $borrowId, 'fineAmount' => $amount, 'bookName' => $bookName];
+        
+        if (!empty($borrowId)) {
+            $stmt = $conn->prepare("
+                SELECT 
+                    t.*,
+                    b.bookName,
+                    b.isbn,
+                    t.fineAmount
+                FROM transactions t
+                JOIN books b ON t.isbn = b.isbn
+                WHERE t.tid = ? AND t.userId = ?
+            ");
+            $stmt->bind_param("ss", $borrowId, $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $transaction = $result->fetch_assoc();
+                $amount = $transaction['fineAmount'] ?? $amount;
+                $bookName = $transaction['bookName'] ?? $bookName;
+            }
+            $stmt->close();
+        }
+        
+        // Fetch saved cards for this user
+        $savedCards = [];
+        $stmt = $conn->prepare("
+            SELECT * FROM saved_cards 
+            WHERE userid = ? 
+            ORDER BY createdAt DESC
+        ");
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $savedCards[] = $row;
+        }
+        $stmt->close();
+        
+        // Include the view
+        extract([
+            'transaction' => $transaction,
+            'amount' => $amount,
+            'savedCards' => $savedCards,
+            'pay_all' => false
+        ]);
+        
+        include APP_ROOT . '/views/faculty/payment-form.php';
+    }
+
+    /**
+     * Process fine payment for faculty
+     */
+    public function payFine()
+    {
+        // This method is called when form is submitted to /faculty/fines with pay_online
+        // Redirect to fines method which handles both cash and online payments
+        $this->fines();
+    }
+} // End of FacultyController class
