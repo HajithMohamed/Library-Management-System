@@ -577,7 +577,12 @@ $router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 
 // User Fines
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
+$router->addRoute('GET', '/user/payFine', 'UserController', 'showPaymentForm');
+$router->addRoute('POST', '/user/payFine', 'UserController', 'payFine');
+$router->addRoute('GET', '/user/payment-form', 'UserController', 'showPaymentForm');
+$router->addRoute('POST', '/user/payment-form', 'UserController', 'payFine');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
+$router->addRoute('POST', '/user/pay-all-fines', 'UserController', 'payAllFines');
 
 // User Notifications
 $router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
@@ -677,6 +682,7 @@ $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', '
 
 // Admin Reports & Analytics
 $router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
+$router->addRoute('GET', '/admin/reports/export', 'AdminController', 'exportReport');
 $router->addRoute('GET', '/admin/analytics', 'AdminController', 'analytics');
 
 // Admin Settings
@@ -692,7 +698,7 @@ $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'creat
 
 // Admin Profile
 $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
-$router->addRoute('POST', '/admin/profile', 'AdminController', 'updateProfile');
+$router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)

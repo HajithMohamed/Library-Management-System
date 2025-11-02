@@ -393,14 +393,14 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     <div class="page-content">
       <?php if (isset($_SESSION['success'])): ?>
         <div class="alert alert-success">
-          <?= htmlspecialchars($_SESSION['success']) ?>
+          <?= htmlspecialchars(strval($_SESSION['success'] ?? '')) ?>
           <?php unset($_SESSION['success']); ?>
         </div>
       <?php endif; ?>
 
       <?php if (isset($_SESSION['error'])): ?>
         <div class="alert alert-error">
-          <?= htmlspecialchars($_SESSION['error']) ?>
+          <?= htmlspecialchars(strval($_SESSION['error'] ?? '')) ?>
           <?php unset($_SESSION['error']); ?>
         </div>
       <?php endif; ?>
@@ -409,15 +409,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
       <div class="stats-cards">
         <div class="stat-card">
           <h3>Total Active</h3>
-          <div class="value"><?= $stats['total_active'] ?? 0 ?></div>
+          <div class="value"><?= (int)($stats['total_active'] ?? 0) ?></div>
         </div>
         <div class="stat-card">
           <h3>Total Returned</h3>
-          <div class="value"><?= $stats['total_returned'] ?? 0 ?></div>
+          <div class="value"><?= (int)($stats['total_returned'] ?? 0) ?></div>
         </div>
         <div class="stat-card">
           <h3>Total Overdue</h3>
-          <div class="value"><?= $stats['total_overdue'] ?? 0 ?></div>
+          <div class="value"><?= (int)($stats['total_overdue'] ?? 0) ?></div>
         </div>
       </div>
 
@@ -462,32 +462,32 @@ include APP_ROOT . '/views/layouts/admin-header.php';
               <tbody>
                 <?php foreach ($borrowedBooks as $record): ?>
                   <tr>
-                    <td><?= $record['id'] ?></td>
+                    <td><?= (int)($record['id'] ?? 0) ?></td>
                     <td>
-                      <div><strong><?= htmlspecialchars($record['username'] ?? 'Unknown') ?></strong></div>
+                      <div><strong><?= htmlspecialchars(strval($record['username'] ?? 'Unknown')) ?></strong></div>
                       <div style="font-size: 0.85rem; color: #64748b;">
-                        <?= htmlspecialchars($record['emailId'] ?? '') ?>
+                        <?= htmlspecialchars(strval($record['emailId'] ?? '')) ?>
                       </div>
                     </td>
                     <td>
-                      <div><strong><?= htmlspecialchars($record['bookName'] ?? 'Unknown') ?></strong></div>
+                      <div><strong><?= htmlspecialchars(strval($record['bookName'] ?? 'Unknown Book')) ?></strong></div>
                       <div style="font-size: 0.85rem; color: #64748b;">
-                        <?= htmlspecialchars($record['authorName'] ?? '') ?>
+                        <?= htmlspecialchars(strval($record['authorName'] ?? 'Unknown Author')) ?>
                       </div>
                     </td>
-                    <td><?= date('M j, Y', strtotime($record['borrowDate'])) ?></td>
-                    <td><?= date('M j, Y', strtotime($record['dueDate'])) ?></td>
-                    <td><?= $record['returnDate'] ? date('M j, Y', strtotime($record['returnDate'])) : '-' ?></td>
+                    <td><?= htmlspecialchars(date('M j, Y', strtotime(strval($record['borrowDate'] ?? 'now')))) ?></td>
+                    <td><?= htmlspecialchars(date('M j, Y', strtotime(strval($record['dueDate'] ?? 'now')))) ?></td>
+                    <td><?= $record['returnDate'] ? htmlspecialchars(date('M j, Y', strtotime(strval($record['returnDate'])))) : '-' ?></td>
                     <td>
-                      <span class="badge badge-<?= strtolower($record['status']) ?>">
-                        <?= $record['status'] ?>
+                      <span class="badge badge-<?= strtolower(strval($record['status'] ?? 'active')) ?>">
+                        <?= htmlspecialchars(strval($record['status'] ?? 'Active')) ?>
                       </span>
                     </td>
                     <td>
-                      <button class="btn btn-warning btn-sm" onclick='openEditModal(<?= json_encode($record) ?>)'>
+                      <button class="btn btn-warning btn-sm" onclick='openEditModal(<?= json_encode($record, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
                         <i class="fas fa-edit"></i>
                       </button>
-                      <button class="btn btn-danger btn-sm" onclick="deleteBorrowedBook(<?= $record['id'] ?>)">
+                      <button class="btn btn-danger btn-sm" onclick="deleteBorrowedBook(<?= (int)($record['id'] ?? 0) ?>)">
                         <i class="fas fa-trash"></i>
                       </button>
                     </td>
@@ -523,8 +523,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         <select name="userId" id="userId" required>
           <option value="">Select User</option>
           <?php foreach ($users as $user): ?>
-            <option value="<?= $user['userId'] ?>">
-              <?= htmlspecialchars($user['username'] ?? $user['emailId']) ?> (<?= $user['userType'] ?>)
+            <option value="<?= htmlspecialchars(strval($user['userId'] ?? '')) ?>">
+              <?= htmlspecialchars(strval($user['username'] ?? $user['emailId'] ?? 'Unknown')) ?> 
+              (<?= htmlspecialchars(strval($user['userType'] ?? 'Unknown')) ?>)
             </option>
           <?php endforeach; ?>
         </select>
@@ -535,9 +536,10 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         <select name="isbn" id="isbn" required>
           <option value="">Select Book</option>
           <?php foreach ($books as $book): ?>
-            <option value="<?= $book['isbn'] ?>">
-              <?= htmlspecialchars($book['bookName']) ?> - <?= htmlspecialchars($book['authorName']) ?>
-              (Available: <?= $book['available'] ?>)
+            <option value="<?= htmlspecialchars(strval($book['isbn'] ?? '')) ?>">
+              <?= htmlspecialchars(strval($book['bookName'] ?? 'Unknown Book')) ?> - 
+              <?= htmlspecialchars(strval($book['authorName'] ?? 'Unknown Author')) ?>
+              (Available: <?= (int)($book['available'] ?? 0) ?>)
             </option>
           <?php endforeach; ?>
         </select>
@@ -603,13 +605,13 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     document.getElementById('modalTitle').textContent = 'Edit Borrowed Record';
     document.getElementById('formAction').value = 'edit';
 
-    document.getElementById('recordId').value = record.id;
-    document.getElementById('userId').value = record.userId;
-    document.getElementById('isbn').value = record.isbn;
-    document.getElementById('borrowDate').value = record.borrowDate;
-    document.getElementById('dueDate').value = record.dueDate;
+    document.getElementById('recordId').value = record.id || '';
+    document.getElementById('userId').value = record.userId || '';
+    document.getElementById('isbn').value = record.isbn || '';
+    document.getElementById('borrowDate').value = record.borrowDate || '';
+    document.getElementById('dueDate').value = record.dueDate || '';
     document.getElementById('returnDate').value = record.returnDate || '';
-    document.getElementById('status').value = record.status;
+    document.getElementById('status').value = record.status || 'Active';
     document.getElementById('notes').value = record.notes || '';
 
     document.getElementById('returnDateGroup').style.display = 'block';

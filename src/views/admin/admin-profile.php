@@ -1172,25 +1172,6 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             </div>
           </div>
 
-          <!-- Name Fields -->
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="firstName" class="form-label">
-                <i class="fas fa-user-circle"></i>
-                First Name <span class="required-star">*</span>
-              </label>
-              <input id="firstName" name="firstName" type="text" class="form-input" placeholder="Enter first name" required value="<?= htmlspecialchars($admin['firstName'] ?? '') ?>">
-            </div>
-
-            <div class="form-group">
-              <label for="lastName" class="form-label">
-                <i class="fas fa-user-circle"></i>
-                Last Name <span class="required-star">*</span>
-              </label>
-              <input id="lastName" name="lastName" type="text" class="form-input" placeholder="Enter last name" required value="<?= htmlspecialchars($admin['lastName'] ?? '') ?>">
-            </div>
-          </div>
-
           <!-- Contact Info -->
           <div class="form-grid">
             <div class="form-group">
@@ -1231,25 +1212,6 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 Date of Birth <span class="required-star">*</span>
               </label>
               <input id="dob" name="dob" type="date" class="form-input" required value="<?= htmlspecialchars($admin['dob'] ?? '') ?>">
-            </div>
-          </div>
-
-          <!-- Admin Specific Fields -->
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="department" class="form-label">
-                <i class="fas fa-building"></i>
-                Department <span class="required-star">*</span>
-              </label>
-              <input id="department" name="department" type="text" class="form-input" placeholder="e.g., Library Management" required value="<?= htmlspecialchars($admin['department'] ?? '') ?>">
-            </div>
-
-            <div class="form-group">
-              <label for="position" class="form-label">
-                <i class="fas fa-briefcase"></i>
-                Position <span class="required-star">*</span>
-              </label>
-              <input id="position" name="position" type="text" class="form-input" placeholder="e.g., Senior Librarian" required value="<?= htmlspecialchars($admin['position'] ?? '') ?>">
             </div>
           </div>
 

@@ -385,7 +385,7 @@ try {
         $sampleNotifications = [
             [NULL, 'System Maintenance', 'System will undergo maintenance on Sunday', 'system', 'high'],
             ['STU001', 'Overdue Book', 'Your borrowed book is overdue', 'overdue', 'high'],
-            ['STU002', 'Fine Paid', 'Your fine of ₹50 has been successfully paid', 'fine_paid', 'medium'],
+            ['STU002', 'Fine Paid', 'Your fine of LKR50 has been successfully paid', 'fine_paid', 'medium'],
             [NULL, 'Out of Stock', 'Book Harry Potter is out of stock', 'out_of_stock', 'medium'],
             ['FAC001', 'Borrow Approved', 'Your borrow request has been approved', 'approval', 'high']
         ];

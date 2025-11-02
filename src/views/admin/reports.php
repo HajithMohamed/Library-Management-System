@@ -646,7 +646,7 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-label">Total Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
                         </div>
                     </div>
                     
@@ -683,15 +683,15 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                     <div class="stats-grid">
                         <div class="stat-card orange">
                             <div class="stat-label">Total Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-label">Collected Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card pink">
                             <div class="stat-label">Pending Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-label">Overdue Books</div>
@@ -787,16 +787,17 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
         document.getElementById('sidebar').classList.toggle('collapsed');
     }
 
-    function exportReport() {
-        const reportType = '<?= $reportType ?>';
-        const startDate = '<?= $startDate ?>';
-        const endDate = '<?= $endDate ?>';
-        
-        alert('Exporting ' + reportType + ' report from ' + startDate + ' to ' + endDate);
-        
-        // Example: Redirect to export endpoint
-        // window.location.href = '<?= BASE_URL ?>admin/reports/export?type=' + reportType + '&start=' + startDate + '&end=' + endDate;
-    }
+function exportReport() {
+    const reportType = document.getElementById('report_type').value;
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    
+    // Construct the URL for the export endpoint
+    const exportUrl = `<?= BASE_URL ?>admin/reports/export?type=${reportType}&start_date=${startDate}&end_date=${endDate}`;
+    
+    // Redirect to the export endpoint, which will trigger the file download
+    window.location.href = exportUrl;
+}
 
     // Add smooth scroll behavior
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {

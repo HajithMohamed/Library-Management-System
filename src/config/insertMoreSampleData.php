@@ -125,7 +125,7 @@ foreach ($requests as $req) {
 
 // Insert Sample Notifications
 $notifications = [
-    ["userId" => "STU003", "title" => "Overdue Book Alert", "message" => "Your borrowed book 'Harry Potter and the Deathly Hallows' is overdue. Fine: ₹30.00", "type" => "overdue", "priority" => "high"],
+    ["userId" => "STU003", "title" => "Overdue Book Alert", "message" => "Your borrowed book 'Harry Potter and the Deathly Hallows' is overdue. Fine: LKR30.00", "type" => "overdue", "priority" => "high"],
     ["userId" => NULL, "title" => "Low Stock Alert", "message" => "Book 'The Hunger Games' is out of stock", "type" => "out_of_stock", "priority" => "medium"],
     ["userId" => "STU001", "title" => "Book Due Soon", "message" => "Your borrowed book 'Effective Java' is due in 3 days", "type" => "reminder", "priority" => "medium"],
     ["userId" => "STU004", "title" => "Request Rejected", "message" => "Your borrow request for 'Pride and Prejudice' has been rejected", "type" => "approval", "priority" => "low"],
