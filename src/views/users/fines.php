@@ -94,9 +94,9 @@ $totalFine = $pendingFine;
         padding: 2.5rem 3rem;
         box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
         animation: slideInDown 0.6s ease-out;
-        text-align: center;
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-bottom: none;
+        position: relative;
     }
     
     @keyframes slideInDown {
@@ -111,7 +111,7 @@ $totalFine = $pendingFine;
     }
     
     .fines-header-content {
-        display: inline-block;
+        text-align: center;
     }
     
     .fines-header-content h1 {
@@ -131,12 +131,16 @@ $totalFine = $pendingFine;
     .fines-header-content p {
         color: #6b7280;
         font-size: 1rem;
-        margin: 0 0 1rem 0;
+        margin: 0;
         font-weight: 500;
     }
     
-    .total-badge {
-        display: inline-flex;
+    /* Total badge in top right corner */
+    .total-badge-corner {
+        position: absolute;
+        top: 2.5rem;
+        right: 3rem;
+        display: flex;
         flex-direction: column;
         padding: 1rem 2rem;
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
@@ -144,6 +148,7 @@ $totalFine = $pendingFine;
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
         animation: pulse 2s ease-in-out infinite;
+        z-index: 10;
     }
     
     @keyframes pulse {
@@ -151,7 +156,7 @@ $totalFine = $pendingFine;
         50% { transform: scale(1.05); }
     }
     
-    .total-badge-label {
+    .total-badge-corner-label {
         font-size: 0.85rem;
         opacity: 0.95;
         margin-bottom: 0.25rem;
@@ -160,7 +165,7 @@ $totalFine = $pendingFine;
         font-weight: 700;
     }
     
-    .total-badge-amount {
+    .total-badge-corner-amount {
         font-size: 2rem;
         font-weight: 900;
         margin: 0;
@@ -368,6 +373,7 @@ $totalFine = $pendingFine;
         font-size: 0.9rem;
         position: relative;
         overflow: hidden;
+        text-decoration: none;
     }
     
     .btn-pay::before {
@@ -410,34 +416,6 @@ $totalFine = $pendingFine;
         align-items: center;
         gap: 0.5rem;
         border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    
-    /* Total Summary */
-    .total-summary {
-        padding: 2rem;
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.08));
-        border-radius: 20px;
-        border: 3px dashed rgba(239, 68, 68, 0.3);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .total-summary-label {
-        font-size: 1.4rem;
-        font-weight: 800;
-        color: #374151;
-    }
-    
-    .total-summary-amount {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #ef4444;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
     }
     
     /* Empty State */
@@ -545,6 +523,16 @@ $totalFine = $pendingFine;
         .fines-body {
             padding: 2.5rem 2rem;
         }
+        
+        .total-badge-corner {
+            top: 2rem;
+            right: 2rem;
+            padding: 0.9rem 1.5rem;
+        }
+        
+        .total-badge-corner-amount {
+            font-size: 1.7rem;
+        }
     }
     
     @media (max-width: 768px) {
@@ -559,6 +547,12 @@ $totalFine = $pendingFine;
         
         .fines-header-content h1 {
             font-size: 1.8rem;
+        }
+        
+        .total-badge-corner {
+            position: static;
+            margin: 1.5rem auto 0;
+            display: inline-flex;
         }
         
         .modern-table thead {
@@ -594,11 +588,6 @@ $totalFine = $pendingFine;
             text-transform: uppercase;
         }
         
-        .total-summary {
-            flex-direction: column;
-            text-align: center;
-        }
-        
         .btn-pay {
             width: 100%;
             justify-content: center;
@@ -622,18 +611,25 @@ $totalFine = $pendingFine;
     <div class="fines-container">
         <!-- Header -->
         <div class="fines-header">
+            <!-- Total Badge in Top Right Corner -->
+            <?php if (!empty($fines) && $totalFine > 0) { ?>
+            <div class="total-badge-corner">
+                <div class="total-badge-corner-label">Total Outstanding</div>
+                <div class="total-badge-corner-amount">LKR <?= number_format($totalFine, 2) ?></div>
+            </div>
+            <?php } elseif (!empty($fines) && $paidFine > 0 && $totalFine == 0) { ?>
+            <div class="total-badge-corner" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="total-badge-corner-label">All Fines Paid</div>
+                <div class="total-badge-corner-amount">LKR <?= number_format($paidFine, 2) ?></div>
+            </div>
+            <?php } ?>
+            
             <div class="fines-header-content">
                 <h1>
                     <i class="fas fa-receipt"></i>
                     Your Fines
                 </h1>
                 <p>Manage and pay your outstanding library fines</p>
-                <?php if (!empty($fines) && $totalFine > 0) { ?>
-                <div class="total-badge">
-                    <div class="total-badge-label">Total Outstanding</div>
-                    <div class="total-badge-amount">LKR<?= number_format($totalFine, 2) ?></div>
-                </div>
-                <?php } ?>
             </div>
         </div>
 
@@ -647,7 +643,7 @@ $totalFine = $pendingFine;
                     </div>
                     <div class="info-alert-content">
                         <h5>Fine Calculation</h5>
-                        <p>Fines are calculated based on the number of days overdue. Please pay your fines promptly to avoid account suspension.</p>
+                        <p>Fines are calculated based on the number of days overdue. Please pay your fines promptly online to avoid account suspension.</p>
                     </div>
                 </div>
 
@@ -725,7 +721,7 @@ $totalFine = $pendingFine;
                                 </td>
                                 <td data-label="Action">
                                     <?php 
-                                    // FIXED: Check fineStatus instead of just fineAmount
+                                    // Check fineStatus instead of just fineAmount
                                     $isPaid = isset($fine['fineStatus']) && ($fine['fineStatus'] === 'paid' || $fine['fineStatus'] === 'Paid');
                                     
                                     if (!$isPaid && $fineAmount > 0): 
@@ -733,7 +729,7 @@ $totalFine = $pendingFine;
                                         <a href="<?php echo BASE_URL; ?>user/payFine?tid=<?php echo urlencode($fine['tid']); ?>&amount=<?php echo urlencode($fine['fineAmount']); ?>" 
                                            class="btn-pay">
                                             <i class="fas fa-credit-card"></i>
-                                            <span>Pay Now</span>
+                                            <span>Pay Online</span>
                                         </a>
                                     <?php else: ?>
                                         <span class="no-fine-badge">
@@ -746,15 +742,6 @@ $totalFine = $pendingFine;
                         <?php } ?>
                         </tbody>
                     </table>
-                </div>
-
-                <!-- Total Summary -->
-                <div class="total-summary">
-                    <span class="total-summary-label">Total Amount Due:</span>
-                    <span class="total-summary-amount">
-                        <i class="fas fa-rupee-sign"></i>
-                        <?= number_format($pendingFine, 2) ?>
-                    </span>
                 </div>
             <?php } else { ?>
                 <!-- Empty State -->

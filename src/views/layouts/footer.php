@@ -370,6 +370,7 @@
             
             .footer-section {
                 margin-bottom: 2rem;
+                text-align: center;
             }
             
             .footer-logo {
@@ -384,17 +385,27 @@
                 justify-content: center;
             }
             
+            .footer-title {
+                text-align: center;
+            }
+            
             .footer-title::after {
                 left: 50%;
                 transform: translateX(-50%);
             }
             
-            .footer-links,
+            .footer-links {
+                text-align: center;
+            }
+            
+            .footer-links a {
+                justify-content: center;
+            }
+            
             .footer-contact {
                 text-align: center;
             }
             
-            .footer-links a,
             .footer-contact li {
                 justify-content: center;
             }

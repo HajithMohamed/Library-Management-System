@@ -586,24 +586,195 @@ include APP_ROOT . '/views/layouts/header.php';
     }
     
     @media (max-width: 768px) {
+        .books-page {
+            padding: 20px 15px;
+        }
+        
         .books-header h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .books-header p {
+            font-size: 1rem;
         }
         
         .stats-banner {
             grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-badge {
+            padding: 20px 15px;
+        }
+        
+        .stat-badge .stat-number {
+            font-size: 2rem;
+        }
+        
+        .stat-badge .stat-number i {
+            font-size: 1.8rem;
+        }
+        
+        .stat-badge .stat-label {
+            font-size: 0.8rem;
+        }
+        
+        .search-container {
+            padding: 20px;
+            border-radius: 20px;
+        }
+        
+        .search-input-main {
+            padding: 15px 50px 15px 20px;
+            font-size: 0.95rem;
+        }
+        
+        .search-icon {
+            right: 20px;
+            font-size: 1.1rem;
         }
         
         .filters-row {
             grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .filter-select-modern {
+            padding: 15px 40px 15px 45px;
+            font-size: 0.95rem;
+        }
+        
+        .filter-group::before {
+            left: 15px;
+            font-size: 1rem;
+        }
+        
+        .search-btn-modern {
+            padding: 15px 30px;
+            font-size: 0.95rem;
+            width: 100%;
         }
         
         .books-grid-modern {
             grid-template-columns: 1fr;
+            gap: 20px;
+            padding: 15px;
+        }
+        
+        .book-card-modern {
+            border-radius: 20px;
+        }
+        
+        .book-image-wrapper {
+            height: 350px;
+        }
+        
+        .book-placeholder-icon {
+            font-size: 5rem;
+        }
+        
+        .book-content {
+            padding: 20px;
+        }
+        
+        .book-title-modern {
+            font-size: 1.2rem;
+        }
+        
+        .book-author-modern {
+            font-size: 0.95rem;
+        }
+        
+        .book-meta-tags {
+            gap: 8px;
+        }
+        
+        .meta-tag {
+            font-size: 0.8rem;
+            padding: 5px 12px;
+        }
+        
+        .availability-status {
+            font-size: 0.9rem;
+            padding: 8px 15px;
         }
         
         .action-buttons-group {
             grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        
+        .action-button-modern {
+            padding: 12px 18px;
+            font-size: 0.9rem;
+        }
+        
+        .trending-badge {
+            font-size: 0.8rem;
+            padding: 6px 14px;
+        }
+        
+        .autocomplete-dropdown {
+            border-radius: 15px;
+            max-height: 300px;
+        }
+        
+        .autocomplete-item {
+            padding: 12px 15px;
+        }
+        
+        .autocomplete-item img {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .autocomplete-item-title {
+            font-size: 0.95rem;
+        }
+        
+        .autocomplete-item-author {
+            font-size: 0.8rem;
+        }
+        
+        .empty-state-modern {
+            padding: 60px 20px;
+            border-radius: 20px;
+        }
+        
+        .empty-state-modern .icon {
+            font-size: 4rem;
+        }
+        
+        .empty-state-modern h3 {
+            font-size: 1.5rem;
+        }
+        
+        .empty-state-modern p {
+            font-size: 1rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .books-header h1 {
+            font-size: 1.6rem;
+        }
+        
+        .books-header p {
+            font-size: 0.9rem;
+        }
+        
+        .stats-banner {
+            grid-template-columns: 1fr;
+        }
+        
+        .book-image-wrapper {
+            height: 300px;
+        }
+        
+        .book-title-modern {
+            font-size: 1.1rem;
         }
     }
 </style>

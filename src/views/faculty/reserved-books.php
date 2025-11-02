@@ -491,7 +491,12 @@ body::-webkit-scrollbar {
     height: 400px;
 }
 
-.browse-modern-btn i,
+.browse-modern-btn i {
+    position: relative;
+    z-index: 1;
+    font-size: 1.2rem;
+}
+
 .browse-modern-btn span {
     position: relative;
     z-index: 1;

@@ -91,9 +91,9 @@ if (!empty($fines)) {
         padding: 2.5rem 3rem;
         box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
         animation: slideInDown 0.6s ease-out;
-        text-align: center;
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-bottom: none;
+        position: relative;
     }
     
     @keyframes slideInDown {
@@ -108,7 +108,7 @@ if (!empty($fines)) {
     }
     
     .fines-header-content {
-        display: inline-block;
+        text-align: center;
     }
     
     .fines-header-content h1 {
@@ -128,12 +128,16 @@ if (!empty($fines)) {
     .fines-header-content p {
         color: #6b7280;
         font-size: 1rem;
-        margin: 0 0 1rem 0;
+        margin: 0;
         font-weight: 500;
     }
     
-    .total-badge {
-        display: inline-flex;
+    /* Total badge in top right corner */
+    .total-badge-corner {
+        position: absolute;
+        top: 2.5rem;
+        right: 3rem;
+        display: flex;
         flex-direction: column;
         padding: 1rem 2rem;
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
@@ -148,7 +152,7 @@ if (!empty($fines)) {
         50% { transform: scale(1.05); }
     }
     
-    .total-badge-label {
+    .total-badge-corner-label {
         font-size: 0.85rem;
         opacity: 0.95;
         margin-bottom: 0.25rem;
@@ -157,7 +161,7 @@ if (!empty($fines)) {
         font-weight: 700;
     }
     
-    .total-badge-amount {
+    .total-badge-corner-amount {
         font-size: 2rem;
         font-weight: 900;
         margin: 0;
@@ -422,34 +426,6 @@ if (!empty($fines)) {
         margin-top: 0.25rem;
     }
     
-    /* Total Summary */
-    .total-summary {
-        padding: 2rem;
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.08));
-        border-radius: 20px;
-        border: 3px dashed rgba(239, 68, 68, 0.3);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .total-summary-label {
-        font-size: 1.4rem;
-        font-weight: 800;
-        color: #374151;
-    }
-    
-    .total-summary-amount {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #ef4444;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
     /* Empty State */
     .empty-state {
         text-align: center;
@@ -545,142 +521,6 @@ if (!empty($fines)) {
         color: white;
     }
     
-    /* Payment Modal */
-    #paymentModal {
-        display: none;
-        position: fixed;
-        z-index: 9999;
-        left: 0;
-        top: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(5px);
-        align-items: center;
-        justify-content: center;
-        animation: fadeIn 0.3s ease-out;
-    }
-    
-    .modal-content {
-        background: white;
-        border-radius: 24px;
-        max-width: 500px;
-        width: 90%;
-        max-height: 90vh;
-        overflow-y: auto;
-        padding: 2.5rem;
-        position: relative;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        animation: slideUp 0.3s ease-out;
-    }
-    
-    @keyframes slideUp {
-        from { transform: translateY(30px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-    
-    .modal-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: none;
-        border: none;
-        font-size: 2rem;
-        color: #9ca3af;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        z-index: 1;
-    }
-    
-    .modal-close:hover {
-        background: #f3f4f6;
-        color: #ef4444;
-    }
-    
-    .modal-content h3 {
-        font-size: 1.8rem;
-        font-weight: 900;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 2rem;
-        padding-right: 3rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-group label {
-        display: block;
-        font-weight: 700;
-        color: #374151;
-        margin-bottom: 0.5rem;
-        font-size: 0.95rem;
-    }
-    
-    .form-control {
-        width: 100%;
-        padding: 0.875rem 1rem;
-        border: 2px solid #e5e7eb;
-        border-radius: 12px;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        font-weight: 600;
-        box-sizing: border-box;
-    }
-    
-    .form-control:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-    }
-    
-    .form-row {
-        display: flex;
-        gap: 1rem;
-    }
-    
-    .form-row .form-group {
-        flex: 1;
-    }
-    
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .checkbox-group input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        cursor: pointer;
-    }
-    
-    .checkbox-group label {
-        margin: 0;
-        cursor: pointer;
-        font-weight: 600;
-    }
-    
-    #cardError {
-        color: #ef4444;
-        margin-top: 1rem;
-        padding: 0.75rem;
-        background: rgba(239, 68, 68, 0.1);
-        border-radius: 8px;
-        display: none;
-        font-weight: 600;
-    }
-    
     /* Responsive Design */
     @media (max-width: 1200px) {
         .fines-container {
@@ -700,6 +540,12 @@ if (!empty($fines)) {
         
         .fines-header-content h1 {
             font-size: 1.8rem;
+        }
+        
+        .total-badge-corner {
+            position: static;
+            margin: 1.5rem auto 0;
+            display: inline-flex;
         }
         
         .modern-table thead {
@@ -730,11 +576,6 @@ if (!empty($fines)) {
             text-transform: uppercase;
         }
         
-        .total-summary {
-            flex-direction: column;
-            text-align: center;
-        }
-        
         .btn-pay {
             width: 100%;
             justify-content: center;
@@ -750,10 +591,6 @@ if (!empty($fines)) {
         .fines-header-content h1 {
             font-size: 1.5rem;
         }
-        
-        .modal-content {
-            padding: 2rem 1.5rem;
-        }
     }
 </style>
 
@@ -761,23 +598,25 @@ if (!empty($fines)) {
     <div class="fines-container">
         <!-- Header -->
         <div class="fines-header">
+            <!-- Total Badge in Top Right Corner -->
+            <?php if ($totalFine > 0) { ?>
+            <div class="total-badge-corner">
+                <div class="total-badge-corner-label">Total Outstanding</div>
+                <div class="total-badge-corner-amount">LKR <?= number_format($totalFine, 2) ?></div>
+            </div>
+            <?php } elseif ($totalPaidFine > 0) { ?>
+            <div class="total-badge-corner" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="total-badge-corner-label">All Fines Paid</div>
+                <div class="total-badge-corner-amount">LKR <?= number_format($totalPaidFine, 2) ?></div>
+            </div>
+            <?php } ?>
+            
             <div class="fines-header-content">
                 <h1>
                     <i class="fas fa-receipt"></i>
                     Your Fines
                 </h1>
                 <p>Manage and pay your outstanding library fines</p>
-                <?php if ($totalFine > 0) { ?>
-                <div class="total-badge">
-                    <div class="total-badge-label">Total Outstanding</div>
-                    <div class="total-badge-amount">LKR <?= number_format($totalFine, 2) ?></div>
-                </div>
-                <?php } elseif ($totalPaidFine > 0) { ?>
-                <div class="total-badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                    <div class="total-badge-label">All Fines Paid</div>
-                    <div class="total-badge-amount">LKR <?= number_format($totalPaidFine, 2) ?></div>
-                </div>
-                <?php } ?>
             </div>
         </div>
 
@@ -791,7 +630,7 @@ if (!empty($fines)) {
                     </div>
                     <div class="info-alert-content">
                         <h5>Fine Calculation</h5>
-                        <p>Fines are calculated at LKR 5 per day for overdue books (14-day borrowing period). Cash payments must be completed at the library counter.</p>
+                        <p>Fines are calculated at LKR 5 per day for overdue books (14-day borrowing period). Online payments can be made using credit/debit cards.</p>
                     </div>
                 </div>
 
@@ -894,14 +733,6 @@ if (!empty($fines)) {
                                 </td>
                                 <td data-label="Action">
                                     <?php if (!$isPaid && $fineAmount > 0): ?>
-                                        <form method="POST" action="<?= BASE_URL ?>faculty/fines" style="display:inline">
-                                            <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
-                                            <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
-                                            <button type="submit" class="btn-pay">
-                                                <i class="fas fa-money-bill-wave"></i>
-                                                <span>Pay Cash</span>
-                                            </button>
-                                        </form>
                                         <a href="<?= BASE_URL ?>faculty/payment-form?borrow_id=<?= urlencode($fine['tid'] ?? $fine['id'] ?? '') ?>&amount=<?= urlencode($fineAmount) ?>" class="btn-pay" style="text-decoration: none;">
                                             <i class="fas fa-credit-card"></i>
                                             <span>Pay Online</span>
@@ -918,17 +749,6 @@ if (!empty($fines)) {
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Total Summary -->
-                <?php if ($totalFine > 0): ?>
-                <div class="total-summary">
-                    <span class="total-summary-label">Total Outstanding Amount:</span>
-                    <span class="total-summary-amount">
-                        <i class="fas fa-rupee-sign"></i>
-                        <?= number_format($totalFine, 2) ?>
-                    </span>
-                </div>
-                <?php endif; ?>
             <?php } else { ?>
                 <!-- Empty State -->
                 <div class="empty-state">
@@ -948,80 +768,6 @@ if (!empty($fines)) {
 </div>
 
 <script>
-// Auto-format card number
-document.getElementById('card_number')?.addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\s+/g, '').replace(/\D/g, '');
-    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
-    e.target.value = formattedValue;
-});
-
-// Auto-format expiry date
-document.getElementById('card_expiry')?.addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-        value = value.slice(0, 2) + '/' + value.slice(2, 4);
-    }
-    e.target.value = value;
-});
-
-// CVV numeric only
-document.getElementById('card_cvv')?.addEventListener('input', function(e) {
-    e.target.value = e.target.value.replace(/\D/g, '');
-});
-
-// Card holder name uppercase
-document.getElementById('card_holder')?.addEventListener('input', function(e) {
-    e.target.value = e.target.value.replace(/[^a-zA-Z\s]/g, '').toUpperCase();
-});
-
-function validateCardForm() {
-    var holder = document.getElementById('card_holder').value.trim();
-    var number = document.getElementById('card_number').value.replace(/\s+/g, '');
-    var expiry = document.getElementById('card_expiry').value.trim();
-    var cvv = document.getElementById('card_cvv').value.trim();
-    var error = '';
-
-    if (holder.length < 2) {
-        error = 'Card holder name required (minimum 2 characters).';
-    } else if (!/^\d{13,19}$/.test(number) || !luhnCheck(number)) {
-        error = 'Invalid card number.';
-    } else if (!/^\d{2}\/\d{2}$/.test(expiry)) {
-        error = 'Invalid expiry format (MM/YY).';
-    } else {
-        var parts = expiry.split('/');
-        var mm = parseInt(parts[0], 10), yy = parseInt(parts[1], 10);
-        var now = new Date();
-        var expDate = new Date(2000 + yy, mm - 1, 1);
-        if (mm < 1 || mm > 12) error = 'Invalid expiry month (01-12).';
-        else if (expDate < new Date(now.getFullYear(), now.getMonth(), 1)) error = 'Card expired.';
-    }
-    
-    if (!error && !/^\d{3,4}$/.test(cvv)) {
-        error = 'Invalid CVV (3-4 digits required).';
-    }
-    
-    if (error) {
-        document.getElementById('cardError').innerText = error;
-        document.getElementById('cardError').style.display = 'block';
-        return false;
-    }
-    return true;
-}
-
-function luhnCheck(num) {
-    var arr = (num + '').split('').reverse().map(x => parseInt(x));
-    var sum = arr.reduce((acc, val, idx) => acc + (idx % 2 ? ((val *= 2) > 9 ? val - 9 : val) : val), 0);
-    return sum % 10 === 0;
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    var modal = document.getElementById('paymentModal');
-    if (event.target == modal) {
-        closePaymentModal();
-    }
-}
-
 // Add Font Awesome if not already included
 if (!document.querySelector('link[href*="font-awesome"]')) {
     const link = document.createElement('link');

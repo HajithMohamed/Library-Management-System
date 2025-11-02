@@ -564,8 +564,6 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
     </style>
 
     <div class="admin-layout">
-    <?php include APP_ROOT . '/views/admin/admin-navbar.php'; ?>
-
     <main class="main-content">
         <div class="reports-container">
             <!-- Page Header -->
@@ -783,10 +781,6 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
 </div>
 
 <script>
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-    }
-
 function exportReport() {
     const reportType = document.getElementById('report_type').value;
     const startDate = document.getElementById('start_date').value;
