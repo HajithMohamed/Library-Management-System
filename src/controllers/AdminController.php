@@ -236,6 +236,8 @@ class AdminController
     $status = $_GET['status'] ?? null;
     $userId = $_GET['userId'] ?? null;
     $fines = $this->adminService->getAllFines($status, $userId);
+    
+    // Get fine settings - now returns associative array with setting names as keys
     $fineSettings = $this->adminService->getFineSettings();
 
     $this->render('admin/fines', [
@@ -271,13 +273,46 @@ class AdminController
 
         case 'update_settings':
           $settings = $_POST['settings'] ?? [];
+          
+          // Validate settings
+          $errors = [];
+          
+          if (!isset($settings['fine_per_day']) || $settings['fine_per_day'] < 0) {
+            $errors[] = 'Fine per day must be a positive number.';
+          }
+          
+          if (!isset($settings['max_borrow_days']) || $settings['max_borrow_days'] < 1) {
+            $errors[] = 'Max borrow days must be at least 1.';
+          }
+          
+          if (!isset($settings['grace_period_days']) || $settings['grace_period_days'] < 0) {
+            $errors[] = 'Grace period must be 0 or positive.';
+          }
+          
+          if (!isset($settings['max_fine_amount']) || $settings['max_fine_amount'] < 0) {
+            $errors[] = 'Max fine amount must be a positive number.';
+          }
+          
+          if (!empty($errors)) {
+            $_SESSION['error'] = implode('<br>', $errors);
+            break;
+          }
+          
+          // Log the settings being updated
+          error_log("Fine settings being updated: " . print_r($settings, true));
+          
           $updated = $this->adminService->updateFineSettings($settings);
-          $_SESSION['success'] = "Updated {$updated} fine settings.";
+          
+          if ($updated > 0) {
+            $_SESSION['success'] = "Successfully updated {$updated} fine setting(s). All pending fines have been recalculated and users have been notified.";
+          } else {
+            $_SESSION['error'] = 'No settings were updated. Please check if values were changed.';
+          }
           break;
 
         case 'update_all_fines':
           $updatedCount = $this->adminService->updateAllFines();
-          $_SESSION['success'] = "Updated {$updatedCount} fines.";
+          $_SESSION['success'] = "Updated {$updatedCount} fine(s) based on current settings.";
           break;
       }
     }
