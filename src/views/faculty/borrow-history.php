@@ -83,11 +83,20 @@ include APP_ROOT . '/views/layouts/header.php';
     border-collapse: separate;
     border-spacing: 0 14px;
     margin-top: 1.7rem;
+    table-layout: fixed;
 }
 .borrow-history-table th, .borrow-history-table td {
     padding: 1.2rem 1.1rem;
     text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
+.borrow-history-table th:nth-child(1), .borrow-history-table td:nth-child(1) { width: 25%; }
+.borrow-history-table th:nth-child(2), .borrow-history-table td:nth-child(2) { width: 18%; }
+.borrow-history-table th:nth-child(3), .borrow-history-table td:nth-child(3) { width: 12%; }
+.borrow-history-table th:nth-child(4), .borrow-history-table td:nth-child(4) { width: 12%; }
+.borrow-history-table th:nth-child(5), .borrow-history-table td:nth-child(5) { width: 13%; }
+.borrow-history-table th:nth-child(6), .borrow-history-table td:nth-child(6) { width: 20%; }
 .borrow-history-table th {
     background: #f3f4f6;
     color: #667eea;
