@@ -618,7 +618,7 @@ if (!empty($fines)) {
                 <?php if (!empty($fines) && $totalFine > 0) { ?>
                 <div class="total-badge">
                     <div class="total-badge-label">Total Outstanding</div>
-                    <div class="total-badge-amount">₹<?= number_format($totalFine, 2) ?></div>
+                    <div class="total-badge-amount">LKR<?= number_format($totalFine, 2) ?></div>
                 </div>
                 <?php } ?>
             </div>

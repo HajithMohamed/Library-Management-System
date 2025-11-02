@@ -646,7 +646,7 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-label">Total Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
                         </div>
                     </div>
                     
@@ -683,15 +683,15 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                     <div class="stats-grid">
                         <div class="stat-card orange">
                             <div class="stat-label">Total Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-label">Collected Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card pink">
                             <div class="stat-label">Pending Fines</div>
-                            <div class="stat-number">₹<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-label">Overdue Books</div>

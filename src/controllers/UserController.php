@@ -59,7 +59,7 @@ class UserController extends BaseController
             $overdueCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
             $stmt->close();
             
-            // Calculate total fines (₹5 per day for overdue books)
+            // Calculate total fines (LKR5 per day for overdue books)
             $stmt = $mysqli->prepare("SELECT isbn, dueDate FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
             $stmt->bind_param("s", $userId);
             $stmt->execute();
@@ -71,7 +71,7 @@ class UserController extends BaseController
                 $today = new \DateTime();
                 $interval = $today->diff($dueDate);
                 $daysOverdue = $interval->days;
-                $totalFines += $daysOverdue * 5; // ₹5 per day
+                $totalFines += $daysOverdue * 5; // LKR5 per day
             }
             $stmt->close();
             
@@ -585,7 +585,7 @@ class UserController extends BaseController
                 if ($today > $dueDate) {
                     $interval = $today->diff($dueDate);
                     $daysOverdue = $interval->days;
-                    $record['fineAmount'] = $daysOverdue * 5; // ₹5 per day
+                    $record['fineAmount'] = $daysOverdue * 5; // LKR5 per day
                     $record['fineStatus'] = 'Unpaid';
                 }
             }
