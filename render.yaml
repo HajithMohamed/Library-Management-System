@@ -3,14 +3,19 @@
 
 services:
   #-----------------------------------
-  # PHP Backend Service (Private)
+  # PHP Backend Service (now a public Web Service)
   #-----------------------------------
-  - type: private_service # Corrected: Private service, not directly accessible from the internet
+  - type: web # Changed from private_service to web
     name: ils-php
     env: docker
+    plan: free # Services on the free plan will spin down when inactive
     dockerfilePath: ./docker/php/Dockerfile
     dockerContext: .
     startCommand: /usr/local/bin/render-start.sh
+    # Web services need to have a port defined. php-fpm defaults to 9000.
+    ports:
+      - port: 9000
+        protocol: TCP
     envVars:
       - key: TZ
         value: Asia/Kolkata
@@ -51,14 +56,15 @@ services:
       - port: 80
         protocol: TCP
     envVars:
+      # These variables now reference ils-php as a 'web' service
       - key: PHP_HOST
         fromService:
-          type: private_service # Corrected
+          type: web # Changed from private_service
           name: ils-php
           property: host
       - key: PHP_PORT
         fromService:
-          type: private_service # Corrected
+          type: web # Changed from private_service
           name: ils-php
           property: port
 
@@ -76,7 +82,6 @@ services:
           type: mysql
           name: ils-db
           property: host
-      # Corrected: Map DB user/password to PMA user/password
       - key: PMA_USER
         fromService:
           type: mysql
