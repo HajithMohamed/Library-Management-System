@@ -1,0 +1,138 @@
+# render.yaml
+# Defines the services for your application on Render.
+
+services:
+  #-----------------------------------
+  # PHP Backend Service (Private)
+  #-----------------------------------
+  - type: pvt_svc # Private service, not directly accessible from the internet
+    name: ils-php
+    env: docker
+    dockerfilePath: ./docker/php/Dockerfile
+    dockerContext: .
+    # This command runs our custom startup script
+    startCommand: /usr/local/bin/render-start.sh
+    envVars:
+      - key: TZ
+        value: Asia/Kolkata
+      # Database connection details are pulled from the envVarGroup below
+      - fromGroup: ils-database-credentials
+      - key: ADMIN_CODE
+        sync: false # Set this secret in the Render dashboard
+      # It's highly recommended to use secrets for SMTP credentials
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_ENCRYPTION
+        value: tls
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: "Library System"
+      - key: SMS_API_URL
+        value: ""
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_SENDER_ID
+        value: ""
+
+  #-----------------------------------
+  # Nginx Web Server (Public)
+  #-----------------------------------
+  - type: web # Publicly accessible web service
+    name: ils-nginx
+    env: docker
+    # Use the new Dockerfile specifically for Render
+    dockerfilePath: ./docker/nginx/Dockerfile.render
+    dockerContext: .
+    plan: free # Change to a paid plan for production apps
+    ports:
+      - port: 80
+        protocol: TCP
+    envVars:
+      # These variables pass the internal host and port of the PHP service to Nginx
+      - key: PHP_HOST
+        fromService:
+          type: pvt_svc
+          name: ils-php
+          property: host
+      - key: PHP_PORT
+        fromService:
+          type: pvt_svc
+          name: ils-php
+          property: port
+
+  #-----------------------------------
+  # phpMyAdmin Service (Optional, Public)
+  #-----------------------------------
+  - type: web
+    name: ils-phpmyadmin
+    env: docker
+    dockerImage: phpmyadmin/phpmyadmin:latest
+    plan: free
+    envVars:
+      - key: PMA_HOST
+        fromService:
+          type: mysql
+          name: ils-db
+          property: host
+      # Pulls DB user and password from the shared group
+      - fromGroup: ils-database-credentials
+      # We only need the user and password for PMA_HOST
+      - key: PMA_USER
+        fromGroup: ils-database-credentials
+        property: DB_USER
+      - key: PMA_PASSWORD
+        fromGroup: ils-database-credentials
+        property: DB_PASSWORD
+
+
+#-----------------------------------
+# Managed Database
+#-----------------------------------
+databases:
+  - name: ils-db
+    databaseName: integrated_library_system
+    user: library_user
+    plan: free # Change to a paid plan for production apps
+    # Note: Render provides the password automatically. It will be available in the envVarGroup.
+    # The initial import of 'library.sql' is handled by the 'ils-php' service startCommand.
+    type: mysql
+
+
+#-----------------------------------
+# Environment Variable Group
+#-----------------------------------
+envVarGroups:
+  - name: ils-database-credentials
+    envVars:
+      - key: DB_HOST
+        fromService:
+          type: mysql
+          name: ils-db
+          property: host
+      - key: DB_PORT
+        fromService:
+          type: mysql
+          name: ils-db
+          property: port
+      - key: DB_USER
+        fromService:
+          type: mysql
+          name: ils-db
+          property: user
+      - key: DB_PASSWORD
+        fromService:
+          type: mysql
+          name: ils-db
+          property: password
+      - key: DB_NAME
+        fromService:
+          type: mysql
+          name: ils-db
+          property: database
