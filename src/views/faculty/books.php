@@ -730,8 +730,7 @@ include APP_ROOT . '/views/layouts/header.php';
                         </option>
                         <option value="available" <?= (isset($_GET['sort']) && $_GET['sort'] === 'available') ? 'selected' : '' ?>>
                             Most Available
-                        </option>
-                    </select>
+                        </option>                    </select>
                 </div>
                 
                 <button type="submit" class="search-btn-modern">SEARCH</button>
@@ -746,7 +745,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 <div class="book-card-modern">
                     <div class="book-image-wrapper">
                         <?php if (!empty($book['bookImage'])): ?>
-                            <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
+                            <img src="<?= BASE_URL ?>uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
                         <?php else: ?>
                             <div class="book-placeholder-icon">
                                 <i class="fas fa-book"></i>
