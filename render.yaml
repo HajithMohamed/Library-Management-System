@@ -12,8 +12,7 @@ services:
     dockerfilePath: ./docker/php/Dockerfile
     dockerContext: .
     startCommand: /usr/local/bin/render-start.sh
-    # The 'ports' section has been removed as it's not valid for Docker web services.
-    # Render automatically detects the port exposed by the Docker container (9000 for php-fpm).
+    # 'ports' field is not used for Docker services; port is auto-detected.
     envVars:
       - key: TZ
         value: Asia/Kolkata
@@ -50,11 +49,8 @@ services:
     dockerfilePath: ./docker/nginx/Dockerfile.render
     dockerContext: .
     plan: free
-    # The port for the Nginx container itself is also auto-detected (port 80).
-    # This 'ports' section is for telling Render's router to forward traffic to port 80.
-    ports:
-      - port: 80
-        protocol: TCP
+    # Corrected: Removed the 'ports' field. It's not valid for Docker services.
+    # Render will auto-detect port 80 exposed in the Nginx Dockerfile.
     envVars:
       - key: PHP_HOST
         fromService:
@@ -73,7 +69,8 @@ services:
   - type: web
     name: ils-phpmyadmin
     env: docker
-    dockerImage: phpmyadmin/phpmyadmin:latest
+    # Corrected: The field is 'image', not 'dockerImage'.
+    image: phpmyadmin/phpmyadmin:latest
     plan: free
     envVars:
       - key: PMA_HOST
@@ -100,7 +97,8 @@ databases:
     databaseName: integrated_library_system
     user: library_user
     plan: free
-    type: mysql
+    # Corrected: The field is 'engine', not 'type'.
+    engine: mysql
 
 #-----------------------------------
 # Environment Variable Group
