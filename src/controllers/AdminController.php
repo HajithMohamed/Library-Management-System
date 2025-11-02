@@ -687,19 +687,86 @@ class AdminController
    */
   public function reports()
   {
-    $this->authHelper->requireAdmin();
-
-    $startDate = $_GET['start_date'] ?? date('Y-m-01');
-    $endDate = $_GET['end_date'] ?? date('Y-m-d');
+    $this->authHelper->requireAuth();
+    
+    // Check if user is admin
+    $userType = $_SESSION['userType'] ?? '';
+    if (strtolower($userType) !== 'admin') {
+        http_response_code(403);
+        $_SESSION['error'] = 'Access denied. Admin privileges required.';
+        header('Location: ' . BASE_URL . 'login');
+        exit;
+    }
+    
+    // Get filter parameters
     $reportType = $_GET['type'] ?? 'overview';
-
-    $report = $this->adminService->generateReport($reportType, $startDate, $endDate);
-
+    $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+    $endDate = $_GET['end_date'] ?? date('Y-m-d');
+    
+    $report = [];
+    
+    // Initialize models
+    $transactionModel = new \App\Models\Transaction();
+    $userModel = new \App\Models\User();
+    $bookModel = new \App\Models\Book();
+    
+    switch ($reportType) {
+        case 'overview':
+            $report = [
+                'total_transactions' => $transactionModel->getTotalTransactionsCount($startDate, $endDate),
+                'total_users' => $userModel->getTotalUsersCount(),
+                'total_books' => $bookModel->getTotalBooksCount(),
+                'total_fines' => $transactionModel->getTotalFinesAmount($startDate, $endDate),
+                'active_borrowings' => $transactionModel->getActiveBorrowingCount(),
+                'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate)
+            ];
+            break;
+            
+        case 'borrowing':
+            $report = [
+                'total_borrowings' => $transactionModel->getTotalTransactionsCount($startDate, $endDate),
+                'returned_books' => $transactionModel->getReturnedBooksCount($startDate, $endDate),
+                'active_loans' => $transactionModel->getActiveBorrowingCount(),
+                'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate)
+            ];
+            break;
+            
+        case 'fines':
+            $report = [
+                'total_fines' => $transactionModel->getTotalFinesAmount($startDate, $endDate),
+                'collected_fines' => $transactionModel->getCollectedFinesAmount($startDate, $endDate),
+                'pending_fines' => $transactionModel->getPendingFinesAmount($startDate, $endDate),
+                'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate),
+                'period' => date('M d', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate))
+            ];
+            break;
+            
+        case 'users':
+            $newUsers = $userModel->getUsersByDateRange($startDate, $endDate);
+            $report = [
+                'total_users' => $userModel->getTotalUsersCount(),
+                'active_users' => $userModel->getActiveUsersCount($startDate, $endDate),
+                'new_users' => count($newUsers),
+                'period' => date('M d', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate))
+            ];
+            break;
+            
+        case 'books':
+            $report = [
+                'total_books' => $bookModel->getTotalBooksCount(),
+                'available_books' => $bookModel->getAvailableBooksCount(),
+                'borrowed_books' => $transactionModel->getActiveBorrowingCount(),
+                'popular_books' => $bookModel->getPopularBooks(10, $startDate, $endDate),
+                'period' => date('M d', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate))
+            ];
+            break;
+    }
+    
     $this->render('admin/reports', [
-      'report' => $report,
-      'startDate' => $startDate,
-      'endDate' => $endDate,
-      'reportType' => $reportType
+        'reportType' => $reportType,
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+        'report' => $report
     ]);
   }
 
@@ -1007,7 +1074,7 @@ class AdminController
   }
   
     /**
-   * Export Report
+   * Export Report as Excel/CSV
    */
   public function exportReport()
   {
@@ -1016,36 +1083,180 @@ class AdminController
     $startDate = $_GET['start_date'] ?? date('Y-m-01');
     $endDate = $_GET['end_date'] ?? date('Y-m-d');
     $reportType = $_GET['type'] ?? 'overview';
+    $format = $_GET['format'] ?? 'csv'; // 'csv' or 'txt'
 
-    $report = $this->adminService->generateReport($reportType, $startDate, $endDate);
-    
-    $filename = "report_{$reportType}_{$startDate}_to_{$endDate}.txt";
-    
-    header('Content-Type: text/plain');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    // Initialize models
+    $transactionModel = new \App\Models\Transaction();
+    $userModel = new \App\Models\User();
+    $bookModel = new \App\Models\Book();
 
-    $content = "Library Report\n";
-    $content .= "Type: " . ucfirst($reportType) . "\n";
-    $content .= "Period: {$startDate} to {$endDate}\n";
-    $content .= "=================================================\n\n";
-
-    if (empty($report)) {
-        $content .= "No data available for this report.";
-    } else {
-        foreach ($report as $key => $value) {
-            if (is_array($value)) {
-                $content .= ucfirst(str_replace('_', ' ', $key)) . ":\n";
-                foreach($value as $sub_key => $sub_value) {
-                     $content .= "  - " . ucfirst(str_replace('_', ' ', $sub_key)) . ": " . $sub_value . "\n";
+    if ($format === 'csv') {
+        // Generate CSV (Excel-compatible)
+        $filename = "report_{$reportType}_{$startDate}_to_{$endDate}.csv";
+        
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Header
+        fputcsv($output, ['Library Report - ' . ucfirst($reportType)]);
+        fputcsv($output, ['Period', $startDate . ' to ' . $endDate]);
+        fputcsv($output, ['Generated', date('Y-m-d H:i:s')]);
+        fputcsv($output, []); // Empty row
+        
+        switch ($reportType) {
+            case 'overview':
+                fputcsv($output, ['Metric', 'Value']);
+                fputcsv($output, ['Total Transactions', $transactionModel->getTotalTransactionsCount($startDate, $endDate)]);
+                fputcsv($output, ['Total Users', $userModel->getTotalUsersCount()]);
+                fputcsv($output, ['Total Books', $bookModel->getTotalBooksCount()]);
+                fputcsv($output, ['Total Fines', 'LKR ' . number_format($transactionModel->getTotalFinesAmount($startDate, $endDate), 2)]);
+                fputcsv($output, ['Active Borrowings', $transactionModel->getActiveBorrowingCount()]);
+                fputcsv($output, ['Overdue Books', $transactionModel->getOverdueBooksCount($startDate, $endDate)]);
+                break;
+                
+            case 'borrowing':
+                fputcsv($output, ['Metric', 'Count']);
+                fputcsv($output, ['Total Borrowings', $transactionModel->getTotalTransactionsCount($startDate, $endDate)]);
+                fputcsv($output, ['Returned Books', $transactionModel->getReturnedBooksCount($startDate, $endDate)]);
+                fputcsv($output, ['Active Loans', $transactionModel->getActiveBorrowingCount()]);
+                fputcsv($output, ['Overdue Books', $transactionModel->getOverdueBooksCount($startDate, $endDate)]);
+                
+                // Add detailed transaction list
+                fputcsv($output, []); // Empty row
+                fputcsv($output, ['Detailed Transactions']);
+                fputcsv($output, ['Transaction ID', 'User ID', 'ISBN', 'Book Name', 'Borrow Date', 'Return Date', 'Status']);
+                
+                $transactions = $transactionModel->getTransactionsByDateRange($startDate, $endDate);
+                foreach ($transactions as $txn) {
+                    fputcsv($output, [
+                        $txn['tid'] ?? '',
+                        $txn['userId'] ?? '',
+                        $txn['isbn'] ?? '',
+                        $txn['bookName'] ?? '',
+                        $txn['borrowDate'] ?? '',
+                        $txn['returnDate'] ?? 'Not Returned',
+                        $txn['returnDate'] ? 'Returned' : 'Active'
+                    ]);
                 }
-            } else {
-                $content .= ucfirst(str_replace('_', ' ', $key)) . ": " . $value . "\n";
+                break;
+                
+            case 'fines':
+                fputcsv($output, ['Metric', 'Amount (LKR)']);
+                fputcsv($output, ['Total Fines', number_format($transactionModel->getTotalFinesAmount($startDate, $endDate), 2)]);
+                fputcsv($output, ['Collected Fines', number_format($transactionModel->getCollectedFinesAmount($startDate, $endDate), 2)]);
+                fputcsv($output, ['Pending Fines', number_format($transactionModel->getPendingFinesAmount($startDate, $endDate), 2)]);
+                fputcsv($output, ['Overdue Books', $transactionModel->getOverdueBooksCount($startDate, $endDate)]);
+                
+                // Add detailed fines list
+                fputcsv($output, []); // Empty row
+                fputcsv($output, ['Detailed Fines']);
+                fputcsv($output, ['Transaction ID', 'User ID', 'ISBN', 'Book Name', 'Fine Amount (LKR)', 'Status', 'Payment Date']);
+                
+                $fines = $this->adminService->getAllFines(null, null);
+                foreach ($fines as $fine) {
+                    if (strtotime($fine['borrowDate']) >= strtotime($startDate) && strtotime($fine['borrowDate']) <= strtotime($endDate)) {
+                        fputcsv($output, [
+                            $fine['tid'] ?? '',
+                            $fine['userId'] ?? '',
+                            $fine['isbn'] ?? '',
+                            $fine['bookName'] ?? '',
+                            number_format($fine['fineAmount'] ?? 0, 2),
+                            $fine['fineStatus'] ?? 'pending',
+                            $fine['finePaymentDate'] ?? 'N/A'
+                        ]);
+                    }
+                }
+                break;
+                
+            case 'users':
+                $newUsers = $userModel->getUsersByDateRange($startDate, $endDate);
+                fputcsv($output, ['Metric', 'Count']);
+                fputcsv($output, ['Total Users', $userModel->getTotalUsersCount()]);
+                fputcsv($output, ['Active Users', $userModel->getActiveUsersCount($startDate, $endDate)]);
+                fputcsv($output, ['New Users', count($newUsers)]);
+                
+                // Add new users list
+                if (!empty($newUsers)) {
+                    fputcsv($output, []); // Empty row
+                    fputcsv($output, ['New Users Details']);
+                    fputcsv($output, ['User ID', 'Username', 'Email', 'User Type', 'Created Date']);
+                    
+                    foreach ($newUsers as $user) {
+                        fputcsv($output, [
+                            $user['userId'] ?? '',
+                            $user['username'] ?? '',
+                            $user['emailId'] ?? '',
+                            $user['userType'] ?? '',
+                            $user['createdAt'] ?? ''
+                        ]);
+                    }
+                }
+                break;
+                
+            case 'books':
+                $popularBooks = $bookModel->getPopularBooks(10, $startDate, $endDate);
+                fputcsv($output, ['Metric', 'Count']);
+                fputcsv($output, ['Total Books', $bookModel->getTotalBooksCount()]);
+                fputcsv($output, ['Available Books', $bookModel->getAvailableBooksCount()]);
+                fputcsv($output, ['Borrowed Books', $transactionModel->getActiveBorrowingCount()]);
+                
+                // Add popular books list
+                if (!empty($popularBooks)) {
+                    fputcsv($output, []); // Empty row
+                    fputcsv($output, ['Popular Books']);
+                    fputcsv($output, ['ISBN', 'Book Name', 'Author', 'Borrow Count']);
+                    
+                    foreach ($popularBooks as $book) {
+                        fputcsv($output, [
+                            $book['isbn'] ?? '',
+                            $book['bookName'] ?? '',
+                            $book['authorName'] ?? '',
+                            $book['borrow_count'] ?? 0
+                        ]);
+                    }
+                }
+                break;
+        }
+        
+        fclose($output);
+        exit;
+        
+    } else {
+        // Original text format
+        $report = $this->adminService->generateReport($reportType, $startDate, $endDate);
+        $filename = "report_{$reportType}_{$startDate}_to_{$endDate}.txt";
+        
+        header('Content-Type: text/plain');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $content = "Library Report\n";
+        $content .= "Type: " . ucfirst($reportType) . "\n";
+        $content .= "Period: {$startDate} to {$endDate}\n";
+        $content .= "=================================================\n\n";
+
+        if (empty($report)) {
+            $content .= "No data available for this report.";
+        } else {
+            foreach ($report as $key => $value) {
+                if (is_array($value)) {
+                    $content .= ucfirst(str_replace('_', ' ', $key)) . ":\n";
+                    foreach($value as $sub_key => $sub_value) {
+                         $content .= "  - " . ucfirst(str_replace('_', ' ', $sub_key)) . ": " . $sub_value . "\n";
+                    }
+                } else {
+                    $content .= ucfirst(str_replace('_', ' ', $key)) . ": " . $value . "\n";
+                }
             }
         }
+        
+        echo $content;
+        exit;
     }
-    
-    echo $content;
-    exit;
   }
 
   /**

@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS `transactions` (
   `fineAmount` decimal(10,2) DEFAULT 0.00,
   `fineStatus` enum('pending','paid','waived') DEFAULT 'pending',
   `finePaymentDate` date NULL,
-  `finePaymentMethod` enum('cash','online','card') NULL,
+  `finePaymentMethod` enum('cash','online','card','credit_card','debit_card','upi') NULL,
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`tid`),
@@ -840,64 +840,71 @@ CREATE TABLE IF NOT EXISTS `payment_logs` (
   `userId` varchar(255) NOT NULL,
   `transactionId` varchar(255) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
   `cardLastFour` varchar(4) DEFAULT NULL,
-  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,it_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
   `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_userId` (`userId`),
+  PRIMARY KEY (`id`),AULT 'success',
+  KEY `idx_userId` (`userId`),e NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY `idx_transactionId` (`transactionId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
 -- ...existing code...
-
--- ====================================================================
+htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ====================================================================-- ...existing code...
 -- Table structure for table `transactions`
--- FIXED: Removed duplicate 'fine' column - now only using 'fineAmount'
+-- FIXED: Removed duplicate 'fine' column - now only using 'fineAmount'============================
 -- ====================================================================
 CREATE TABLE IF NOT EXISTS `transactions` (
-  `tid` varchar(255) NOT NULL,
-  `userId` varchar(255) NOT NULL,
+  `tid` varchar(255) NOT NULL,============================
+  `userId` varchar(255) NOT NULL,ansactions` (
   `isbn` varchar(13) NOT NULL,
-  `borrowDate` date NOT NULL,
-  `returnDate` date DEFAULT NULL,
+  `borrowDate` date NOT NULL,LL,
+  `returnDate` date DEFAULT NULL,,
   `lastFinePaymentDate` date DEFAULT NULL,
   `fineAmount` decimal(10,2) DEFAULT 0.00,
   `fineStatus` enum('pending','paid','waived') DEFAULT 'pending',
   `finePaymentDate` date NULL,
-  `finePaymentMethod` enum('cash','online','card','credit_card','debit_card','upi') NULL,
+  `finePaymentMethod` enum('cash','online','card','credit_card','debit_card','upi') NULL,'paid','waived') DEFAULT 'pending',
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,card','debit_card','upi') NULL,
   PRIMARY KEY (`tid`),
-  KEY `idx_userId` (`userId`),
-  KEY `idx_isbn` (`isbn`),
+  KEY `idx_userId` (`userId`), NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_isbn` (`isbn`),L DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY `idx_borrowDate` (`borrowDate`),
   KEY `idx_returnDate` (`returnDate`),
   KEY `idx_fineStatus` (`fineStatus`),
   CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
   CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+S `users` (`userId`) ON DELETE CASCADE,
+-- ====================================================================  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
+-- ALTER TABLE: Add finePaymentDetails column if it doesn't existT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ====================================================================
+ALTER TABLE `transactions` -- ...existing code...
+ADD COLUMN IF NOT EXISTS `finePaymentDetails` TEXT NULL AFTER `finePaymentMethod`;
 
--- ...existing code...
+-- ...existing code...-- Re-enable FK checks after data insertion
 -- ...existing code...
 
 -- Re-enable FK checks after data insertion
 SET FOREIGN_KEY_CHECKS = 1;
-
 -- ====================================================================
+-- ====================================================================s = 'Unpaid';
 -- DATA CLEANUP: Fix fineStatus values to match ENUM
 -- ====================================================================
 UPDATE `transactions` SET fineStatus = 'pending' WHERE fineStatus = 'Unpaid';
-
+(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),
 -- Update fines for overdue books that don't have fineAmount set
 UPDATE `transactions` t
-SET t.fineAmount = GREATEST(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),
-    t.fineStatus = 'pending'
-WHERE t.returnDate IS NULL 
-AND DATEDIFF(CURDATE(), t.borrowDate) > 14
-AND (t.fineAmount IS NULL OR t.fineAmount = 0);
+SET t.fineAmount = GREATEST(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+    t.fineStatus = 'pending'unt IS NULL OR t.fineAmount = 0);
 
+
+
+
+
+-- End of fileAND (t.fineAmount IS NULL OR t.fineAmount = 0);AND DATEDIFF(CURDATE(), t.borrowDate) > 14WHERE t.returnDate IS NULL 
 -- End of file

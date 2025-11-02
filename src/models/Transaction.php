@@ -502,5 +502,220 @@ class Transaction
             ];
         }
     }
+
+    /**
+     * Get total transactions count
+     */
+    public function getTotalTransactionsCount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM transactions 
+                    WHERE borrowDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM transactions");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting total transactions count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get total fines amount
+     */
+    public function getTotalFinesAmount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE fineAmount > 0 
+                    AND borrowDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE fineAmount > 0
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (float)$row['total'];
+            }
+            
+            return 0.0;
+        } catch (\Exception $e) {
+            error_log("Error getting total fines amount: " . $e->getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Get collected fines amount
+     */
+    public function getCollectedFinesAmount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE fineStatus = 'paid' 
+                    AND finePaymentDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE fineStatus = 'paid'
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (float)$row['total'];
+            }
+            
+            return 0.0;
+        } catch (\Exception $e) {
+            error_log("Error getting collected fines amount: " . $e->getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Get pending fines amount
+     */
+    public function getPendingFinesAmount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE (fineStatus = 'pending' OR fineStatus IS NULL)
+                    AND fineAmount > 0
+                    AND borrowDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(fineAmount), 0) as total
+                    FROM transactions 
+                    WHERE (fineStatus = 'pending' OR fineStatus IS NULL)
+                    AND fineAmount > 0
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (float)$row['total'];
+            }
+            
+            return 0.0;
+        } catch (\Exception $e) {
+            error_log("Error getting pending fines amount: " . $e->getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Get overdue books count
+     */
+    public function getOverdueBooksCount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(*) as count
+                    FROM transactions 
+                    WHERE returnDate IS NULL 
+                    AND DATE_ADD(borrowDate, INTERVAL 14 DAY) < CURDATE()
+                    AND borrowDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(*) as count
+                    FROM transactions 
+                    WHERE returnDate IS NULL 
+                    AND DATE_ADD(borrowDate, INTERVAL 14 DAY) < CURDATE()
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting overdue books count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get returned books count
+     */
+    public function getReturnedBooksCount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(*) as count
+                    FROM transactions 
+                    WHERE returnDate IS NOT NULL
+                    AND returnDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(*) as count
+                    FROM transactions 
+                    WHERE returnDate IS NOT NULL
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting returned books count: " . $e->getMessage());
+            return 0;
+        }
+    }
 }
 ?>
