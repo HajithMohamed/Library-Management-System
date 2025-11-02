@@ -424,6 +424,44 @@ CREATE TABLE IF NOT EXISTS `books_borrowed` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ====================================================================
+-- Table structure for table `saved_cards`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `cardNickname` varchar(100) DEFAULT NULL,
+  `cardLastFour` varchar(4) NOT NULL,
+  `cardType` varchar(20) NOT NULL,
+  `cardHolderName` varchar(255) NOT NULL,
+  `expiryMonth` varchar(2) NOT NULL,
+  `expiryYear` varchar(4) NOT NULL,
+  `isDefault` tinyint(1) DEFAULT 0,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
+-- Table structure for table `payment_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `payment_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `transactionId` varchar(255) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `cardLastFour` varchar(4) DEFAULT NULL,
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
+  `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_transactionId` (`transactionId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
 -- Disable FK checks for safe data insertion (re-enabled after)
 -- ====================================================================
 SET FOREIGN_KEY_CHECKS = 0;
@@ -732,105 +770,330 @@ INSERT IGNORE INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
 ('USR010', '7091768085250', 'Wisdom');
 
 -- ====================================================================
--- DUMMY DATA: Book Reservations (10 reservations)
--- FIXED: Updated dates to 2025
+-- Table structure for table `payment_logs`
 -- ====================================================================
-INSERT IGNORE INTO `book_reservations` (`userId`, `isbn`, `reservationStatus`, `notifiedDate`, `expiryDate`) VALUES
-('USR003', '6604622694292', 'Active', NULL, '2025-11-02'),
-('USR004', '6080591560497', 'Active', NULL, '2025-11-03'),
-('USR005', '7781111792539', 'Notified', '2025-10-24', '2025-10-27'),
-('USR006', '8100852011803', 'Active', NULL, '2025-11-01'),
-('USR007', '8783340203918', 'Active', NULL, '2025-11-04'),
-('USR008', '0307268000967', 'Expired', NULL, '2025-10-23'),
-('USR009', '7840135040808', 'Active', NULL, '2025-11-05'),
-('FAC001', '8131061994907', 'Notified', '2025-10-25', '2025-10-28'),
-('FAC002', '8063254954311', 'Active', NULL, '2025-11-02'),
-('USR010', '5418428424560', 'Active', NULL, '2025-11-03');
-
--- ====================================================================
--- DUMMY DATA: Audit Logs (20 audit entries)
--- FIXED: Updated dates to 2025
--- ====================================================================
-INSERT IGNORE INTO `audit_logs` (`userId`, `action`, `entityType`, `entityId`, `changes`, `ipAddress`, `userAgent`) VALUES
-('LIB001', 'APPROVE_BORROW', 'borrow_requests', '3', '{"status":"Approved","dueDate":"2025-11-07"}', '192.168.1.101', 'Mozilla/5.0'),
-('LIB002', 'APPROVE_BORROW', 'borrow_requests', '4', '{"status":"Approved","dueDate":"2025-11-06"}', '192.168.1.102', 'Mozilla/5.0'),
-('LIB001', 'REJECT_BORROW', 'borrow_requests', '6', '{"status":"Rejected","reason":"All copies currently borrowed"}', '192.168.1.101', 'Mozilla/5.0'),
-('LIB003', 'APPROVE_BORROW', 'borrow_requests', '8', '{"status":"Approved","dueDate":"2025-11-07"}', '192.168.1.103', 'Mozilla/5.0'),
-('LIB001', 'APPROVE_BORROW', 'borrow_requests', '9', '{"status":"Approved","dueDate":"2025-11-06"}', '192.168.1.101', 'Mozilla/5.0'),
-('ADM001', 'UPDATE_SETTINGS', 'fine_settings', '1', '{"old_value":"5","new_value":"5"}', '192.168.1.201', 'Mozilla/5.0'),
-('LIB001', 'CREATE_BOOK', 'books', '6604622694292', '{"bookName":"where the forest meets the stars","totalCopies":5}', '192.168.1.101', 'Mozilla/5.0'),
-('LIB002', 'UPDATE_BOOK', 'books', '6080591560497', '{"available":{"old":3,"new":2}}', '192.168.1.102', 'Mozilla/5.0'),
-('USR001', 'BORROW_BOOK', 'transactions', 'TXN001', '{"isbn":"6604622694292","borrowDate":"2025-10-01"}', '192.168.1.50', 'Mozilla/5.0'),
-('USR003', 'PAY_FINE', 'transactions', 'TXN003', '{"fineAmount":15.00,"paymentMethod":"online"}', '192.168.1.52', 'Mozilla/5.0'),
-('LIB001', 'PROCESS_RETURN', 'transactions', 'TXN001', '{"returnDate":"2025-10-12"}', '192.168.1.101', 'Mozilla/5.0'),
-('ADM002', 'CREATE_USER', 'users', 'USR009', '{"userType":"Student","emailId":"james.thomas@university.edu"}', '192.168.1.202', 'Mozilla/5.0'),
-('LIB002', 'APPROVE_BORROW', 'borrow_requests', '11', '{"status":"Approved","dueDate":"2025-11-04"}', '192.168.1.102', 'Mozilla/5.0'),
-('LIB003', 'REJECT_BORROW', 'borrow_requests', '13', '{"status":"Rejected","reason":"User has pending fines"}', '192.168.1.103', 'Mozilla/5.0'),
-('LIB001', 'APPROVE_BORROW', 'borrow_requests', '15', '{"status":"Approved","dueDate":"2025-11-07"}', '192.168.1.101', 'Mozilla/5.0'),
-('ADM001', 'UPDATE_SETTINGS', 'system_settings', '4', '{"old_value":"5","new_value":"5"}', '192.168.1.201', 'Mozilla/5.0'),
-('USR006', 'PAY_FINE', 'transactions', 'TXN006', '{"fineAmount":25.00,"paymentMethod":"card"}', '192.168.1.55', 'Mozilla/5.0'),
-('LIB001', 'PROCESS_RETURN', 'transactions', 'TXN009', '{"returnDate":"2025-10-15"}', '192.168.1.101', 'Mozilla/5.0'),
-('USR002', 'PAY_FINE', 'transactions', 'TXN012', '{"fineAmount":10.00,"paymentMethod":"cash"}', '192.168.1.51', 'Mozilla/5.0'),
-('USR005', 'PAY_FINE', 'transactions', 'TXN015', '{"fineAmount":35.00,"paymentMethod":"online"}', '192.168.1.54', 'Mozilla/5.0');
-
--- ====================================================================
--- DUMMY DATA: API Logs (15 API call logs)
--- ====================================================================
-INSERT IGNORE INTO `api_logs` (`userId`, `endpoint`, `method`, `statusCode`, `responseTime`, `ipAddress`, `userAgent`) VALUES
-('USR001', '/api/books/search', 'GET', 200, 125, '192.168.1.50', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR002', '/api/auth/login', 'POST', 200, 342, '192.168.1.51', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
-('USR003', '/api/books/6604622694292', 'GET', 200, 89, '192.168.1.52', 'Mozilla/5.0 (X11; Linux x86_64)'),
-('LIB001', '/api/borrow-requests/approve/3', 'POST', 200, 234, '192.168.1.101', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR004', '/api/transactions/history', 'GET', 200, 156, '192.168.1.53', 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)'),
-('ADM001', '/api/admin/dashboard/stats', 'GET', 200, 423, '192.168.1.201', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR005', '/api/books/favorites', 'GET', 200, 98, '192.168.1.54', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
-('LIB002', '/api/books/update/6080591560497', 'PUT', 200, 187, '192.168.1.102', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR006', '/api/fines/pay', 'POST', 200, 456, '192.168.1.55', 'Mozilla/5.0 (Android; Mobile)'),
-('FAC001', '/api/books/trending', 'GET', 200, 134, '192.168.1.60', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'),
-('USR007', '/api/notifications', 'GET', 200, 67, '192.168.1.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('LIB003', '/api/borrow-requests/pending', 'GET', 200, 298, '192.168.1.103', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR008', '/api/books/reserve', 'POST', 201, 176, '192.168.1.57', 'Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X)'),
-('ADM002', '/api/admin/users/list', 'GET', 200, 512, '192.168.1.202', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
-('USR009', '/api/profile/update', 'PUT', 200, 223, '192.168.1.58', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
-
--- ====================================================================
--- DUMMY DATA: Books Borrowed (10 sample records)
--- ====================================================================
-INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, `returnDate`, `status`, `notes`, `addedBy`) VALUES
-('USR001', '6604622694292', '2025-10-15', '2025-10-29', NULL, 'Active', 'Regular borrowing', 'ADM001'),
-('USR002', '6080591560497', '2025-10-18', '2025-11-01', NULL, 'Active', NULL, 'LIB001'),
-('USR003', '7781111792539', '2025-10-01', '2025-10-15', '2025-10-14', 'Returned', 'Returned on time', 'LIB001'),
-('USR004', '8100852011803', '2025-09-25', '2025-10-09', NULL, 'Overdue', 'Needs follow-up', 'ADM001'),
-('USR005', '8783340203918', '2025-10-20', '2025-11-03', NULL, 'Active', NULL, 'LIB002'),
-('USR006', '0307268000967', '2025-10-10', '2025-10-24', '2025-10-23', 'Returned', NULL, 'LIB001'),
-('USR007', '7840135040808', '2025-10-22', '2025-11-05', NULL, 'Active', 'Faculty member', 'ADM001'),
-('FAC001', '8131061994907', '2025-10-05', '2025-10-19', '2025-10-18', 'Returned', 'Extended borrowing period', 'LIB003'),
-('FAC002', '8063254954311', '2025-10-12', '2025-10-26', NULL, 'Active', NULL, 'LIB002'),
-('USR008', '5418428424560', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
-
-
--- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
--- ...existing code...
-
--- ====================================================================
--- Table structure for table `saved_cards`
--- ====================================================================
-CREATE TABLE IF NOT EXISTS `saved_cards` (
+CREATE TABLE IF NOT EXISTS `payment_logs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `userId` varchar(255) NOT NULL,
-  `cardNickname` varchar(100) DEFAULT NULL,
-  `cardLastFour` varchar(4) NOT NULL,
-  `cardType` varchar(20) NOT NULL,
-  `cardHolderName` varchar(255) NOT NULL,
-  `expiryMonth` varchar(2) NOT NULL,
-  `expiryYear` varchar(4) NOT NULL,
-  `isDefault` tinyint(1) DEFAULT 0,
+  `transactionId` varchar(255) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `cardLastFour` varchar(4) DEFAULT NULL,
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
+  `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_userId` (`userId`),
-  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+  KEY `idx_transactionId` (`transactionId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
+-- Disable FK checks for safe data insertion (re-enabled after)
+-- ====================================================================
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ====================================================================
+-- Insert default fine settings (only if table is empty)
+-- FIXED: Added column aliases to prevent duplicate column name '0' error
+-- ====================================================================
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_per_day'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'grace_period_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
+);
+
+-- ====================================================================
+-- Insert default system settings
+-- ====================================================================
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_name');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_email');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_phone');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'max_books_per_user');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'enable_notifications');
+
+-- ====================================================================
+-- Insert default role permissions
+-- ====================================================================
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
+
+-- ====================================================================
+-- Insert default library hours
+-- ====================================================================
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Monday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Monday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Tuesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Wednesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Thursday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Thursday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Friday', '08:00:00', '18:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Friday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Saturday', '10:00:00', '16:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Saturday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Sunday', '00:00:00', '00:00:00', 1
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
+
+-- ====================================================================
+-- DUMMY DATA: Users (20 users - mix of Students, Faculty, Librarian, Admin)
+-- FIXED: Updated all dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
+('USR001', 'student', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
+('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
+('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
+('USR004', 'sarah_davis', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-03-18', 'sarah.davis@university.edu', '555-0104', '321 Student Lane, Dorm A, Room 410', 'profile4.jpg', 1, '2025-01-18 14:30:00'),
+('USR005', 'david_wilson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-07-25', 'david.wilson@university.edu', '555-0105', '654 Academic Way, Dorm D, Room 208', 'profile5.jpg', 1, '2025-01-19 09:45:00'),
+('USR006', 'jessica_moore', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-01-12', 'jessica.moore@university.edu', '555-0106', '987 Scholar St, Dorm B, Room 501', 'profile6.jpg', 1, '2025-01-20 13:00:00'),
+('USR007', 'robert_taylor', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-09-08', 'robert.taylor@university.edu', '555-0107', '147 Learning Ave, Dorm C, Room 315', 'profile7.jpg', 1, '2025-01-21 10:30:00'),
+('USR008', 'amanda_anderson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-06-20', 'amanda.anderson@university.edu', '555-0108', '258 Knowledge Rd, Dorm A, Room 212', 'profile8.jpg', 1, '2025-01-22 15:15:00'),
+('USR009', 'james_thomas', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-12-05', 'james.thomas@university.edu', '555-0109', '369 Education Blvd, Dorm D, Room 405', 'profile9.jpg', 0, '2025-10-20 09:00:00'),
+('USR010', 'lisa_jackson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-04-17', 'lisa.jackson@university.edu', '555-0110', '741 Campus Circle, Dorm B, Room 118', 'profile10.jpg', 1, '2025-02-01 11:45:00'),
+('FAC001', 'dr_robert_johnson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1978-03-22', 'r.johnson@university.edu', '555-0201', '1001 Faculty Housing, Building A', 'profile_fac1.jpg', 1, '2024-08-01 08:00:00'),
+('FAC002', 'prof_maria_garcia', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1982-07-14', 'm.garcia@university.edu', '555-0202', '1002 Faculty Housing, Building B', 'profile_fac2.jpg', 1, '2024-08-01 08:00:00'),
+('FAC003', 'dr_william_lee', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1975-11-08', 'w.lee@university.edu', '555-0203', '1003 Faculty Housing, Building A', 'profile_fac3.jpg', 1, '2024-08-01 08:00:00'),
+('FAC004', 'prof_patricia_martinez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1980-05-30', 'p.martinez@university.edu', '555-0204', '1004 Faculty Housing, Building C', 'profile_fac4.jpg', 1, '2024-08-01 08:00:00'),
+('FAC005', 'dr_charles_white', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1979-09-16', 'c.white@university.edu', '555-0205', '1005 Faculty Housing, Building B', 'profile_fac5.jpg', 1, '2024-08-01 08:00:00'),
+('LIB001', 'lib', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Faculty', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
+('LIB002', 'librarian_mark', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Male', '1988-02-28', 'mark.librarian@university.edu', '555-0302', '2002 Staff Quarters, Block B', 'profile_lib2.jpg', 1, '2023-06-01 08:00:00'),
+('LIB003', 'librarian_nancy', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1990-10-19', 'nancy.librarian@university.edu', '555-0303', '2003 Staff Quarters, Block A', 'profile_lib3.jpg', 1, '2024-01-15 08:00:00'),
+('ADM001', 'admin', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
+('ADM002', 'admin_jennifer', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Female', '1980-12-21', 'jennifer.admin@university.edu', '555-0402', '3002 Admin Building, Office 102', 'profile_adm2.jpg', 1, '2022-01-01 08:00:00');
+
+-- ====================================================================
+-- DUMMY DATA: Books (30 books across various categories)
+-- ====================================================================
+INSERT IGNORE INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `description`, `category`, `publicationYear`, `totalCopies`, `available`, `borrowed`, `bookImage`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
+('6604622694292', NULL, 'where the forest meets the stars', 'glendy vanderah', 'HarperCollins', 'A captivating story exploring themes related to where the forest meets the stars and human emotions.', 'Literature', 2016, 5, 5, 0, 'img1.jpg', 0, 0, NULL),
+('6080591560497', NULL, 'JAVA', 'josh thompson', 'Random House', 'A captivating story exploring themes related to java and human emotions.', 'Technology', 2012, 5, 5, 0, 'img2.jpg', 0, 0, NULL),
+('7781111792539', NULL, 'a world of secrets', 'james maxwell', 'Scholastic', 'A captivating story exploring themes related to a world of secrets and human emotions.', 'Fantasy', 1978, 5, 5, 0, 'img3.jpg', 0, 0, NULL),
+('8100852011803', NULL, 'the funnel of good', 'bob bloch', 'Vintage Publishing', 'A captivating story exploring themes related to the funnel of good  and human emotions.', 'Self-help', 1978, 5, 5, 0, 'img4.jpg', 0, 0, NULL),
+('8783340203918', NULL, 'long way gone', 'charles martin', 'Cambridge Books', 'A captivating story exploring themes related to long way gone and human emotions.', 'Fiction', 2005, 5, 5, 0, 'img5.jpg', 0, 0, NULL),
+('0307268000967', NULL, 'Roots', 'alex haley', 'Random House', 'A captivating story exploring themes related to roots and human emotions.', 'General', 1999, 5, 5, 0, 'img6.jpg', 0, 0, NULL),
+('7840135040808', NULL, 'preparation for the next life', 'Uspoytxhii', 'Pearson', 'A captivating story exploring themes related to preparation for the next life and human emotions.', 'General', 1977, 5, 5, 0, 'img7.jpg', 0, 0, NULL),
+('8131061994907', NULL, 'the house plants guid', 'Uanqenit', 'Pearson', 'A captivating story exploring themes related to the house plants guid and human emotions.', 'General', 1992, 5, 5, 0, 'img8.jpg', 0, 0, NULL),
+('8063254954311', NULL, 'the science of plants', 'Sofcew', 'Cambridge Books', 'A captivating story exploring themes related to the science of plants and human emotions.', 'Science', 1988, 5, 5, 0, 'img9.jpg', 0, 0, NULL),
+('5418428424560', NULL, 'indian agriculture', 'Yjydhoer', 'Pearson', 'A captivating story exploring themes related to indian agriculture and human emotions.', 'General', 1950, 5, 5, 0, 'img10.jpg', 0, 0, NULL),
+('0500261952520', NULL, 'growing a revolution', 'Ogodqytjby', 'Vintage Publishing', 'A captivating story exploring themes related to growing a revolution and human emotions.', 'General', 1994, 5, 5, 0, 'img11.jpg', 0, 0, NULL),
+('6417612062012', NULL, 'organic farming for sustainable agriculture', 'Zcjxwwblf', 'Cambridge Books', 'A captivating story exploring themes related to organic farming for sustainable agriculture and human emotions.', 'General', 2010, 5, 5, 0, 'img12.jpg', 0, 0, NULL),
+('1946547630161', NULL, 'emerging research in agriculture science', 'Dztfpxyi', 'Pearson', 'A captivating story exploring themes related to emerging research in agriculture science and human emotions.', 'Science', 1969, 5, 5, 0, 'img13.jpg', 0, 0, NULL),
+('1435337305858', NULL, 'climate change and agriculture', 'Iqubvwzqdv', 'HarperCollins', 'A captivating story exploring themes related to climate change and agriculture and human emotions.', 'General', 1967, 5, 5, 0, 'img14.jpg', 0, 0, NULL),
+('1576527271399', NULL, 'information and communication technology', 'Lypsyu', 'Vintage Publishing', 'A captivating story exploring themes related to information and communication technology and human emotions.', 'General', 1952, 5, 5, 0, 'img15.jpg', 0, 0, NULL),
+('6900451289401', NULL, 'foundation of ict', 'Pffol', 'Pearson', 'A captivating story exploring themes related to foundation of ict and human emotions.', 'General', 2001, 5, 5, 0, 'img16.jpg', 0, 0, NULL),
+('1613357754265', NULL, 'computer programing language', 'Tltgv', 'Oxford Press', 'A captivating story exploring themes related to computer programing language and human emotions.', 'General', 1957, 5, 5, 0, 'img17.jpg', 0, 0, NULL),
+('2461307156025', NULL, 'python programming for beginners', 'Gbwhhtrith', 'Cambridge Books', 'A captivating story exploring themes related to python programming for beginners and human emotions.', 'General', 1965, 5, 5, 0, 'img18.jpg', 0, 0, NULL),
+('6603279916127', NULL, 'computer programming and cybersecurity', 'Qrpfcseahz', 'Pearson', 'A captivating story exploring themes related to computer programming and cybersecurity and human emotions.', 'General', 1989, 5, 5, 0, 'img19.jpg', 0, 0, NULL),
+('7091768085250', NULL, 'orchid C++', 'Uozolxx', 'Scholastic', 'A captivating story exploring themes related to orchid c++ and human emotions.', 'General', 1989, 5, 5, 0, 'img20.jpg', 0, 0, NULL),
+('6351830113568', NULL, 'practical electronics for inventors', 'Dugxure', 'Oxford Press', 'A captivating story exploring themes related to practical electronics for inventors and human emotions.', 'General', 2009, 5, 5, 0, 'img21.jpg', 0, 0, NULL),
+('7128900048463', NULL, 'hacking electronics', 'Zvhmxmlj', 'Penguin Books', 'A captivating story exploring themes related to hacking electronics and human emotions.', 'General', 2006, 5, 5, 0, 'img22.jpg', 0, 0, NULL),
+('8057034409269', NULL, 'engineering mechanics', 'Hxafbtcb', 'Pearson', 'A captivating story exploring themes related to engineering mechanics and human emotions.', 'General', 2020, 5, 5, 0, 'img23.jpg', 0, 0, NULL),
+('0323850190420', NULL, 'mechanical engineering', 'Zvngnhva', 'Scholastic', 'A captivating story exploring themes related to mechanical engineering and human emotions.', 'General', 2019, 5, 5, 0, 'img24.jpg', 0, 0, NULL),
+('4056543252699', NULL, 'numerical analysis and computational mathematics', 'Ysspcamcq', 'Scholastic', 'A captivating story exploring themes related to numerical analysis and computational mathematics and human emotions.', 'General', 1995, 5, 5, 0, 'img25.jpg', 0, 0, NULL),
+('1875626713102', NULL, 'trignometry', 'Cidllopjs', 'Pearson', 'A captivating story exploring themes related to trignometry and human emotions.', 'General', 2001, 5, 5, 0, 'img26.jpg', 0, 0, NULL),
+('2924006842526', NULL, 'short stories -English', 'Sqkvvupxj', 'Oxford Press', 'A captivating story exploring themes related to short stories -english and human emotions.', 'General', 1959, 5, 5, 0, 'img27.jpg', 0, 0, NULL),
+('9875436992524', NULL, 'practical english usage', 'Mhusqfmwns', 'Random House', 'A captivating story exploring themes related to practical english usage and human emotions.', 'General', 1998, 5, 5, 0, 'img28.jpg', 0, 0, NULL),
+('3328438043912', NULL, 'modern classical physics', 'Kqgnmoxb', 'Penguin Books', 'A captivating story exploring themes related to modern classical physics and human emotions.', 'General', 2013, 5, 5, 0, 'img29.jpg', 0, 0, NULL),
+('7115814019075', NULL, 'active chemistry', 'Ajnhvsn', 'Pearson', 'A captivating story exploring themes related to active chemistry and human emotions.', 'General', 1966, 5, 5, 0, 'img30.jpg', 0, 0, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Transactions (25 transaction records)
+-- FIXED: Removed duplicate 'fine' column, updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`, `fineAmount`, `fineStatus`, `finePaymentDate`, `finePaymentMethod`) VALUES
+('TXN001', 'USR001', '6604622694292', '2025-10-01', '2025-10-12', 0.00, 'paid', NULL, NULL),
+('TXN002', 'USR002', '6080591560497', '2025-10-03', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN003', 'USR003', '9780743273565', '2025-09-20', '2025-10-10', 15.00, 'paid', '2025-10-11', 'online'),
+('TXN004', 'USR004', '7781111792539', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN005', 'USR005', '8100852011803', '2025-10-08', '2025-10-20', 0.00, 'paid', NULL, NULL),
+('TXN006', 'USR006', '9780134757599', '2025-09-15', '2025-10-05', 25.00, 'paid', '2025-10-06', 'card'),
+('TXN007', 'USR007', '8783340203918', '2025-10-10', '2025-10-22', 0.00, 'paid', NULL, NULL),
+('TXN008', 'USR008', '0307268000967', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN009', 'FAC001', '7840135040808', '2025-09-25', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN010', 'FAC002', '8131061994907', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN011', 'USR001', '8063254954311', '2025-10-15', NULL, 0.00, 'pending', NULL, NULL),
+('TXN012', 'USR002', '9780596517748', '2025-09-28', '2025-10-20', 10.00, 'paid', '2025-10-21', 'cash'),
+('TXN013', 'USR003', '5418428424560', '2025-10-18', NULL, 0.00, 'pending', NULL, NULL),
+('TXN014', 'USR004', '0500261952520', '2025-10-08', '2025-10-21', 0.00, 'paid', NULL, NULL),
+('TXN015', 'USR005', '9780062316097', '2025-09-10', '2025-10-05', 35.00, 'paid', '2025-10-06', 'online'),
+('TXN016', 'USR006', '6417612062012', '2025-10-20', NULL, 0.00, 'pending', NULL, NULL),
+('TXN017', 'USR007', '1946547630161', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN018', 'FAC003', '1435337305858', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN019', 'FAC004', '1576527271399', '2025-10-10', '2025-10-23', 0.00, 'paid', NULL, NULL),
+('TXN020', 'USR008', '9780691169866', '2025-09-18', '2025-10-12', 20.00, 'pending', NULL, NULL),
+('TXN021', 'USR009', '6900451289401', '2025-10-22', NULL, 0.00, 'pending', NULL, NULL),
+('TXN022', 'USR010', '1613357754265', '2025-10-16', NULL, 0.00, 'pending', NULL, NULL),
+('TXN023', 'FAC005', '2461307156025', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN024', 'USR001', '6603279916127', '2025-10-23', NULL, 0.00, 'pending', NULL, NULL),
+('TXN025', 'USR002', '7091768085250', '2025-10-24', NULL, 0.00, 'pending', NULL, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Borrow Requests (15 requests with various statuses)
+-- FIXED: Updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`, `rejectionReason`) VALUES
+('USR003', '6604622694292', '2025-10-25 09:30:00', 'Pending', NULL, NULL, NULL),
+('USR004', '6080591560497', '2025-10-25 10:15:00', 'Pending', NULL, NULL, NULL),
+('USR005', '7781111792539', '2025-10-24 14:20:00', 'Approved', 'LIB001', '2025-11-07', NULL),
+('USR006', '8100852011803', '2025-10-23 11:45:00', 'Approved', 'LIB002', '2025-11-06', NULL),
+('USR007', '8783340203918', '2025-10-25 13:00:00', 'Pending', NULL, NULL, NULL),
+('USR008', '0307268000967', '2025-10-22 15:30:00', 'Rejected', 'LIB001', NULL, 'All copies currently borrowed'),
+('USR009', '7840135040808', '2025-10-25 08:45:00', 'Pending', NULL, NULL, NULL),
+('USR010', '8131061994907', '2025-10-24 16:20:00', 'Approved', 'LIB003', '2025-11-07', NULL),
+('FAC001', '8063254954311', '2025-10-23 09:00:00', 'Approved', 'LIB001', '2025-11-06', NULL),
+('FAC002', '5418428424560', '2025-10-25 10:30:00', 'Pending', NULL, NULL, NULL),
+('USR001', '0500261952520', '2025-10-21 14:15:00', 'Approved', 'LIB002', '2025-11-04', NULL),
+('USR002', '6417612062012', '2025-10-25 11:00:00', 'Pending', NULL, NULL, NULL),
+('FAC003', '1946547630161', '2025-10-20 13:45:00', 'Rejected', 'LIB003', NULL, 'User has pending fines'),
+('USR003', '1435337305858', '2025-10-25 15:20:00', 'Pending', NULL, NULL, NULL),
+('USR004', '1576527271399', '2025-10-24 09:30:00', 'Approved', 'LIB001', '2025-11-07', NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Notifications (20 notifications)
+-- FIXED: Updated dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`, `relatedId`, `createdAt`) VALUES
+('USR001', 'Book Due Soon', 'Your borrowed book "computer programming and cybersecurity" is due in 2 days.', 'reminder', 'medium', 0, 'TXN024', '2025-10-24 09:00:00'),
+('USR002', 'Book Due Soon', 'Your borrowed book "orchid C++" is due in 2 days.', 'reminder', 'medium', 0, 'TXN025', '2025-10-24 09:00:00'),
+('USR003', 'Borrow Request Approved', 'Your request to borrow "where the forest meets the stars" has been approved.', 'approval', 'high', 1, '3', '2025-10-24 14:30:00'),
+('USR006', 'Borrow Request Approved', 'Your request to borrow "the funnel of good" has been approved.', 'approval', 'high', 1, '4', '2025-10-23 12:00:00'),
+('USR008', 'Borrow Request Rejected', 'Your request to borrow "Roots" was rejected: All copies currently borrowed', 'approval', 'high', 0, '6', '2025-10-22 16:00:00'),
+('USR010', 'Borrow Request Approved', 'Your request to borrow "the house plants guid" has been approved.', 'approval', 'high', 1, '8', '2025-10-24 16:45:00'),
+('FAC001', 'Borrow Request Approved', 'Your request to borrow "the science of plants" has been approved.', 'approval', 'high', 1, '9', '2025-10-23 09:30:00'),
+('USR001', 'Borrow Request Approved', 'Your request to borrow "growing a revolution" has been approved.', 'approval', 'high', 1, '11', '2025-10-21 14:45:00'),
+('FAC003', 'Borrow Request Rejected', 'Your request to borrow "emerging research in agriculture science" was rejected: User has pending fines', 'approval', 'high', 0, '13', '2025-10-20 14:15:00'),
+('USR004', 'Borrow Request Approved', 'Your request to borrow "information and communication technology" has been approved.', 'approval', 'high', 1, '15', '2025-10-24 10:00:00'),
+('USR003', 'Overdue Book', 'Your book is overdue. Fine: $15.00', 'overdue', 'high', 1, 'TXN003', '2025-10-05 10:00:00'),
+('USR006', 'Overdue Book', 'Your book is overdue. Fine: $25.00', 'overdue', 'high', 1, 'TXN006', '2025-09-30 10:00:00'),
+('USR005', 'Overdue Book', 'Your book is overdue. Fine: $35.00', 'overdue', 'high', 1, 'TXN015', '2025-09-25 10:00:00'),
+('USR008', 'Pending Fine', 'You have an outstanding fine of $20.00', 'fine_paid', 'medium', 0, 'TXN020', '2025-10-13 11:00:00'),
+('USR003', 'Fine Payment Received', 'Your fine payment of $15.00 has been received.', 'fine_paid', 'low', 1, 'TXN003', '2025-10-11 14:30:00'),
+('USR006', 'Fine Payment Received', 'Your fine payment of $25.00 has been received.', 'fine_paid', 'low', 1, 'TXN006', '2025-10-06 15:45:00'),
+('LIB001', 'Book Out of Stock', 'Book "Roots" is out of stock. All copies borrowed.', 'out_of_stock', 'medium', 0, '0307268000967', '2025-10-22 16:30:00'),
+('LIB002', 'System Maintenance', 'Library system maintenance scheduled for Sunday, October 27, 2025 from 2:00 AM to 6:00 AM.', 'system', 'low', 1, NULL, '2025-10-20 08:00:00'),
+('ADM001', 'New User Registration', 'New student user registered: james_thomas (USR009)', 'system', 'low', 1, 'USR009', '2025-10-20 09:15:00'),
+(NULL, 'Library Announcement', 'New books added to Computer Science collection. Check out the latest titles!', 'system', 'medium', 0, NULL, '2025-10-15 10:00:00');
+
+-- ====================================================================
+-- DUMMY DATA: Book Reviews (15 reviews)
+-- ====================================================================
+INSERT IGNORE INTO `book_reviews` (`userId`, `isbn`, `rating`, `reviewText`, `isApproved`) VALUES
+('USR001', '6604622694292', 5, 'Excellent book! Highly recommended.', 1),
+('USR002', '6080591560497', 5, 'Must-read for every programmer. Changed the way I write code.', 1),
+('USR003', '7781111792539', 4, 'Beautiful prose and a captivating story.', 1),
+('USR004', '8100852011803', 5, 'Very helpful and insightful.', 1),
+('FAC001', '7840135040808', 5, 'Great resource for learning.', 1),
+('USR005', '8783340203918', 4, 'Great introduction with interesting projects and exercises.', 1),
+('USR006', '0307268000967', 5, 'Essential reading! Highly recommended.', 1),
+('FAC002', '8131061994907', 4, 'Fascinating and informative.', 1),
+('USR007', '8063254954311', 5, 'Mind-blowing perspective. Great book!', 1),
+('USR008', '5418428424560', 5, 'Life-changing book! Truly helpful.', 1),
+('FAC003', '0500261952520', 5, 'The definitive guide. Every reader should check this.', 1),
+('USR009', '6417612062012', 3, 'Good comprehensive guide but can be overwhelming for beginners.', 0),
+('USR010', '1946547630161', 4, 'Insightful and well-written.', 1),
+('FAC004', '1435337305858', 4, 'Practical and very helpful for projects.', 1),
+('USR001', '1576527271399', 5, 'Raw and honest. No sugar-coating here!', 1);
+
+-- ====================================================================
+-- DUMMY DATA: Favorites (20 favorites)
+-- ====================================================================
+INSERT IGNORE INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
+('USR001', '6604622694292', 'Great reference'),
+('USR001', '6080591560497', 'Must re-read annually'),
+('USR002', '7781111792539', 'Favorite novel'),
+('USR002', '8100852011803', 'Actually helped me a lot'),
+('USR003', '8783340203918', 'Reread every few years'),
+('USR003', '0307268000967', 'Interesting perspective'),
+('USR004', '7840135040808', 'Relatable story'),
+('USR005', '8131061994907', 'Best book I have read'),
+('USR005', '8063254954311', NULL),
+('USR006', '5418428424560', 'Powerful and moving'),
+('USR006', '0500261952520', 'Great for learning'),
+('USR007', '6417612062012', 'Reference guide'),
+('USR008', '1946547630161', 'Changed how I think'),
+('FAC001', '1435337305858', 'Amazing content'),
+('FAC001', '1576527271399', 'Reference material'),
+('FAC002', '6900451289401', 'Fascinating read'),
+('FAC003', '1613357754265', 'Guide book'),
+('FAC004', '2461307156025', 'Reference'),
+('USR009', '6603279916127', 'Inspiration'),
+('USR010', '7091768085250', 'Wisdom');
 
 -- ====================================================================
 -- Table structure for table `payment_logs`
@@ -841,70 +1104,609 @@ CREATE TABLE IF NOT EXISTS `payment_logs` (
   `transactionId` varchar(255) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `cardLastFour` varchar(4) DEFAULT NULL,
-  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,it_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
   `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),AULT 'success',
-  KEY `idx_userId` (`userId`),e NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
   KEY `idx_transactionId` (`transactionId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
--- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
--- ...existing code...
-htdocs\Integrated-Library-System\docker\mysql\library.sql
--- ====================================================================-- ...existing code...
--- Table structure for table `transactions`
--- FIXED: Removed duplicate 'fine' column - now only using 'fineAmount'============================
 -- ====================================================================
-CREATE TABLE IF NOT EXISTS `transactions` (
-  `tid` varchar(255) NOT NULL,============================
-  `userId` varchar(255) NOT NULL,ansactions` (
-  `isbn` varchar(13) NOT NULL,
-  `borrowDate` date NOT NULL,LL,
-  `returnDate` date DEFAULT NULL,,
-  `lastFinePaymentDate` date DEFAULT NULL,
-  `fineAmount` decimal(10,2) DEFAULT 0.00,
-  `fineStatus` enum('pending','paid','waived') DEFAULT 'pending',
-  `finePaymentDate` date NULL,
-  `finePaymentMethod` enum('cash','online','card','credit_card','debit_card','upi') NULL,'paid','waived') DEFAULT 'pending',
+-- Disable FK checks for safe data insertion (re-enabled after)
+-- ====================================================================
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ====================================================================
+-- Insert default fine settings (only if table is empty)
+-- FIXED: Added column aliases to prevent duplicate column name '0' error
+-- ====================================================================
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_per_day'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'grace_period_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
+);
+
+-- ====================================================================
+-- Insert default system settings
+-- ====================================================================
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_name');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_email');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_phone');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'max_books_per_user');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'enable_notifications');
+
+-- ====================================================================
+-- Insert default role permissions
+-- ====================================================================
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
+
+-- ====================================================================
+-- Insert default library hours
+-- ====================================================================
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Monday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Monday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Tuesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Wednesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Thursday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Thursday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Friday', '08:00:00', '18:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Friday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Saturday', '10:00:00', '16:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Saturday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Sunday', '00:00:00', '00:00:00', 1
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
+
+-- ====================================================================
+-- DUMMY DATA: Users (20 users - mix of Students, Faculty, Librarian, Admin)
+-- FIXED: Updated all dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
+('USR001', 'student', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
+('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
+('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
+('USR004', 'sarah_davis', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-03-18', 'sarah.davis@university.edu', '555-0104', '321 Student Lane, Dorm A, Room 410', 'profile4.jpg', 1, '2025-01-18 14:30:00'),
+('USR005', 'david_wilson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-07-25', 'david.wilson@university.edu', '555-0105', '654 Academic Way, Dorm D, Room 208', 'profile5.jpg', 1, '2025-01-19 09:45:00'),
+('USR006', 'jessica_moore', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-01-12', 'jessica.moore@university.edu', '555-0106', '987 Scholar St, Dorm B, Room 501', 'profile6.jpg', 1, '2025-01-20 13:00:00'),
+('USR007', 'robert_taylor', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-09-08', 'robert.taylor@university.edu', '555-0107', '147 Learning Ave, Dorm C, Room 315', 'profile7.jpg', 1, '2025-01-21 10:30:00'),
+('USR008', 'amanda_anderson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-06-20', 'amanda.anderson@university.edu', '555-0108', '258 Knowledge Rd, Dorm A, Room 212', 'profile8.jpg', 1, '2025-01-22 15:15:00'),
+('USR009', 'james_thomas', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-12-05', 'james.thomas@university.edu', '555-0109', '369 Education Blvd, Dorm D, Room 405', 'profile9.jpg', 0, '2025-10-20 09:00:00'),
+('USR010', 'lisa_jackson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-04-17', 'lisa.jackson@university.edu', '555-0110', '741 Campus Circle, Dorm B, Room 118', 'profile10.jpg', 1, '2025-02-01 11:45:00'),
+('FAC001', 'dr_robert_johnson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1978-03-22', 'r.johnson@university.edu', '555-0201', '1001 Faculty Housing, Building A', 'profile_fac1.jpg', 1, '2024-08-01 08:00:00'),
+('FAC002', 'prof_maria_garcia', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1982-07-14', 'm.garcia@university.edu', '555-0202', '1002 Faculty Housing, Building B', 'profile_fac2.jpg', 1, '2024-08-01 08:00:00'),
+('FAC003', 'dr_william_lee', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1975-11-08', 'w.lee@university.edu', '555-0203', '1003 Faculty Housing, Building A', 'profile_fac3.jpg', 1, '2024-08-01 08:00:00'),
+('FAC004', 'prof_patricia_martinez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1980-05-30', 'p.martinez@university.edu', '555-0204', '1004 Faculty Housing, Building C', 'profile_fac4.jpg', 1, '2024-08-01 08:00:00'),
+('FAC005', 'dr_charles_white', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1979-09-16', 'c.white@university.edu', '555-0205', '1005 Faculty Housing, Building B', 'profile_fac5.jpg', 1, '2024-08-01 08:00:00'),
+('LIB001', 'lib', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Faculty', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
+('LIB002', 'librarian_mark', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Male', '1988-02-28', 'mark.librarian@university.edu', '555-0302', '2002 Staff Quarters, Block B', 'profile_lib2.jpg', 1, '2023-06-01 08:00:00'),
+('LIB003', 'librarian_nancy', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1990-10-19', 'nancy.librarian@university.edu', '555-0303', '2003 Staff Quarters, Block A', 'profile_lib3.jpg', 1, '2024-01-15 08:00:00'),
+('ADM001', 'admin', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
+('ADM002', 'admin_jennifer', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Female', '1980-12-21', 'jennifer.admin@university.edu', '555-0402', '3002 Admin Building, Office 102', 'profile_adm2.jpg', 1, '2022-01-01 08:00:00');
+
+-- ====================================================================
+-- DUMMY DATA: Books (30 books across various categories)
+-- ====================================================================
+INSERT IGNORE INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `description`, `category`, `publicationYear`, `totalCopies`, `available`, `borrowed`, `bookImage`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
+('6604622694292', NULL, 'where the forest meets the stars', 'glendy vanderah', 'HarperCollins', 'A captivating story exploring themes related to where the forest meets the stars and human emotions.', 'Literature', 2016, 5, 5, 0, 'img1.jpg', 0, 0, NULL),
+('6080591560497', NULL, 'JAVA', 'josh thompson', 'Random House', 'A captivating story exploring themes related to java and human emotions.', 'Technology', 2012, 5, 5, 0, 'img2.jpg', 0, 0, NULL),
+('7781111792539', NULL, 'a world of secrets', 'james maxwell', 'Scholastic', 'A captivating story exploring themes related to a world of secrets and human emotions.', 'Fantasy', 1978, 5, 5, 0, 'img3.jpg', 0, 0, NULL),
+('8100852011803', NULL, 'the funnel of good', 'bob bloch', 'Vintage Publishing', 'A captivating story exploring themes related to the funnel of good  and human emotions.', 'Self-help', 1978, 5, 5, 0, 'img4.jpg', 0, 0, NULL),
+('8783340203918', NULL, 'long way gone', 'charles martin', 'Cambridge Books', 'A captivating story exploring themes related to long way gone and human emotions.', 'Fiction', 2005, 5, 5, 0, 'img5.jpg', 0, 0, NULL),
+('0307268000967', NULL, 'Roots', 'alex haley', 'Random House', 'A captivating story exploring themes related to roots and human emotions.', 'General', 1999, 5, 5, 0, 'img6.jpg', 0, 0, NULL),
+('7840135040808', NULL, 'preparation for the next life', 'Uspoytxhii', 'Pearson', 'A captivating story exploring themes related to preparation for the next life and human emotions.', 'General', 1977, 5, 5, 0, 'img7.jpg', 0, 0, NULL),
+('8131061994907', NULL, 'the house plants guid', 'Uanqenit', 'Pearson', 'A captivating story exploring themes related to the house plants guid and human emotions.', 'General', 1992, 5, 5, 0, 'img8.jpg', 0, 0, NULL),
+('8063254954311', NULL, 'the science of plants', 'Sofcew', 'Cambridge Books', 'A captivating story exploring themes related to the science of plants and human emotions.', 'Science', 1988, 5, 5, 0, 'img9.jpg', 0, 0, NULL),
+('5418428424560', NULL, 'indian agriculture', 'Yjydhoer', 'Pearson', 'A captivating story exploring themes related to indian agriculture and human emotions.', 'General', 1950, 5, 5, 0, 'img10.jpg', 0, 0, NULL),
+('0500261952520', NULL, 'growing a revolution', 'Ogodqytjby', 'Vintage Publishing', 'A captivating story exploring themes related to growing a revolution and human emotions.', 'General', 1994, 5, 5, 0, 'img11.jpg', 0, 0, NULL),
+('6417612062012', NULL, 'organic farming for sustainable agriculture', 'Zcjxwwblf', 'Cambridge Books', 'A captivating story exploring themes related to organic farming for sustainable agriculture and human emotions.', 'General', 2010, 5, 5, 0, 'img12.jpg', 0, 0, NULL),
+('1946547630161', NULL, 'emerging research in agriculture science', 'Dztfpxyi', 'Pearson', 'A captivating story exploring themes related to emerging research in agriculture science and human emotions.', 'Science', 1969, 5, 5, 0, 'img13.jpg', 0, 0, NULL),
+('1435337305858', NULL, 'climate change and agriculture', 'Iqubvwzqdv', 'HarperCollins', 'A captivating story exploring themes related to climate change and agriculture and human emotions.', 'General', 1967, 5, 5, 0, 'img14.jpg', 0, 0, NULL),
+('1576527271399', NULL, 'information and communication technology', 'Lypsyu', 'Vintage Publishing', 'A captivating story exploring themes related to information and communication technology and human emotions.', 'General', 1952, 5, 5, 0, 'img15.jpg', 0, 0, NULL),
+('6900451289401', NULL, 'foundation of ict', 'Pffol', 'Pearson', 'A captivating story exploring themes related to foundation of ict and human emotions.', 'General', 2001, 5, 5, 0, 'img16.jpg', 0, 0, NULL),
+('1613357754265', NULL, 'computer programing language', 'Tltgv', 'Oxford Press', 'A captivating story exploring themes related to computer programing language and human emotions.', 'General', 1957, 5, 5, 0, 'img17.jpg', 0, 0, NULL),
+('2461307156025', NULL, 'python programming for beginners', 'Gbwhhtrith', 'Cambridge Books', 'A captivating story exploring themes related to python programming for beginners and human emotions.', 'General', 1965, 5, 5, 0, 'img18.jpg', 0, 0, NULL),
+('6603279916127', NULL, 'computer programming and cybersecurity', 'Qrpfcseahz', 'Pearson', 'A captivating story exploring themes related to computer programming and cybersecurity and human emotions.', 'General', 1989, 5, 5, 0, 'img19.jpg', 0, 0, NULL),
+('7091768085250', NULL, 'orchid C++', 'Uozolxx', 'Scholastic', 'A captivating story exploring themes related to orchid c++ and human emotions.', 'General', 1989, 5, 5, 0, 'img20.jpg', 0, 0, NULL),
+('6351830113568', NULL, 'practical electronics for inventors', 'Dugxure', 'Oxford Press', 'A captivating story exploring themes related to practical electronics for inventors and human emotions.', 'General', 2009, 5, 5, 0, 'img21.jpg', 0, 0, NULL),
+('7128900048463', NULL, 'hacking electronics', 'Zvhmxmlj', 'Penguin Books', 'A captivating story exploring themes related to hacking electronics and human emotions.', 'General', 2006, 5, 5, 0, 'img22.jpg', 0, 0, NULL),
+('8057034409269', NULL, 'engineering mechanics', 'Hxafbtcb', 'Pearson', 'A captivating story exploring themes related to engineering mechanics and human emotions.', 'General', 2020, 5, 5, 0, 'img23.jpg', 0, 0, NULL),
+('0323850190420', NULL, 'mechanical engineering', 'Zvngnhva', 'Scholastic', 'A captivating story exploring themes related to mechanical engineering and human emotions.', 'General', 2019, 5, 5, 0, 'img24.jpg', 0, 0, NULL),
+('4056543252699', NULL, 'numerical analysis and computational mathematics', 'Ysspcamcq', 'Scholastic', 'A captivating story exploring themes related to numerical analysis and computational mathematics and human emotions.', 'General', 1995, 5, 5, 0, 'img25.jpg', 0, 0, NULL),
+('1875626713102', NULL, 'trignometry', 'Cidllopjs', 'Pearson', 'A captivating story exploring themes related to trignometry and human emotions.', 'General', 2001, 5, 5, 0, 'img26.jpg', 0, 0, NULL),
+('2924006842526', NULL, 'short stories -English', 'Sqkvvupxj', 'Oxford Press', 'A captivating story exploring themes related to short stories -english and human emotions.', 'General', 1959, 5, 5, 0, 'img27.jpg', 0, 0, NULL),
+('9875436992524', NULL, 'practical english usage', 'Mhusqfmwns', 'Random House', 'A captivating story exploring themes related to practical english usage and human emotions.', 'General', 1998, 5, 5, 0, 'img28.jpg', 0, 0, NULL),
+('3328438043912', NULL, 'modern classical physics', 'Kqgnmoxb', 'Penguin Books', 'A captivating story exploring themes related to modern classical physics and human emotions.', 'General', 2013, 5, 5, 0, 'img29.jpg', 0, 0, NULL),
+('7115814019075', NULL, 'active chemistry', 'Ajnhvsn', 'Pearson', 'A captivating story exploring themes related to active chemistry and human emotions.', 'General', 1966, 5, 5, 0, 'img30.jpg', 0, 0, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Transactions (25 transaction records)
+-- FIXED: Removed duplicate 'fine' column, updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`, `fineAmount`, `fineStatus`, `finePaymentDate`, `finePaymentMethod`) VALUES
+('TXN001', 'USR001', '6604622694292', '2025-10-01', '2025-10-12', 0.00, 'paid', NULL, NULL),
+('TXN002', 'USR002', '6080591560497', '2025-10-03', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN003', 'USR003', '9780743273565', '2025-09-20', '2025-10-10', 15.00, 'paid', '2025-10-11', 'online'),
+('TXN004', 'USR004', '7781111792539', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN005', 'USR005', '8100852011803', '2025-10-08', '2025-10-20', 0.00, 'paid', NULL, NULL),
+('TXN006', 'USR006', '9780134757599', '2025-09-15', '2025-10-05', 25.00, 'paid', '2025-10-06', 'card'),
+('TXN007', 'USR007', '8783340203918', '2025-10-10', '2025-10-22', 0.00, 'paid', NULL, NULL),
+('TXN008', 'USR008', '0307268000967', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN009', 'FAC001', '7840135040808', '2025-09-25', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN010', 'FAC002', '8131061994907', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN011', 'USR001', '8063254954311', '2025-10-15', NULL, 0.00, 'pending', NULL, NULL),
+('TXN012', 'USR002', '9780596517748', '2025-09-28', '2025-10-20', 10.00, 'paid', '2025-10-21', 'cash'),
+('TXN013', 'USR003', '5418428424560', '2025-10-18', NULL, 0.00, 'pending', NULL, NULL),
+('TXN014', 'USR004', '0500261952520', '2025-10-08', '2025-10-21', 0.00, 'paid', NULL, NULL),
+('TXN015', 'USR005', '9780062316097', '2025-09-10', '2025-10-05', 35.00, 'paid', '2025-10-06', 'online'),
+('TXN016', 'USR006', '6417612062012', '2025-10-20', NULL, 0.00, 'pending', NULL, NULL),
+('TXN017', 'USR007', '1946547630161', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN018', 'FAC003', '1435337305858', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN019', 'FAC004', '1576527271399', '2025-10-10', '2025-10-23', 0.00, 'paid', NULL, NULL),
+('TXN020', 'USR008', '9780691169866', '2025-09-18', '2025-10-12', 20.00, 'pending', NULL, NULL),
+('TXN021', 'USR009', '6900451289401', '2025-10-22', NULL, 0.00, 'pending', NULL, NULL),
+('TXN022', 'USR010', '1613357754265', '2025-10-16', NULL, 0.00, 'pending', NULL, NULL),
+('TXN023', 'FAC005', '2461307156025', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN024', 'USR001', '6603279916127', '2025-10-23', NULL, 0.00, 'pending', NULL, NULL),
+('TXN025', 'USR002', '7091768085250', '2025-10-24', NULL, 0.00, 'pending', NULL, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Borrow Requests (15 requests with various statuses)
+-- FIXED: Updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`, `rejectionReason`) VALUES
+('USR003', '6604622694292', '2025-10-25 09:30:00', 'Pending', NULL, NULL, NULL),
+('USR004', '6080591560497', '2025-10-25 10:15:00', 'Pending', NULL, NULL, NULL),
+('USR005', '7781111792539', '2025-10-24 14:20:00', 'Approved', 'LIB001', '2025-11-07', NULL),
+('USR006', '8100852011803', '2025-10-23 11:45:00', 'Approved', 'LIB002', '2025-11-06', NULL),
+('USR007', '8783340203918', '2025-10-25 13:00:00', 'Pending', NULL, NULL, NULL),
+('USR008', '0307268000967', '2025-10-22 15:30:00', 'Rejected', 'LIB001', NULL, 'All copies currently borrowed'),
+('USR009', '7840135040808', '2025-10-25 08:45:00', 'Pending', NULL, NULL, NULL),
+('USR010', '8131061994907', '2025-10-24 16:20:00', 'Approved', 'LIB003', '2025-11-07', NULL),
+('FAC001', '8063254954311', '2025-10-23 09:00:00', 'Approved', 'LIB001', '2025-11-06', NULL),
+('FAC002', '5418428424560', '2025-10-25 10:30:00', 'Pending', NULL, NULL, NULL),
+('USR001', '0500261952520', '2025-10-21 14:15:00', 'Approved', 'LIB002', '2025-11-04', NULL),
+('USR002', '6417612062012', '2025-10-25 11:00:00', 'Pending', NULL, NULL, NULL),
+('FAC003', '1946547630161', '2025-10-20 13:45:00', 'Rejected', 'LIB003', NULL, 'User has pending fines'),
+('USR003', '1435337305858', '2025-10-25 15:20:00', 'Pending', NULL, NULL, NULL),
+('USR004', '1576527271399', '2025-10-24 09:30:00', 'Approved', 'LIB001', '2025-11-07', NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Notifications (20 notifications)
+-- FIXED: Updated dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`, `relatedId`, `createdAt`) VALUES
+('USR001', 'Book Due Soon', 'Your borrowed book "computer programming and cybersecurity" is due in 2 days.', 'reminder', 'medium', 0, 'TXN024', '2025-10-24 09:00:00'),
+('USR002', 'Book Due Soon', 'Your borrowed book "orchid C++" is due in 2 days.', 'reminder', 'medium', 0, 'TXN025', '2025-10-24 09:00:00'),
+('USR003', 'Borrow Request Approved', 'Your request to borrow "where the forest meets the stars" has been approved.', 'approval', 'high', 1, '3', '2025-10-24 14:30:00'),
+('USR006', 'Borrow Request Approved', 'Your request to borrow "the funnel of good" has been approved.', 'approval', 'high', 1, '4', '2025-10-23 12:00:00'),
+('USR008', 'Borrow Request Rejected', 'Your request to borrow "Roots" was rejected: All copies currently borrowed', 'approval', 'high', 0, '6', '2025-10-22 16:00:00'),
+('USR010', 'Borrow Request Approved', 'Your request to borrow "the house plants guid" has been approved.', 'approval', 'high', 1, '8', '2025-10-24 16:45:00'),
+('FAC001', 'Borrow Request Approved', 'Your request to borrow "the science of plants" has been approved.', 'approval', 'high', 1, '9', '2025-10-23 09:30:00'),
+('USR001', 'Borrow Request Approved', 'Your request to borrow "growing a revolution" has been approved.', 'approval', 'high', 1, '11', '2025-10-21 14:45:00'),
+('FAC003', 'Borrow Request Rejected', 'Your request to borrow "emerging research in agriculture science" was rejected: User has pending fines', 'approval', 'high', 0, '13', '2025-10-20 14:15:00'),
+('USR004', 'Borrow Request Approved', 'Your request to borrow "information and communication technology" has been approved.', 'approval', 'high', 1, '15', '2025-10-24 10:00:00'),
+('USR003', 'Overdue Book', 'Your book is overdue. Fine: $15.00', 'overdue', 'high', 1, 'TXN003', '2025-10-05 10:00:00'),
+('USR006', 'Overdue Book', 'Your book is overdue. Fine: $25.00', 'overdue', 'high', 1, 'TXN006', '2025-09-30 10:00:00'),
+('USR005', 'Overdue Book', 'Your book is overdue. Fine: $35.00', 'overdue', 'high', 1, 'TXN015', '2025-09-25 10:00:00'),
+('USR008', 'Pending Fine', 'You have an outstanding fine of $20.00', 'fine_paid', 'medium', 0, 'TXN020', '2025-10-13 11:00:00'),
+('USR003', 'Fine Payment Received', 'Your fine payment of $15.00 has been received.', 'fine_paid', 'low', 1, 'TXN003', '2025-10-11 14:30:00'),
+('USR006', 'Fine Payment Received', 'Your fine payment of $25.00 has been received.', 'fine_paid', 'low', 1, 'TXN006', '2025-10-06 15:45:00'),
+('LIB001', 'Book Out of Stock', 'Book "Roots" is out of stock. All copies borrowed.', 'out_of_stock', 'medium', 0, '0307268000967', '2025-10-22 16:30:00'),
+('LIB002', 'System Maintenance', 'Library system maintenance scheduled for Sunday, October 27, 2025 from 2:00 AM to 6:00 AM.', 'system', 'low', 1, NULL, '2025-10-20 08:00:00'),
+('ADM001', 'New User Registration', 'New student user registered: james_thomas (USR009)', 'system', 'low', 1, 'USR009', '2025-10-20 09:15:00'),
+(NULL, 'Library Announcement', 'New books added to Computer Science collection. Check out the latest titles!', 'system', 'medium', 0, NULL, '2025-10-15 10:00:00');
+
+-- ====================================================================
+-- DUMMY DATA: Book Reviews (15 reviews)
+-- ====================================================================
+INSERT IGNORE INTO `book_reviews` (`userId`, `isbn`, `rating`, `reviewText`, `isApproved`) VALUES
+('USR001', '6604622694292', 5, 'Excellent book! Highly recommended.', 1),
+('USR002', '6080591560497', 5, 'Must-read for every programmer. Changed the way I write code.', 1),
+('USR003', '7781111792539', 4, 'Beautiful prose and a captivating story.', 1),
+('USR004', '8100852011803', 5, 'Very helpful and insightful.', 1),
+('FAC001', '7840135040808', 5, 'Great resource for learning.', 1),
+('USR005', '8783340203918', 4, 'Great introduction with interesting projects and exercises.', 1),
+('USR006', '0307268000967', 5, 'Essential reading! Highly recommended.', 1),
+('FAC002', '8131061994907', 4, 'Fascinating and informative.', 1),
+('USR007', '8063254954311', 5, 'Mind-blowing perspective. Great book!', 1),
+('USR008', '5418428424560', 5, 'Life-changing book! Truly helpful.', 1),
+('FAC003', '0500261952520', 5, 'The definitive guide. Every reader should check this.', 1),
+('USR009', '6417612062012', 3, 'Good comprehensive guide but can be overwhelming for beginners.', 0),
+('USR010', '1946547630161', 4, 'Insightful and well-written.', 1),
+('FAC004', '1435337305858', 4, 'Practical and very helpful for projects.', 1),
+('USR001', '1576527271399', 5, 'Raw and honest. No sugar-coating here!', 1);
+
+-- ====================================================================
+-- DUMMY DATA: Favorites (20 favorites)
+-- ====================================================================
+INSERT IGNORE INTO `favorites` (`userId`, `isbn`, `notes`) VALUES
+('USR001', '6604622694292', 'Great reference'),
+('USR001', '6080591560497', 'Must re-read annually'),
+('USR002', '7781111792539', 'Favorite novel'),
+('USR002', '8100852011803', 'Actually helped me a lot'),
+('USR003', '8783340203918', 'Reread every few years'),
+('USR003', '0307268000967', 'Interesting perspective'),
+('USR004', '7840135040808', 'Relatable story'),
+('USR005', '8131061994907', 'Best book I have read'),
+('USR005', '8063254954311', NULL),
+('USR006', '5418428424560', 'Powerful and moving'),
+('USR006', '0500261952520', 'Great for learning'),
+('USR007', '6417612062012', 'Reference guide'),
+('USR008', '1946547630161', 'Changed how I think'),
+('FAC001', '1435337305858', 'Amazing content'),
+('FAC001', '1576527271399', 'Reference material'),
+('FAC002', '6900451289401', 'Fascinating read'),
+('FAC003', '1613357754265', 'Guide book'),
+('FAC004', '2461307156025', 'Reference'),
+('USR009', '6603279916127', 'Inspiration'),
+('USR010', '7091768085250', 'Wisdom');
+
+-- ====================================================================
+-- Table structure for table `payment_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `payment_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `transactionId` varchar(255) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `cardLastFour` varchar(4) DEFAULT NULL,
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
+  `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,card','debit_card','upi') NULL,
-  PRIMARY KEY (`tid`),
-  KEY `idx_userId` (`userId`), NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY `idx_isbn` (`isbn`),L DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY `idx_borrowDate` (`borrowDate`),
-  KEY `idx_returnDate` (`returnDate`),
-  KEY `idx_fineStatus` (`fineStatus`),
-  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
-  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_transactionId` (`transactionId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-S `users` (`userId`) ON DELETE CASCADE,
--- ====================================================================  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
--- ALTER TABLE: Add finePaymentDetails column if it doesn't existT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ====================================================================
-ALTER TABLE `transactions` -- ...existing code...
-ADD COLUMN IF NOT EXISTS `finePaymentDetails` TEXT NULL AFTER `finePaymentMethod`;
+-- Disable FK checks for safe data insertion (re-enabled after)
+-- ====================================================================
+SET FOREIGN_KEY_CHECKS = 0;
 
--- ...existing code...-- Re-enable FK checks after data insertion
--- ...existing code...
+-- ====================================================================
+-- Insert default fine settings (only if table is empty)
+-- FIXED: Added column aliases to prevent duplicate column name '0' error
+-- ====================================================================
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_per_day', '5', 'Fine amount per day for overdue books', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_per_day'
+);
 
--- Re-enable FK checks after data insertion
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_borrow_days', '14', 'Maximum days a book can be borrowed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_borrow_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'grace_period_days', '0', 'Grace period before fines start', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'grace_period_days'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'max_fine_amount', '500', 'Maximum fine amount per book', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'max_fine_amount'
+);
+
+INSERT INTO `fine_settings` (`setting_name`, `setting_value`, `description`, `updatedBy`) 
+SELECT 'fine_calculation_method', 'daily', 'Method for calculating fines: daily or fixed', 'system'
+WHERE NOT EXISTS (
+    SELECT 1 FROM `fine_settings` WHERE setting_name = 'fine_calculation_method'
+);
+
+-- ====================================================================
+-- Insert default system settings
+-- ====================================================================
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_name', 'University Central Library', 'string', 'Name of the library', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_name');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_email', 'library@university.edu', 'string', 'Library contact email', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_email');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'library_phone', '+1-555-0100', 'string', 'Library contact phone', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'library_phone');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'max_books_per_user', '5', 'number', 'Maximum books a user can borrow', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'max_books_per_user');
+
+INSERT INTO `system_settings` (`settingKey`, `settingValue`, `settingType`, `description`, `updatedBy`) 
+SELECT 'enable_notifications', 'true', 'boolean', 'Enable system notifications', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM `system_settings` WHERE settingKey = 'enable_notifications');
+
+-- ====================================================================
+-- Insert default role permissions
+-- ====================================================================
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'view_catalog', 1, 0, 0, 0, 'Can view library catalog'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'view_catalog');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Student', 'borrow_book', 1, 1, 0, 0, 'Can borrow books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Student' AND permission = 'borrow_book');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'manage_books', 1, 1, 1, 0, 'Can manage books'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'manage_books');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Librarian', 'approve_requests', 1, 0, 0, 1, 'Can approve borrow requests'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Librarian' AND permission = 'approve_requests');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'manage_users', 1, 1, 1, 0, 'Can manage all users'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'manage_users');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'view_reports', 1, 0, 0, 0, 'Can view system reports'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'view_reports');
+
+INSERT INTO `role_permissions` (`role`, `permission`, `canRead`, `canWrite`, `canDelete`, `canApprove`, `description`) 
+SELECT 'Admin', 'system_settings', 1, 1, 0, 0, 'Can manage system settings'
+WHERE NOT EXISTS (SELECT 1 FROM `role_permissions` WHERE role = 'Admin' AND permission = 'system_settings');
+
+-- ====================================================================
+-- Insert default library hours
+-- ====================================================================
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Monday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Monday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Tuesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Tuesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Wednesday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Wednesday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Thursday', '08:00:00', '20:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Thursday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Friday', '08:00:00', '18:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Friday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Saturday', '10:00:00', '16:00:00', 0
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Saturday');
+
+INSERT INTO `library_hours` (`dayOfWeek`, `openingTime`, `closingTime`, `isClosed`) 
+SELECT 'Sunday', '00:00:00', '00:00:00', 1
+WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
+
+-- ====================================================================
+-- DUMMY DATA: Users (20 users - mix of Students, Faculty, Librarian, Admin)
+-- FIXED: Updated all dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
+('USR001', 'student', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
+('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
+('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
+('USR004', 'sarah_davis', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-03-18', 'sarah.davis@university.edu', '555-0104', '321 Student Lane, Dorm A, Room 410', 'profile4.jpg', 1, '2025-01-18 14:30:00'),
+('USR005', 'david_wilson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-07-25', 'david.wilson@university.edu', '555-0105', '654 Academic Way, Dorm D, Room 208', 'profile5.jpg', 1, '2025-01-19 09:45:00'),
+('USR006', 'jessica_moore', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-01-12', 'jessica.moore@university.edu', '555-0106', '987 Scholar St, Dorm B, Room 501', 'profile6.jpg', 1, '2025-01-20 13:00:00'),
+('USR007', 'robert_taylor', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-09-08', 'robert.taylor@university.edu', '555-0107', '147 Learning Ave, Dorm C, Room 315', 'profile7.jpg', 1, '2025-01-21 10:30:00'),
+('USR008', 'amanda_anderson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-06-20', 'amanda.anderson@university.edu', '555-0108', '258 Knowledge Rd, Dorm A, Room 212', 'profile8.jpg', 1, '2025-01-22 15:15:00'),
+('USR009', 'james_thomas', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-12-05', 'james.thomas@university.edu', '555-0109', '369 Education Blvd, Dorm D, Room 405', 'profile9.jpg', 0, '2025-10-20 09:00:00'),
+('USR010', 'lisa_jackson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-04-17', 'lisa.jackson@university.edu', '555-0110', '741 Campus Circle, Dorm B, Room 118', 'profile10.jpg', 1, '2025-02-01 11:45:00'),
+('FAC001', 'dr_robert_johnson', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1978-03-22', 'r.johnson@university.edu', '555-0201', '1001 Faculty Housing, Building A', 'profile_fac1.jpg', 1, '2024-08-01 08:00:00'),
+('FAC002', 'prof_maria_garcia', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1982-07-14', 'm.garcia@university.edu', '555-0202', '1002 Faculty Housing, Building B', 'profile_fac2.jpg', 1, '2024-08-01 08:00:00'),
+('FAC003', 'dr_william_lee', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1975-11-08', 'w.lee@university.edu', '555-0203', '1003 Faculty Housing, Building A', 'profile_fac3.jpg', 1, '2024-08-01 08:00:00'),
+('FAC004', 'prof_patricia_martinez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1980-05-30', 'p.martinez@university.edu', '555-0204', '1004 Faculty Housing, Building C', 'profile_fac4.jpg', 1, '2024-08-01 08:00:00'),
+('FAC005', 'dr_charles_white', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1979-09-16', 'c.white@university.edu', '555-0205', '1005 Faculty Housing, Building B', 'profile_fac5.jpg', 1, '2024-08-01 08:00:00'),
+('LIB001', 'lib', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Faculty', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
+('LIB002', 'librarian_mark', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Male', '1988-02-28', 'mark.librarian@university.edu', '555-0302', '2002 Staff Quarters, Block B', 'profile_lib2.jpg', 1, '2023-06-01 08:00:00'),
+('LIB003', 'librarian_nancy', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1990-10-19', 'nancy.librarian@university.edu', '555-0303', '2003 Staff Quarters, Block A', 'profile_lib3.jpg', 1, '2024-01-15 08:00:00'),
+('ADM001', 'admin', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
+('ADM002', 'admin_jennifer', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Female', '1980-12-21', 'jennifer.admin@university.edu', '555-0402', '3002 Admin Building, Office 102', 'profile_adm2.jpg', 1, '2022-01-01 08:00:00');
+
+-- ====================================================================
+-- DUMMY DATA: Books (30 books across various categories)
+-- ====================================================================
+INSERT IGNORE INTO `books` (`isbn`, `barcode`, `bookName`, `authorName`, `publisherName`, `description`, `category`, `publicationYear`, `totalCopies`, `available`, `borrowed`, `bookImage`, `isTrending`, `isSpecial`, `specialBadge`) VALUES
+('6604622694292', NULL, 'where the forest meets the stars', 'glendy vanderah', 'HarperCollins', 'A captivating story exploring themes related to where the forest meets the stars and human emotions.', 'Literature', 2016, 5, 5, 0, 'img1.jpg', 0, 0, NULL),
+('6080591560497', NULL, 'JAVA', 'josh thompson', 'Random House', 'A captivating story exploring themes related to java and human emotions.', 'Technology', 2012, 5, 5, 0, 'img2.jpg', 0, 0, NULL),
+('7781111792539', NULL, 'a world of secrets', 'james maxwell', 'Scholastic', 'A captivating story exploring themes related to a world of secrets and human emotions.', 'Fantasy', 1978, 5, 5, 0, 'img3.jpg', 0, 0, NULL),
+('8100852011803', NULL, 'the funnel of good', 'bob bloch', 'Vintage Publishing', 'A captivating story exploring themes related to the funnel of good  and human emotions.', 'Self-help', 1978, 5, 5, 0, 'img4.jpg', 0, 0, NULL),
+('8783340203918', NULL, 'long way gone', 'charles martin', 'Cambridge Books', 'A captivating story exploring themes related to long way gone and human emotions.', 'Fiction', 2005, 5, 5, 0, 'img5.jpg', 0, 0, NULL),
+('0307268000967', NULL, 'Roots', 'alex haley', 'Random House', 'A captivating story exploring themes related to roots and human emotions.', 'General', 1999, 5, 5, 0, 'img6.jpg', 0, 0, NULL),
+('7840135040808', NULL, 'preparation for the next life', 'Uspoytxhii', 'Pearson', 'A captivating story exploring themes related to preparation for the next life and human emotions.', 'General', 1977, 5, 5, 0, 'img7.jpg', 0, 0, NULL),
+('8131061994907', NULL, 'the house plants guid', 'Uanqenit', 'Pearson', 'A captivating story exploring themes related to the house plants guid and human emotions.', 'General', 1992, 5, 5, 0, 'img8.jpg', 0, 0, NULL),
+('8063254954311', NULL, 'the science of plants', 'Sofcew', 'Cambridge Books', 'A captivating story exploring themes related to the science of plants and human emotions.', 'Science', 1988, 5, 5, 0, 'img9.jpg', 0, 0, NULL),
+('5418428424560', NULL, 'indian agriculture', 'Yjydhoer', 'Pearson', 'A captivating story exploring themes related to indian agriculture and human emotions.', 'General', 1950, 5, 5, 0, 'img10.jpg', 0, 0, NULL),
+('0500261952520', NULL, 'growing a revolution', 'Ogodqytjby', 'Vintage Publishing', 'A captivating story exploring themes related to growing a revolution and human emotions.', 'General', 1994, 5, 5, 0, 'img11.jpg', 0, 0, NULL),
+('6417612062012', NULL, 'organic farming for sustainable agriculture', 'Zcjxwwblf', 'Cambridge Books', 'A captivating story exploring themes related to organic farming for sustainable agriculture and human emotions.', 'General', 2010, 5, 5, 0, 'img12.jpg', 0, 0, NULL),
+('1946547630161', NULL, 'emerging research in agriculture science', 'Dztfpxyi', 'Pearson', 'A captivating story exploring themes related to emerging research in agriculture science and human emotions.', 'Science', 1969, 5, 5, 0, 'img13.jpg', 0, 0, NULL),
+('1435337305858', NULL, 'climate change and agriculture', 'Iqubvwzqdv', 'HarperCollins', 'A captivating story exploring themes related to climate change and agriculture and human emotions.', 'General', 1967, 5, 5, 0, 'img14.jpg', 0, 0, NULL),
+('1576527271399', NULL, 'information and communication technology', 'Lypsyu', 'Vintage Publishing', 'A captivating story exploring themes related to information and communication technology and human emotions.', 'General', 1952, 5, 5, 0, 'img15.jpg', 0, 0, NULL),
+('6900451289401', NULL, 'foundation of ict', 'Pffol', 'Pearson', 'A captivating story exploring themes related to foundation of ict and human emotions.', 'General', 2001, 5, 5, 0, 'img16.jpg', 0, 0, NULL),
+('1613357754265', NULL, 'computer programing language', 'Tltgv', 'Oxford Press', 'A captivating story exploring themes related to computer programing language and human emotions.', 'General', 1957, 5, 5, 0, 'img17.jpg', 0, 0, NULL),
+('2461307156025', NULL, 'python programming for beginners', 'Gbwhhtrith', 'Cambridge Books', 'A captivating story exploring themes related to python programming for beginners and human emotions.', 'General', 1965, 5, 5, 0, 'img18.jpg', 0, 0, NULL),
+('6603279916127', NULL, 'computer programming and cybersecurity', 'Qrpfcseahz', 'Pearson', 'A captivating story exploring themes related to computer programming and cybersecurity and human emotions.', 'General', 1989, 5, 5, 0, 'img19.jpg', 0, 0, NULL),
+('7091768085250', NULL, 'orchid C++', 'Uozolxx', 'Scholastic', 'A captivating story exploring themes related to orchid c++ and human emotions.', 'General', 1989, 5, 5, 0, 'img20.jpg', 0, 0, NULL),
+('6351830113568', NULL, 'practical electronics for inventors', 'Dugxure', 'Oxford Press', 'A captivating story exploring themes related to practical electronics for inventors and human emotions.', 'General', 2009, 5, 5, 0, 'img21.jpg', 0, 0, NULL),
+('7128900048463', NULL, 'hacking electronics', 'Zvhmxmlj', 'Penguin Books', 'A captivating story exploring themes related to hacking electronics and human emotions.', 'General', 2006, 5, 5, 0, 'img22.jpg', 0, 0, NULL),
+('8057034409269', NULL, 'engineering mechanics', 'Hxafbtcb', 'Pearson', 'A captivating story exploring themes related to engineering mechanics and human emotions.', 'General', 2020, 5, 5, 0, 'img23.jpg', 0, 0, NULL),
+('0323850190420', NULL, 'mechanical engineering', 'Zvngnhva', 'Scholastic', 'A captivating story exploring themes related to mechanical engineering and human emotions.', 'General', 2019, 5, 5, 0, 'img24.jpg', 0, 0, NULL),
+('4056543252699', NULL, 'numerical analysis and computational mathematics', 'Ysspcamcq', 'Scholastic', 'A captivating story exploring themes related to numerical analysis and computational mathematics and human emotions.', 'General', 1995, 5, 5, 0, 'img25.jpg', 0, 0, NULL),
+('1875626713102', NULL, 'trignometry', 'Cidllopjs', 'Pearson', 'A captivating story exploring themes related to trignometry and human emotions.', 'General', 2001, 5, 5, 0, 'img26.jpg', 0, 0, NULL),
+('2924006842526', NULL, 'short stories -English', 'Sqkvvupxj', 'Oxford Press', 'A captivating story exploring themes related to short stories -english and human emotions.', 'General', 1959, 5, 5, 0, 'img27.jpg', 0, 0, NULL),
+('9875436992524', NULL, 'practical english usage', 'Mhusqfmwns', 'Random House', 'A captivating story exploring themes related to practical english usage and human emotions.', 'General', 1998, 5, 5, 0, 'img28.jpg', 0, 0, NULL),
+('3328438043912', NULL, 'modern classical physics', 'Kqgnmoxb', 'Penguin Books', 'A captivating story exploring themes related to modern classical physics and human emotions.', 'General', 2013, 5, 5, 0, 'img29.jpg', 0, 0, NULL),
+('7115814019075', NULL, 'active chemistry', 'Ajnhvsn', 'Pearson', 'A captivating story exploring themes related to active chemistry and human emotions.', 'General', 1966, 5, 5, 0, 'img30.jpg', 0, 0, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Transactions (25 transaction records)
+-- FIXED: Removed duplicate 'fine' column, updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `transactions` (`tid`, `userId`, `isbn`, `borrowDate`, `returnDate`, `fineAmount`, `fineStatus`, `finePaymentDate`, `finePaymentMethod`) VALUES
+('TXN001', 'USR001', '6604622694292', '2025-10-01', '2025-10-12', 0.00, 'paid', NULL, NULL),
+('TXN002', 'USR002', '6080591560497', '2025-10-03', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN003', 'USR003', '9780743273565', '2025-09-20', '2025-10-10', 15.00, 'paid', '2025-10-11', 'online'),
+('TXN004', 'USR004', '7781111792539', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN005', 'USR005', '8100852011803', '2025-10-08', '2025-10-20', 0.00, 'paid', NULL, NULL),
+('TXN006', 'USR006', '9780134757599', '2025-09-15', '2025-10-05', 25.00, 'paid', '2025-10-06', 'card'),
+('TXN007', 'USR007', '8783340203918', '2025-10-10', '2025-10-22', 0.00, 'paid', NULL, NULL),
+('TXN008', 'USR008', '0307268000967', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN009', 'FAC001', '7840135040808', '2025-09-25', '2025-10-15', 0.00, 'paid', NULL, NULL),
+('TXN010', 'FAC002', '8131061994907', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN011', 'USR001', '8063254954311', '2025-10-15', NULL, 0.00, 'pending', NULL, NULL),
+('TXN012', 'USR002', '9780596517748', '2025-09-28', '2025-10-20', 10.00, 'paid', '2025-10-21', 'cash'),
+('TXN013', 'USR003', '5418428424560', '2025-10-18', NULL, 0.00, 'pending', NULL, NULL),
+('TXN014', 'USR004', '0500261952520', '2025-10-08', '2025-10-21', 0.00, 'paid', NULL, NULL),
+('TXN015', 'USR005', '9780062316097', '2025-09-10', '2025-10-05', 35.00, 'paid', '2025-10-06', 'online'),
+('TXN016', 'USR006', '6417612062012', '2025-10-20', NULL, 0.00, 'pending', NULL, NULL),
+('TXN017', 'USR007', '1946547630161', '2025-10-12', NULL, 0.00, 'pending', NULL, NULL),
+('TXN018', 'FAC003', '1435337305858', '2025-10-05', '2025-10-18', 0.00, 'paid', NULL, NULL),
+('TXN019', 'FAC004', '1576527271399', '2025-10-10', '2025-10-23', 0.00, 'paid', NULL, NULL),
+('TXN020', 'USR008', '9780691169866', '2025-09-18', '2025-10-12', 20.00, 'pending', NULL, NULL),
+('TXN021', 'USR009', '6900451289401', '2025-10-22', NULL, 0.00, 'pending', NULL, NULL),
+('TXN022', 'USR010', '1613357754265', '2025-10-16', NULL, 0.00, 'pending', NULL, NULL),
+('TXN023', 'FAC005', '2461307156025', '2025-10-01', '2025-10-14', 0.00, 'paid', NULL, NULL),
+('TXN024', 'USR001', '6603279916127', '2025-10-23', NULL, 0.00, 'pending', NULL, NULL),
+('TXN025', 'USR002', '7091768085250', '2025-10-24', NULL, 0.00, 'pending', NULL, NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Borrow Requests (15 requests with various statuses)
+-- FIXED: Updated dates to 2025, FIXED: Use actual book ISBNs
+-- ====================================================================
+INSERT IGNORE INTO `borrow_requests` (`userId`, `isbn`, `requestDate`, `status`, `approvedBy`, `dueDate`, `rejectionReason`) VALUES
+('USR003', '6604622694292', '2025-10-25 09:30:00', 'Pending', NULL, NULL, NULL),
+('USR004', '6080591560497', '2025-10-25 10:15:00', 'Pending', NULL, NULL, NULL),
+('USR005', '7781111792539', '2025-10-24 14:20:00', 'Approved', 'LIB001', '2025-11-07', NULL),
+('USR006', '8100852011803', '2025-10-23 11:45:00', 'Approved', 'LIB002', '2025-11-06', NULL),
+('USR007', '8783340203918', '2025-10-25 13:00:00', 'Pending', NULL, NULL, NULL),
+('USR008', '0307268000967', '2025-10-22 15:30:00', 'Rejected', 'LIB001', NULL, 'All copies currently borrowed'),
+('USR009', '7840135040808', '2025-10-25 08:45:00', 'Pending', NULL, NULL, NULL),
+('USR010', '8131061994907', '2025-10-24 16:20:00', 'Approved', 'LIB003', '2025-11-07', NULL),
+('FAC001', '8063254954311', '2025-10-23 09:00:00', 'Approved', 'LIB001', '2025-11-06', NULL),
+('FAC002', '5418428424560', '2025-10-25 10:30:00', 'Pending', NULL, NULL, NULL),
+('USR001', '0500261952520', '2025-10-21 14:15:00', 'Approved', 'LIB002', '2025-11-04', NULL),
+('USR002', '6417612062012', '2025-10-25 11:00:00', 'Pending', NULL, NULL, NULL),
+('FAC003', '1946547630161', '2025-10-20 13:45:00', 'Rejected', 'LIB003', NULL, 'User has pending fines'),
+('USR003', '1435337305858', '2025-10-25 15:20:00', 'Pending', NULL, NULL, NULL),
+('USR004', '1576527271399', '2025-10-24 09:30:00', 'Approved', 'LIB001', '2025-11-07', NULL);
+
+-- ====================================================================
+-- DUMMY DATA: Notifications (20 notifications)
+-- FIXED: Updated dates to 2025
+-- ====================================================================
+INSERT IGNORE INTO `notifications` (`userId`, `title`, `message`, `type`, `priority`, `isRead`, `relatedId`, `createdAt`) VALUES
+('USR001', 'Book Due Soon', 'Your borrowed book "computer programming and cybersecurity" is due in 2 days.', 'reminder', 'medium', 0, 'TXN024', '2025-10-24 09:00:00'),
+('USR002', 'Book Due Soon', 'Your borrowed book "orchid C++" is due in 2 days.', 'reminder', 'medium', 0, 'TXN025', '2025-10-24 09:00:00'),
+('USR003', 'Borrow Request Approved', 'Your request to borrow "where the forest meets the stars" has been approved.', 'approval', 'high', 1, '3', '2025-10-24 14:30:00'),
+('USR006', 'Borrow Request Approved', 'Your request to borrow "the funnel of good" has been approved.', 'approval', 'high', 1, '4', '2025-10-23 12:00:00'),
+('USR008', 'Borrow Request Rejected', 'Your request to borrow "Roots" was rejected: All copies currently borrowed', 'approval', 'high', 0, '6', '2025-10-22 16:00:00'),
+('USR010', 'Borrow Request Approved', 'Your request to borrow "the house plants guid" has been approved.', 'approval', 'high', 1, '8', '2025-10-24 16:45:00'),
+('FAC001', 'Borrow Request Approved', 'Your request to borrow "the science of plants" has been approved.', 'approval', 'high', 1, '9', '2025-10-23 09:30:00'),
+('USR001', 'Borrow Request Approved', 'Your request to borrow "growing a revolution" has been approved.', 'approval', 'high', 1, '11', '2025-10-21 14:45:00'),
+('FAC003', 'Borrow Request Rejected', 'Your request to borrow "emerging research in agriculture science" was rejected: User has pending fines', 'approval', 'high', 0, '13', '2025-10-20 14:15:00'),
+('USR004', 'Borrow Request Approved', 'Your request to borrow "information and communication technology" has been approved.', 'approval', 'high', 1, '15', '2025-10-24 10:00:00'),
+('USR003', 'Overdue Book', 'Your book is overdue. Fine: $15.00', 'overdue', 'high', 1, 'TXN003', '2025-10-05 10:00:00'),
+('USR006', 'Overdue Book', 'Your book is overdue. Fine: $25.00', 'overdue', 'high', 1, 'TXN006', '2025-09-30 10:00:00'),
+('USR005', 'Overdue Book', 'Your book is overdue. Fine: $35.00', 'overdue', 'high', 1, 'TXN015', '2025-09-25 10:00:00'),
+('USR008', 'Pending Fine', 'You have an outstanding fine of $20.00', 'fine_paid', 'medium', 0, 'TXN020', '2025-10-13 11:00:00'),
+('USR003', 'Fine Payment Received', 'Your fine payment of $15.00 has been received.', 'fine_paid', 'low', 1, 'TXN003', '2025-10-11 14:30:00'),
+('USR006', 'Fine Payment Received', 'Your fine payment of $25.00 has been received.', 'fine_paid', 'low', 1, 'TXN006', '2025-10-06 15:45:00'),
+('LIB001', 'Book Out of Stock', 'Book "Roots" is out of stock. All copies borrowed.', 'out_of_stock', 'medium', 0, '0307268000967', '2025-10-22 16:30:00'),
+('LIB002', 'System Maintenance', 'Library system maintenance scheduled for Sunday, October 27, 2025 from 2:00 AM to 6:00 AM.', 'system', 'low', 1, NULL, '2025-10-20 08:00:00'),
+('ADM001', 'New User Registration', 'New student user registered: james_thomas (USR009)', 'system', 'low', 1, 'USR009', '2025-10-20 09:15:00'),
+(NULL, 'Library Announcement', 'New books added to Computer Science collection. Check out the latest titles!', 'system', 'medium', 0, NULL, '2025-10-15 10:00:00');
+
+-- ====================================================================
+-- Re-enable foreign key checks
+-- ====================================================================
 SET FOREIGN_KEY_CHECKS = 1;
+
 -- ====================================================================
--- ====================================================================s = 'Unpaid';
--- DATA CLEANUP: Fix fineStatus values to match ENUM
+-- End of database schema and initial data
 -- ====================================================================
-UPDATE `transactions` SET fineStatus = 'pending' WHERE fineStatus = 'Unpaid';
-(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),
--- Update fines for overdue books that don't have fineAmount set
-UPDATE `transactions` t
-SET t.fineAmount = GREATEST(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),AND DATEDIFF(CURDATE(), t.borrowDate) > 14
-    t.fineStatus = 'pending'unt IS NULL OR t.fineAmount = 0);
-
-
-
-
-
--- End of fileAND (t.fineAmount IS NULL OR t.fineAmount = 0);AND DATEDIFF(CURDATE(), t.borrowDate) > 14WHERE t.returnDate IS NULL 
--- End of file
