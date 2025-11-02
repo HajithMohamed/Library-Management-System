@@ -677,6 +677,7 @@ $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', '
 
 // Admin Reports & Analytics
 $router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
+$router->addRoute('GET', '/admin/reports/export', 'AdminController', 'exportReport');
 $router->addRoute('GET', '/admin/analytics', 'AdminController', 'analytics');
 
 // Admin Settings
