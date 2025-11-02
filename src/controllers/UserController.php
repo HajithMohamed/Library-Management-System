@@ -209,7 +209,7 @@ class UserController extends BaseController
     }
 
     /**
-     * Display user fines
+     * Display user fines (ALL fines - paid and unpaid)
      */
     public function fines()
     {
@@ -223,17 +223,32 @@ class UserController extends BaseController
         
         $userId = $_SESSION['userId'];
         
-        // Get fines from Transaction model
-        $fines = $this->transactionModel->getFinesByUserId($userId);
+        // Get ALL fines from Transaction model
+        $allFines = $this->transactionModel->getFinesByUserId($userId);
         
-        // Ensure all records have proper structure
-        foreach ($fines as &$fine) {
+        // Separate into pending and paid
+        $pendingFines = [];
+        $paidFines = [];
+        
+        foreach ($allFines as $fine) {
             $fine['title'] = $fine['bookName'] ?? 'Unknown Book';
             $fine['borrowDate'] = $fine['borrowDate'] ?? date('Y-m-d');
             $fine['fineAmount'] = $fine['fineAmount'] ?? 0;
+            $fine['fineStatus'] = $fine['fineStatus'] ?? 'pending';
+            
+            // Separate by status
+            if ($fine['fineStatus'] === 'paid' || $fine['fineStatus'] === 'Paid') {
+                $paidFines[] = $fine;
+            } else {
+                $pendingFines[] = $fine;
+            }
         }
         
-        $this->data['fines'] = $fines;
+        // Combine: pending first, then paid
+        $this->data['fines'] = array_merge($pendingFines, $paidFines);
+        $this->data['pendingFines'] = $pendingFines;
+        $this->data['paidFines'] = $paidFines;
+        
         $this->view('users/fines', $this->data);
     }
 
@@ -244,44 +259,94 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
-        // Redirect Faculty users to their own fines page
         if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
             $this->redirect('faculty/fines');
             return;
         }
         
-        $transactionId = $_GET['tid'] ?? '';
-        $amount = $_GET['amount'] ?? 0;
+        global $mysqli;
+        $userId = $_SESSION['userId'];
         
-        if (!$transactionId || !$amount) {
-            $_SESSION['error'] = 'Invalid payment request';
-            $this->redirect('user/fines');
-            return;
+        // Check if paying all fines or single fine
+        $payAll = isset($_GET['pay_all']) && $_GET['pay_all'] === 'true';
+        
+        if ($payAll) {
+            // Get all unpaid fines
+            $stmt = $mysqli->prepare("
+                SELECT t.*, b.bookName 
+                FROM transactions t
+                LEFT JOIN books b ON t.isbn = b.isbn
+                WHERE t.userId = ? AND t.fineStatus IN ('pending', 'Unpaid') AND t.fineAmount > 0
+            ");
+            $stmt->bind_param("s", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $transactions = [];
+            $totalAmount = 0;
+            
+            while ($row = $result->fetch_assoc()) {
+                $transactions[] = $row;
+                $totalAmount += (float)$row['fineAmount'];
+            }
+            $stmt->close();
+            
+            if (empty($transactions)) {
+                $_SESSION['error'] = 'No pending fines to pay';
+                $this->redirect('user/fines');
+                return;
+            }
+            
+            $this->data['pay_all'] = true;
+            $this->data['transactions'] = $transactions;
+            $this->data['amount'] = $totalAmount;
+        } else {
+            // Single transaction payment
+            $transactionId = $_GET['tid'] ?? '';
+            $amount = $_GET['amount'] ?? 0;
+            
+            if (!$transactionId || !$amount) {
+                $_SESSION['error'] = 'Invalid payment request';
+                $this->redirect('user/fines');
+                return;
+            }
+            
+            // Verify the transaction belongs to this user
+            $stmt = $mysqli->prepare("
+                SELECT t.*, b.bookName 
+                FROM transactions t
+                LEFT JOIN books b ON t.isbn = b.isbn
+                WHERE t.tid = ? AND t.userId = ? AND t.fineStatus IN ('pending', 'Unpaid')
+            ");
+            $stmt->bind_param("ss", $transactionId, $userId);
+            $stmt->execute();
+            $transaction = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$transaction) {
+                $_SESSION['error'] = 'Transaction not found or already paid';
+                $this->redirect('user/fines');
+                return;
+            }
+            
+            $this->data['pay_all'] = false;
+            $this->data['transaction'] = $transaction;
+            $this->data['amount'] = $amount;
         }
         
-        global $mysqli;
-        
-        // Verify the transaction belongs to this user
-        $userId = $_SESSION['userId'];
-        $stmt = $mysqli->prepare("
-            SELECT t.*, b.bookName 
-            FROM transactions t
-            LEFT JOIN books b ON t.isbn = b.isbn
-            WHERE t.tid = ? AND t.userId = ? AND t.fineStatus = 'unpaid'
-        ");
-        $stmt->bind_param("ss", $transactionId, $userId);
+        // Get saved cards
+        $stmt = $mysqli->prepare("SELECT * FROM saved_cards WHERE userId = ? ORDER BY isDefault DESC, createdAt DESC");
+        $stmt->bind_param("s", $userId);
         $stmt->execute();
-        $transaction = $stmt->get_result()->fetch_assoc();
+        $result = $stmt->get_result();
+        
+        $savedCards = [];
+        while ($row = $result->fetch_assoc()) {
+            $savedCards[] = $row;
+        }
         $stmt->close();
         
-        if (!$transaction) {
-            $_SESSION['error'] = 'Transaction not found or already paid';
-            $this->redirect('user/fines');
-            return;
-        }
-        
-        $this->data['transaction'] = $transaction;
-        $this->data['amount'] = $amount;
+        $this->data['savedCards'] = $savedCards;
         $this->view('users/payment-form', $this->data);
     }
 
@@ -292,7 +357,6 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
-        // Redirect Faculty users to their own fines page
         if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
             $this->redirect('faculty/fines');
             return;
@@ -303,87 +367,147 @@ class UserController extends BaseController
             return;
         }
         
-        $transactionId = $_POST['borrow_id'] ?? $_POST['transaction_id'] ?? '';
-        $amount = $_POST['amount'] ?? 0;
-        $cardNumber = $_POST['card_number'] ?? '';
-        $cardName = $_POST['card_name'] ?? '';
-        $expiryDate = $_POST['expiry_date'] ?? '';
-        $cvv = $_POST['cvv'] ?? '';
-        $paymentMethod = $_POST['payment_method'] ?? 'credit_card';
+        global $mysqli;
+        $userId = $_SESSION['userId'];
         
         // Validate payment details
-        $errors = [];
-        
-        if (empty($cardName)) {
-            $errors[] = 'Cardholder name is required';
-        }
-        
-        if (empty($cardNumber)) {
-            $errors[] = 'Card number is required';
-        } elseif (!$this->validateCardNumber($cardNumber)) {
-            $errors[] = 'Invalid card number';
-        }
-        
-        if (empty($expiryDate)) {
-            $errors[] = 'Expiry date is required';
-        } elseif (!$this->validateExpiryDate($expiryDate)) {
-            $errors[] = 'Invalid or expired card';
-        }
-        
-        if (empty($cvv)) {
-            $errors[] = 'CVV is required';
-        } elseif (!preg_match('/^\d{3,4}$/', $cvv)) {
-            $errors[] = 'Invalid CVV';
-        }
+        $errors = $this->validatePaymentDetails($_POST);
         
         if (!empty($errors)) {
             $_SESSION['error'] = implode('<br>', $errors);
-            header('Location: ' . BASE_URL . 'user/payFine?tid=' . $transactionId . '&amount=' . $amount);
+            header('Location: ' . $_SERVER['HTTP_REFERER']);
             exit;
         }
         
-        global $mysqli;
+        $payAll = isset($_POST['pay_all']) && $_POST['pay_all'] === 'true';
+        $paymentMethod = $_POST['payment_method'] ?? 'credit_card';
+        $cardLastFour = isset($_POST['card_number']) ? substr(str_replace(' ', '', $_POST['card_number']), -4) : null;
+        $saveCard = isset($_POST['save_card']) && $_POST['save_card'] === '1';
         
         try {
-            // Update fine status and set finePaymentDate
-            $stmt = $mysqli->prepare("
-                UPDATE transactions 
-                SET fineStatus = 'paid', 
-                    finePaymentDate = CURDATE(), 
-                    lastFinePaymentDate = CURDATE() 
-                WHERE tid = ?
-            ");
-            $stmt->bind_param("s", $transactionId);
+            $mysqli->begin_transaction();
             
-            if ($stmt->execute()) {
-                // Log the payment
-                $logStmt = $mysqli->prepare("
-                    INSERT INTO payment_logs 
-                    (userId, transactionId, amount, paymentMethod, cardLastFour, paymentDate, status) 
-                    VALUES (?, ?, ?, ?, ?, NOW(), 'success')
+            if ($payAll) {
+                // Pay all pending fines
+                $stmt = $mysqli->prepare("
+                    SELECT tid, fineAmount FROM transactions 
+                    WHERE userId = ? AND fineStatus IN ('pending', 'Unpaid') AND fineAmount > 0
                 ");
-                $cardLastFour = substr($cardNumber, -4);
-                $logStmt->bind_param("ssdss", 
-                    $_SESSION['userId'], 
-                    $transactionId, 
-                    $amount, 
-                    $paymentMethod, 
-                    $cardLastFour
-                );
-                $logStmt->execute();
-                $logStmt->close();
+                $stmt->bind_param("s", $userId);
+                $stmt->execute();
+                $result = $stmt->get_result();
                 
-                $_SESSION['success'] = 'Payment of ₹' . number_format($amount, 2) . ' processed successfully!';
+                $totalPaid = 0;
+                $transactionIds = [];
+                
+                while ($row = $result->fetch_assoc()) {
+                    $transactionIds[] = $row['tid'];
+                    $totalPaid += (float)$row['fineAmount'];
+                    
+                    // Update transaction
+                    $this->transactionModel->payFine($row['tid'], $paymentMethod, $cardLastFour);
+                    
+                    // Log payment
+                    $this->logPayment($userId, $row['tid'], $row['fineAmount'], $paymentMethod, $cardLastFour);
+                }
+                $stmt->close();
+                
+                $successMessage = 'Successfully paid ' . count($transactionIds) . ' fines totaling LKR' . number_format($totalPaid, 2);
+                
+                // Create notification
+                $this->createNotification($userId, 'Bulk Fine Payment Successful', $successMessage, 'fine_paid');
+                
             } else {
-                $_SESSION['error'] = 'Failed to process payment';
+                // Single transaction payment
+                $transactionId = $_POST['borrow_id'] ?? $_POST['transaction_id'] ?? '';
+                $amount = $_POST['amount'] ?? 0;
+                
+                // Update transaction
+                if ($this->transactionModel->payFine($transactionId, $paymentMethod, $cardLastFour)) {
+                    // Log payment
+                    $this->logPayment($userId, $transactionId, $amount, $paymentMethod, $cardLastFour);
+                    
+                    $successMessage = 'Payment of LKR' . number_format($amount, 2) . ' processed successfully!';
+                    
+                    // Create notification
+                    $this->createNotification($userId, 'Fine Payment Successful', $successMessage, 'fine_paid');
+                } else {
+                    throw new \Exception('Failed to update transaction');
+                }
             }
-            $stmt->close();
+            
+            // Save card if requested
+            if ($saveCard && isset($_POST['card_number']) && isset($_POST['card_name']) && isset($_POST['expiry_date'])) {
+                $this->saveCardDetails($userId, $_POST);
+            }
+            
+            $mysqli->commit();
+            $_SESSION['success'] = $successMessage ?? 'Payment processed successfully!';
+            
         } catch (\Exception $e) {
-            error_log("Error paying fine: " . $e->getMessage());
-            $_SESSION['error'] = 'Failed to process payment';
+            $mysqli->rollback();
+            error_log("Error processing payment: " . $e->getMessage());
+            $_SESSION['error'] = 'Failed to process payment: ' . $e->getMessage();
         }
         
         $this->redirect('user/fines');
+    }
+    
+    /**
+     * Pay all pending fines
+     */
+    public function payAllFines()
+    {
+        $_GET['pay_all'] = 'true';
+        return $this->showPaymentForm();
+    }
+    
+    /**
+     * Validate payment details
+     */
+    private function validatePaymentDetails($data)
+    {
+        $errors = [];
+        $paymentMethod = $data['payment_method'] ?? 'credit_card';
+        
+        if ($paymentMethod === 'upi') {
+            $upiId = $data['upi_id'] ?? '';
+            if (empty($upiId)) {
+                $errors[] = 'UPI ID is required';
+            } elseif (!preg_match('/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/', $upiId)) {
+                $errors[] = 'Invalid UPI ID format';
+            }
+        } else {
+            // Card validation
+            $cardName = $data['card_name'] ?? '';
+            $cardNumber = str_replace(' ', '', $data['card_number'] ?? '');
+            $expiryDate = $data['expiry_date'] ?? '';
+            $cvv = $data['cvv'] ?? '';
+            
+            if (empty($cardName)) {
+                $errors[] = 'Cardholder name is required';
+            }
+            
+            if (empty($cardNumber)) {
+                $errors[] = 'Card number is required';
+            } elseif (!$this->validateCardNumber($cardNumber)) {
+                $errors[] = 'Invalid card number';
+            }
+            
+            if (empty($expiryDate)) {
+                $errors[] = 'Expiry date is required';
+            } elseif (!$this->validateExpiryDate($expiryDate)) {
+                $errors[] = 'Invalid or expired card';
+            }
+            
+            if (empty($cvv)) {
+                $errors[] = 'CVV is required';
+            } elseif (!preg_match('/^\d{3,4}$/', $cvv)) {
+                $errors[] = 'Invalid CVV';
+            }
+        }
+        
+        return $errors;
     }
     
     /**
@@ -436,6 +560,97 @@ class UserController extends BaseController
         }
         
         return true;
+    }
+    
+    /**
+     * Log payment
+     */
+    private function logPayment($userId, $transactionId, $amount, $paymentMethod, $cardLastFour)
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("
+            INSERT INTO payment_logs 
+            (userId, transactionId, amount, paymentMethod, cardLastFour, paymentDate, status) 
+            VALUES (?, ?, ?, ?, ?, NOW(), 'success')
+        ");
+        $stmt->bind_param("ssdss", $userId, $transactionId, $amount, $paymentMethod, $cardLastFour);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    /**
+     * Create notification
+     */
+    private function createNotification($userId, $title, $message, $type = 'system')
+    {
+        global $mysqli;
+        
+        $stmt = $mysqli->prepare("
+            INSERT INTO notifications (userId, title, message, type, priority, createdAt) 
+            VALUES (?, ?, ?, ?, 'medium', NOW())
+        ");
+        $stmt->bind_param("ssss", $userId, $title, $message, $type);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    /**
+     * Save card details
+     */
+    private function saveCardDetails($userId, $data)
+    {
+        global $mysqli;
+        
+        $cardNumber = str_replace(' ', '', $data['card_number']);
+        $cardLastFour = substr($cardNumber, -4);
+        $cardType = $this->detectCardType($cardNumber);
+        $cardName = $data['card_name'];
+        $expiryDate = $data['expiry_date'];
+        $cardNickname = $data['card_nickname'] ?? ($cardType . ' *' . $cardLastFour);
+        
+        list($expiryMonth, $expiryYear) = explode('/', $expiryDate);
+        $expiryYear = '20' . $expiryYear;
+        
+        // Check if card already exists
+        $stmt = $mysqli->prepare("SELECT id FROM saved_cards WHERE userId = ? AND cardLastFour = ?");
+        $stmt->bind_param("ss", $userId, $cardLastFour);
+        $stmt->execute();
+        if ($stmt->get_result()->num_rows > 0) {
+            $stmt->close();
+            return; // Card already saved
+        }
+        $stmt->close();
+        
+        $stmt = $mysqli->prepare("
+            INSERT INTO saved_cards 
+            (userId, cardNickname, cardLastFour, cardType, cardHolderName, expiryMonth, expiryYear) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->bind_param("sssssss", $userId, $cardNickname, $cardLastFour, $cardType, $cardName, $expiryMonth, $expiryYear);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    /**
+     * Detect card type
+     */
+    private function detectCardType($number)
+    {
+        $patterns = [
+            'visa' => '/^4/',
+            'mastercard' => '/^5[1-5]/',
+            'rupay' => '/^(60|65|81|82)/',
+            'amex' => '/^3[47]/'
+        ];
+        
+        foreach ($patterns as $type => $pattern) {
+            if (preg_match($pattern, $number)) {
+                return ucfirst($type);
+            }
+        }
+        
+        return 'Unknown';
     }
 
     /**

@@ -579,7 +579,10 @@ $router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('GET', '/user/payFine', 'UserController', 'showPaymentForm');
 $router->addRoute('POST', '/user/payFine', 'UserController', 'payFine');
+$router->addRoute('GET', '/user/payment-form', 'UserController', 'showPaymentForm');
+$router->addRoute('POST', '/user/payment-form', 'UserController', 'payFine');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
+$router->addRoute('POST', '/user/pay-all-fines', 'UserController', 'payAllFines');
 
 // User Notifications
 $router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');

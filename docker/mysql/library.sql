@@ -808,6 +808,82 @@ INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, 
 ('FAC002', '8063254954311', '2025-10-12', '2025-10-26', NULL, 'Active', NULL, 'LIB002'),
 ('USR008', '5418428424560', '2025-10-25', '2025-11-08', NULL, 'Active', NULL, 'ADM001');
 
+
+-- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ...existing code...
+
+-- ====================================================================
+-- Table structure for table `saved_cards`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `saved_cards` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `cardNickname` varchar(100) DEFAULT NULL,
+  `cardLastFour` varchar(4) NOT NULL,
+  `cardType` varchar(20) NOT NULL,
+  `cardHolderName` varchar(255) NOT NULL,
+  `expiryMonth` varchar(2) NOT NULL,
+  `expiryYear` varchar(4) NOT NULL,
+  `isDefault` tinyint(1) DEFAULT 0,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  CONSTRAINT `saved_cards_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
+-- Table structure for table `payment_logs`
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `payment_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `userId` varchar(255) NOT NULL,
+  `transactionId` varchar(255) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `paymentMethod` enum('credit_card','debit_card','upi','cash','online','card') NOT NULL DEFAULT 'card',
+  `cardLastFour` varchar(4) DEFAULT NULL,
+  `paymentDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('success','failed','pending') NOT NULL DEFAULT 'success',
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_transactionId` (`transactionId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- filepath: c:\xampp\htdocs\Integrated-Library-System\docker\mysql\library.sql
+-- ...existing code...
+
+-- ====================================================================
+-- Table structure for table `transactions`
+-- FIXED: Removed duplicate 'fine' column - now only using 'fineAmount'
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `transactions` (
+  `tid` varchar(255) NOT NULL,
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `borrowDate` date NOT NULL,
+  `returnDate` date DEFAULT NULL,
+  `lastFinePaymentDate` date DEFAULT NULL,
+  `fineAmount` decimal(10,2) DEFAULT 0.00,
+  `fineStatus` enum('pending','paid','waived') DEFAULT 'pending',
+  `finePaymentDate` date NULL,
+  `finePaymentMethod` enum('cash','online','card','credit_card','debit_card','upi') NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`tid`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_isbn` (`isbn`),
+  KEY `idx_borrowDate` (`borrowDate`),
+  KEY `idx_returnDate` (`returnDate`),
+  KEY `idx_fineStatus` (`fineStatus`),
+  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `users` (`userId`) ON DELETE CASCADE,
+  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`isbn`) REFERENCES `books` (`isbn`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ...existing code...
+-- ...existing code...
+
 -- Re-enable FK checks after data insertion
 SET FOREIGN_KEY_CHECKS = 1;
 
