@@ -835,6 +835,12 @@ class AdminController
           $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
           break;
 
+        case 'mark_returned':
+          $id = $_POST['id'] ?? '';
+          $result = $this->adminService->markBookAsReturned($id);
+          $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
+          break;
+
         case 'delete':
           $id = $_POST['id'] ?? '';
           $result = $this->adminService->deleteBorrowedBook($id);
@@ -851,7 +857,7 @@ class AdminController
     $userId = $_GET['userId'] ?? null;
     $isbn = $_GET['isbn'] ?? null;
 
-    // Get data
+    // Get data using AdminService methods
     $borrowedBooks = $this->adminService->getAllBorrowedBooks($status, $userId, $isbn);
     $stats = $this->adminService->getBorrowedBooksStats();
 
@@ -865,7 +871,7 @@ class AdminController
     }
 
     $books = [];
-    $booksResult = $mysqli->query("SELECT isbn, bookName, authorName, available FROM books ORDER BY bookName");
+    $booksResult = $mysqli->query("SELECT isbn, COALESCE(bookName, 'Unknown Book') as bookName, COALESCE(authorName, 'Unknown Author') as authorName, COALESCE(available, 0) as available FROM books ORDER BY bookName");
     while ($row = $booksResult->fetch_assoc()) {
       $books[] = $row;
     }
@@ -999,6 +1005,48 @@ class AdminController
 
     $this->render('admin/reserved-books', ['requests' => $requests]);
   }
+  
+    /**
+   * Export Report
+   */
+  public function exportReport()
+  {
+    $this->authHelper->requireAdmin();
+
+    $startDate = $_GET['start_date'] ?? date('Y-m-01');
+    $endDate = $_GET['end_date'] ?? date('Y-m-d');
+    $reportType = $_GET['type'] ?? 'overview';
+
+    $report = $this->adminService->generateReport($reportType, $startDate, $endDate);
+    
+    $filename = "report_{$reportType}_{$startDate}_to_{$endDate}.txt";
+    
+    header('Content-Type: text/plain');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $content = "Library Report\n";
+    $content .= "Type: " . ucfirst($reportType) . "\n";
+    $content .= "Period: {$startDate} to {$endDate}\n";
+    $content .= "=================================================\n\n";
+
+    if (empty($report)) {
+        $content .= "No data available for this report.";
+    } else {
+        foreach ($report as $key => $value) {
+            if (is_array($value)) {
+                $content .= ucfirst(str_replace('_', ' ', $key)) . ":\n";
+                foreach($value as $sub_key => $sub_value) {
+                     $content .= "  - " . ucfirst(str_replace('_', ' ', $sub_key)) . ": " . $sub_value . "\n";
+                }
+            } else {
+                $content .= ucfirst(str_replace('_', ' ', $key)) . ": " . $value . "\n";
+            }
+        }
+    }
+    
+    echo $content;
+    exit;
+  }
 
   /**
    * Admin Profile
@@ -1007,11 +1055,11 @@ class AdminController
   {
     $this->authHelper->requireAdmin();
 
-    // Fetch admin data from session or database
     $adminId = $_SESSION['userId'] ?? null;
     global $mysqli;
     $admin = [];
 
+    // Always fetch fresh data from database first
     if ($adminId) {
         $stmt = $mysqli->prepare("SELECT * FROM users WHERE userId = ? AND userType = 'Admin' LIMIT 1");
         $stmt->bind_param("s", $adminId);
@@ -1019,10 +1067,102 @@ class AdminController
         $result = $stmt->get_result();
         $admin = $result->fetch_assoc();
         $stmt->close();
+        
+        // Store in session for use in view
+        $_SESSION['admin'] = $admin;
     }
 
-    $_SESSION['admin'] = $admin;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      // Validate only fields that exist in the users table
+      $data = [
+        'emailId' => trim($_POST['emailId'] ?? ''),
+        'phoneNumber' => trim($_POST['phoneNumber'] ?? ''),
+        'gender' => trim($_POST['gender'] ?? ''),
+        'dob' => trim($_POST['dob'] ?? ''),
+        'address' => trim($_POST['address'] ?? '')
+      ];
 
+      $errors = [];
+      
+      if (empty($data['emailId']) || !filter_var($data['emailId'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Valid email address is required.';
+      }
+      
+      if (empty($data['phoneNumber']) || !preg_match('/^[0-9+\-\s()]{7,20}$/', $data['phoneNumber'])) {
+        $errors[] = 'Valid phone number is required.';
+      }
+      
+      if (empty($data['gender'])) {
+        $errors[] = 'Gender is required.';
+      }
+      
+      if (empty($data['dob'])) {
+        $errors[] = 'Date of birth is required.';
+      }
+      
+      if (empty($data['address'])) {
+        $errors[] = 'Address is required.';
+      }
+
+      // Handle profile image upload if provided
+      if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['profileImage'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
+          $errors[] = 'Profile image must be JPG or PNG.';
+        } elseif ($file['size'] > 2 * 1024 * 1024) {
+          $errors[] = 'Profile image must be less than 2MB.';
+        } else {
+          $targetDir = APP_ROOT . '/public/assets/images/admins/';
+          if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+          }
+          
+          // Delete old profile images for this user
+          foreach (glob($targetDir . $adminId . '.*') as $oldFile) {
+            if (file_exists($oldFile)) {
+              unlink($oldFile);
+            }
+          }
+          
+          $profileImagePath = $targetDir . $adminId . '.' . $ext;
+          if (move_uploaded_file($file['tmp_name'], $profileImagePath)) {
+            error_log("Profile image uploaded successfully: " . $profileImagePath);
+          } else {
+            $errors[] = 'Failed to upload profile image.';
+            error_log("Failed to move uploaded file to: " . $profileImagePath);
+          }
+        }
+      }
+
+      if (empty($errors)) {
+        $userModel = new \App\Models\User();
+        $success = $userModel->updateProfile($adminId, $data);
+
+        if ($success) {
+          // Reload admin data from database
+          $stmt = $mysqli->prepare("SELECT * FROM users WHERE userId = ? AND userType = 'Admin' LIMIT 1");
+          $stmt->bind_param("s", $adminId);
+          $stmt->execute();
+          $result = $stmt->get_result();
+          $admin = $result->fetch_assoc();
+          $stmt->close();
+          $_SESSION['admin'] = $admin;
+          $_SESSION['success'] = 'Profile updated successfully.';
+        } else {
+          $_SESSION['error'] = 'Failed to update profile.';
+        }
+      } else {
+        $_SESSION['error'] = implode('<br>', $errors);
+      }
+
+      // Redirect to avoid form resubmission
+      header('Location: ' . BASE_URL . 'admin/profile');
+      exit;
+    }
+
+    // Pass admin data to view
     $pageTitle = 'Admin Profile';
     include APP_ROOT . '/views/admin/admin-profile.php';
   }

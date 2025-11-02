@@ -215,6 +215,54 @@
             margin-right: 0.5rem;
         }
         
+        /* Notification Icon */
+        .notification-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .notification-icon:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .notification-icon i {
+            font-size: 1.3rem;
+            color: #4a5568;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(245, 87, 108, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+        
         /* Profile Dropdown */
         .profile-dropdown {
             display: flex;
@@ -261,6 +309,7 @@
         .mobile-profile-wrapper {
             display: flex;
             align-items: center;
+            gap: 0.5rem;
             margin-left: auto;
             margin-right: 0.5rem;
         }
@@ -453,6 +502,15 @@
             .default-avatar {
                 font-size: 1rem;
             }
+            
+            .notification-icon {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .notification-icon i {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
@@ -480,6 +538,12 @@
             <!-- Profile Icon for Mobile (shown outside menu) -->
             <?php if (isset($_SESSION['userId'])): ?>
             <div class="mobile-profile-wrapper d-lg-none">
+                <!-- Notification Icon -->
+                <a href="<?= BASE_URL ?>user/notifications" class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </a>
+                
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle profile-dropdown" href="#" id="mobileProfileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <?php 
@@ -584,6 +648,14 @@
                 
                 <ul class="navbar-nav">
                     <?php if (isset($_SESSION['userId'])): ?>
+                        <!-- Notification Icon for desktop -->
+                        <li class="nav-item d-none d-lg-block">
+                            <a href="<?= BASE_URL ?>user/notifications" class="nav-link notification-icon">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge">3</span>
+                            </a>
+                        </li>
+                        
                         <!-- Profile dropdown for desktop only -->
                         <li class="nav-item dropdown d-none d-lg-block">
                             <a class="nav-link dropdown-toggle profile-dropdown" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
