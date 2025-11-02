@@ -587,6 +587,7 @@ class User extends BaseModel
         $values = [];
         $types = '';
 
+        // Only update fields that exist in users table
         if (isset($data['username'])) {
             $fields[] = "username = ?";
             $values[] = $data['username'];
@@ -630,9 +631,10 @@ class User extends BaseModel
         $values[] = $userId;
         $types .= 's';
 
-        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . ", updatedAt = NOW() WHERE userId = ?";
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
         if (!$stmt) {
+            error_log("Failed to prepare update statement: " . $this->db->error);
             return false;
         }
         $stmt->bind_param($types, ...$values);
@@ -654,9 +656,9 @@ class User extends BaseModel
             return false;
         }
         
-        // Update password
+        // Update password (remove updatedAt reference)
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        $sql = "UPDATE {$this->table} SET password = ?, updatedAt = NOW() WHERE userId = ?";
+        $sql = "UPDATE {$this->table} SET password = ? WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('ss', $hashedPassword, $userId);
         
@@ -703,7 +705,7 @@ class User extends BaseModel
     {
         try {
             $sql = "UPDATE {$this->table} 
-                    SET password = ?, otp = NULL, otpExpiry = NULL, updatedAt = NOW() 
+                    SET password = ?, otp = NULL, otpExpiry = NULL 
                     WHERE userId = ?";
             $stmt = $this->db->prepare($sql);
             
