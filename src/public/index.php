@@ -626,6 +626,8 @@ $router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
 // Faculty Fines
 $router->addRoute('GET', '/faculty/fines', 'FacultyController', 'fines');
 $router->addRoute('POST', '/faculty/fines', 'FacultyController', 'fines');
+$router->addRoute('GET', '/faculty/payment-form', 'FacultyController', 'showPaymentForm');
+$router->addRoute('POST', '/faculty/payment-form', 'FacultyController', 'payFine');
 
 // Faculty Profile
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');

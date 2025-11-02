@@ -675,6 +675,10 @@ include APP_ROOT . '/views/layouts/header.php';
                 <i class="fas fa-history"></i>
                 <span>Borrow History</span>
             </a>
+            <a href="<?= BASE_URL ?>faculty/fines" class="action-btn secondary">
+                <i class="fas fa-receipt"></i>
+                <span>View Fines</span>
+            </a>
             <a href="<?= BASE_URL ?>faculty/return" class="action-btn secondary">
                 <i class="fas fa-undo"></i>
                 <span>Return Books</span>

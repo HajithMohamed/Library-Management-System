@@ -6,11 +6,17 @@ if (!defined('APP_ROOT')) {
 $pageTitle = 'Your Fines';
 include APP_ROOT . '/views/layouts/header.php';
 
-// Calculate total fine
+// Calculate total unpaid fine
 $totalFine = 0;
+$totalPaidFine = 0;
 if (!empty($fines)) {
     foreach ($fines as $fine) {
-        $totalFine += (float)($fine['fineAmount'] ?? 0);
+        $fineAmount = (float)($fine['fineAmount'] ?? 0);
+        if ($fine['fineStatus'] === 'paid') {
+            $totalPaidFine += $fineAmount;
+        } else {
+            $totalFine += $fineAmount;
+        }
     }
 }
 ?>
@@ -392,6 +398,30 @@ if (!empty($fines)) {
         border: 1px solid rgba(16, 185, 129, 0.3);
     }
     
+    .paid-badge {
+        padding: 0.65rem 1.25rem;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+        color: #10b981;
+        border-radius: 10px;
+        font-weight: 800;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .paid-row {
+        opacity: 0.7;
+        background: rgba(16, 185, 129, 0.02) !important;
+    }
+    
+    .payment-info {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
     /* Total Summary */
     .total-summary {
         padding: 2rem;
@@ -536,6 +566,8 @@ if (!empty($fines)) {
         border-radius: 24px;
         max-width: 500px;
         width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
         padding: 2.5rem;
         position: relative;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -563,6 +595,7 @@ if (!empty($fines)) {
         align-items: center;
         justify-content: center;
         border-radius: 10px;
+        z-index: 1;
     }
     
     .modal-close:hover {
@@ -578,6 +611,7 @@ if (!empty($fines)) {
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 2rem;
+        padding-right: 3rem;
     }
     
     .form-group {
@@ -600,6 +634,7 @@ if (!empty($fines)) {
         font-size: 1rem;
         transition: all 0.3s ease;
         font-weight: 600;
+        box-sizing: border-box;
     }
     
     .form-control:focus {
@@ -732,10 +767,15 @@ if (!empty($fines)) {
                     Your Fines
                 </h1>
                 <p>Manage and pay your outstanding library fines</p>
-                <?php if (!empty($fines) && $totalFine > 0) { ?>
+                <?php if ($totalFine > 0) { ?>
                 <div class="total-badge">
                     <div class="total-badge-label">Total Outstanding</div>
-                    <div class="total-badge-amount">LKR<?= number_format($totalFine, 2) ?></div>
+                    <div class="total-badge-amount">LKR <?= number_format($totalFine, 2) ?></div>
+                </div>
+                <?php } elseif ($totalPaidFine > 0) { ?>
+                <div class="total-badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="total-badge-label">All Fines Paid</div>
+                    <div class="total-badge-amount">LKR <?= number_format($totalPaidFine, 2) ?></div>
                 </div>
                 <?php } ?>
             </div>
@@ -751,7 +791,7 @@ if (!empty($fines)) {
                     </div>
                     <div class="info-alert-content">
                         <h5>Fine Calculation</h5>
-                        <p>Fines are calculated based on the number of days overdue. Please pay your fines promptly to avoid account suspension.</p>
+                        <p>Fines are calculated at LKR 5 per day for overdue books (14-day borrowing period). Cash payments must be completed at the library counter.</p>
                     </div>
                 </div>
 
@@ -764,6 +804,7 @@ if (!empty($fines)) {
                                 <th><i class="fas fa-calendar-check"></i> Due Date</th>
                                 <th><i class="fas fa-exclamation-triangle"></i> Days Overdue</th>
                                 <th><i class="fas fa-rupee-sign"></i> Fine Amount</th>
+                                <th><i class="fas fa-info-circle"></i> Status</th>
                                 <th><i class="fas fa-credit-card"></i> Action</th>
                             </tr>
                         </thead>
@@ -773,6 +814,7 @@ if (!empty($fines)) {
                         
                         foreach ($fines as $fine) { 
                             $fineAmount = (float)($fine['fineAmount'] ?? 0);
+                            $isPaid = ($fine['fineStatus'] ?? '') === 'paid';
                             
                             $borrowDate = new DateTime($fine['borrowDate']);
                             $maxBorrowDays = isset($fine['max_borrow_days']) ? (int)$fine['max_borrow_days'] : 14;
@@ -782,8 +824,10 @@ if (!empty($fines)) {
                             $currentDate = new DateTime();
                             $interval = $dueDate->diff($currentDate);
                             $daysOverdue = $currentDate > $dueDate ? $interval->days : 0;
+                            
+                            $rowClass = $isPaid ? 'paid-row' : '';
                         ?>
-                            <tr>
+                            <tr class="<?= $rowClass ?>">
                                 <td data-label="Book Details">
                                     <div class="book-info">
                                         <span class="book-title">
@@ -807,7 +851,7 @@ if (!empty($fines)) {
                                     </span>
                                 </td>
                                 <td data-label="Days Overdue">
-                                    <?php if ($daysOverdue > 0): ?>
+                                    <?php if ($daysOverdue > 0 && !$isPaid): ?>
                                         <span class="date-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
                                             <i class="fas fa-exclamation-triangle"></i>
                                             <?= $daysOverdue ?> days
@@ -817,13 +861,39 @@ if (!empty($fines)) {
                                     <?php endif; ?>
                                 </td>
                                 <td data-label="Fine Amount">
-                                    <span class="fine-amount">
+                                    <span class="fine-amount" style="<?= $isPaid ? 'color: #10b981;' : '' ?>">
                                         <i class="fas fa-rupee-sign"></i>
                                         <?= number_format($fineAmount, 2) ?>
                                     </span>
+                                    <?php if ($isPaid && !empty($fine['finePaymentDate'])): ?>
+                                        <div class="payment-info">
+                                            Paid on <?= date('M d, Y', strtotime($fine['finePaymentDate'])) ?>
+                                            <?php if (!empty($fine['finePaymentMethod'])): ?>
+                                                via <?= ucfirst($fine['finePaymentMethod']) ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="Status">
+                                    <?php if ($isPaid): ?>
+                                        <span class="paid-badge">
+                                            <i class="fas fa-check-circle"></i>
+                                            Paid
+                                        </span>
+                                    <?php elseif ($fineAmount > 0): ?>
+                                        <span class="date-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+                                            <i class="fas fa-clock"></i>
+                                            Pending
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="no-fine-badge">
+                                            <i class="fas fa-check"></i>
+                                            No Fine
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td data-label="Action">
-                                    <?php if ($fineAmount > 0): ?>
+                                    <?php if (!$isPaid && $fineAmount > 0): ?>
                                         <form method="POST" action="<?= BASE_URL ?>faculty/fines" style="display:inline">
                                             <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>">
                                             <input type="hidden" name="amount" value="<?= htmlspecialchars($fineAmount) ?>">
@@ -832,14 +902,14 @@ if (!empty($fines)) {
                                                 <span>Pay Cash</span>
                                             </button>
                                         </form>
-                                        <button type="button" class="btn-pay" onclick="openPaymentModal('<?= htmlspecialchars($fine['tid'] ?? $fine['id'] ?? '') ?>', '<?= htmlspecialchars($fineAmount) ?>')">
-                                            <i class="fas fa-globe"></i>
+                                        <a href="<?= BASE_URL ?>faculty/payment-form?borrow_id=<?= urlencode($fine['tid'] ?? $fine['id'] ?? '') ?>&amount=<?= urlencode($fineAmount) ?>" class="btn-pay" style="text-decoration: none;">
+                                            <i class="fas fa-credit-card"></i>
                                             <span>Pay Online</span>
-                                        </button>
+                                        </a>
                                     <?php else: ?>
-                                        <span class="no-fine-badge">
-                                            <i class="fas fa-check"></i>
-                                            No Fine
+                                        <span class="paid-badge">
+                                            <i class="fas fa-check-double"></i>
+                                            Settled
                                         </span>
                                     <?php endif; ?>
                                 </td>
@@ -850,13 +920,15 @@ if (!empty($fines)) {
                 </div>
 
                 <!-- Total Summary -->
+                <?php if ($totalFine > 0): ?>
                 <div class="total-summary">
-                    <span class="total-summary-label">Total Amount Due:</span>
+                    <span class="total-summary-label">Total Outstanding Amount:</span>
                     <span class="total-summary-amount">
                         <i class="fas fa-rupee-sign"></i>
                         <?= number_format($totalFine, 2) ?>
                     </span>
                 </div>
+                <?php endif; ?>
             <?php } else { ?>
                 <!-- Empty State -->
                 <div class="empty-state">
@@ -875,63 +947,32 @@ if (!empty($fines)) {
     </div>
 </div>
 
-<!-- Online Payment Modal -->
-<div id="paymentModal">
-    <div class="modal-content">
-        <button onclick="closePaymentModal()" class="modal-close">&times;</button>
-        <h3><i class="fas fa-lock"></i> Secure Payment</h3>
-        <form id="onlinePaymentForm" method="POST" action="<?= BASE_URL ?>faculty/fines" autocomplete="off" onsubmit="return validateCardForm()">
-            <input type="hidden" name="borrow_id" id="modal_borrow_id">
-            <input type="hidden" name="amount" id="modal_amount">
-            <input type="hidden" name="pay_online" value="1">
-            
-            <div class="form-group">
-                <label>Card Holder Name</label>
-                <input type="text" name="card_holder" id="card_holder" class="form-control" required maxlength="100">
-            </div>
-            
-            <div class="form-group">
-                <label>Card Number</label>
-                <input type="text" name="card_number" id="card_number" class="form-control" required maxlength="19" pattern="\d{13,19}" inputmode="numeric" placeholder="XXXX XXXX XXXX XXXX">
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Expiry (MM/YY)</label>
-                    <input type="text" name="card_expiry" id="card_expiry" class="form-control" required maxlength="5" pattern="\d{2}/\d{2}" placeholder="MM/YY">
-                </div>
-                <div class="form-group">
-                    <label>CVV</label>
-                    <input type="password" name="card_cvv" id="card_cvv" class="form-control" required maxlength="4" pattern="\d{3,4}" inputmode="numeric">
-                </div>
-            </div>
-            
-            <div class="checkbox-group">
-                <input type="checkbox" name="save_card" id="save_card" value="1">
-                <label for="save_card">Save this card for future payments</label>
-            </div>
-            
-            <button type="submit" class="btn-pay" style="width: 100%;">
-                <i class="fas fa-lock"></i>
-                <span>Pay Securely</span>
-            </button>
-        </form>
-        <div id="cardError"></div>
-    </div>
-</div>
-
 <script>
-function openPaymentModal(borrowId, amount) {
-    document.getElementById('paymentModal').style.display = 'flex';
-    document.getElementById('modal_borrow_id').value = borrowId;
-    document.getElementById('modal_amount').value = amount;
-    document.getElementById('onlinePaymentForm').reset();
-    document.getElementById('cardError').style.display = 'none';
-}
+// Auto-format card number
+document.getElementById('card_number')?.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\s+/g, '').replace(/\D/g, '');
+    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+    e.target.value = formattedValue;
+});
 
-function closePaymentModal() {
-    document.getElementById('paymentModal').style.display = 'none';
-}
+// Auto-format expiry date
+document.getElementById('card_expiry')?.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length >= 2) {
+        value = value.slice(0, 2) + '/' + value.slice(2, 4);
+    }
+    e.target.value = value;
+});
+
+// CVV numeric only
+document.getElementById('card_cvv')?.addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '');
+});
+
+// Card holder name uppercase
+document.getElementById('card_holder')?.addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/[^a-zA-Z\s]/g, '').toUpperCase();
+});
 
 function validateCardForm() {
     var holder = document.getElementById('card_holder').value.trim();
@@ -940,7 +981,9 @@ function validateCardForm() {
     var cvv = document.getElementById('card_cvv').value.trim();
     var error = '';
 
-    if (!/^\d{13,19}$/.test(number) || !luhnCheck(number)) {
+    if (holder.length < 2) {
+        error = 'Card holder name required (minimum 2 characters).';
+    } else if (!/^\d{13,19}$/.test(number) || !luhnCheck(number)) {
         error = 'Invalid card number.';
     } else if (!/^\d{2}\/\d{2}$/.test(expiry)) {
         error = 'Invalid expiry format (MM/YY).';
@@ -949,15 +992,12 @@ function validateCardForm() {
         var mm = parseInt(parts[0], 10), yy = parseInt(parts[1], 10);
         var now = new Date();
         var expDate = new Date(2000 + yy, mm - 1, 1);
-        if (mm < 1 || mm > 12) error = 'Invalid expiry month.';
+        if (mm < 1 || mm > 12) error = 'Invalid expiry month (01-12).';
         else if (expDate < new Date(now.getFullYear(), now.getMonth(), 1)) error = 'Card expired.';
     }
     
     if (!error && !/^\d{3,4}$/.test(cvv)) {
         error = 'Invalid CVV (3-4 digits required).';
-    }
-    if (!error && holder.length < 2) {
-        error = 'Card holder name required.';
     }
     
     if (error) {
@@ -972,6 +1012,14 @@ function luhnCheck(num) {
     var arr = (num + '').split('').reverse().map(x => parseInt(x));
     var sum = arr.reduce((acc, val, idx) => acc + (idx % 2 ? ((val *= 2) > 9 ? val - 9 : val) : val), 0);
     return sum % 10 === 0;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    var modal = document.getElementById('paymentModal');
+    if (event.target == modal) {
+        closePaymentModal();
+    }
 }
 
 // Add Font Awesome if not already included
