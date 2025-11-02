@@ -692,7 +692,7 @@ $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'creat
 
 // Admin Profile
 $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
-$router->addRoute('POST', '/admin/profile', 'AdminController', 'updateProfile');
+$router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)
