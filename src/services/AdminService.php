@@ -69,8 +69,8 @@ class AdminService
   }
 
   /**
-   * Update all fines for overdue books - FIXED
-   * Changed 'fine' to 'fineAmount'
+   * Update all fines for overdue books - UPDATED
+   * Uses database settings for calculation
    */
   public function updateAllFines()
   {
@@ -78,9 +78,10 @@ class AdminService
     $updatedCount = 0;
 
     foreach ($overdueTransactions as $transaction) {
-      $fine = $this->calculateFine($transaction['borrowDate']);
-      // FIXED: Changed 'fine' to 'fineAmount'
-      if ($fine > ($transaction['fineAmount'] ?? 0)) {
+      $fine = $this->calculateFine($transaction['borrowDate'], $transaction['returnDate'] ?? null);
+      
+      // Only update if fine amount changed
+      if ($fine != ($transaction['fineAmount'] ?? 0)) {
         $this->transactionModel->updateFine($transaction['tid'], $fine);
         $updatedCount++;
       }
@@ -90,20 +91,37 @@ class AdminService
   }
 
   /**
-   * Calculate fine for overdue books
+   * Calculate fine for overdue books using database settings
    */
   private function calculateFine($borrowDate, $returnDate = null)
   {
+    // Get fine settings from database
+    $settings = $this->getFineSettings();
+    
+    $finePerDay = (float)($settings['fine_per_day'] ?? 5);
+    $maxBorrowDays = (int)($settings['max_borrow_days'] ?? 14);
+    $gracePeriodDays = (int)($settings['grace_period_days'] ?? 0);
+    $maxFineAmount = (float)($settings['max_fine_amount'] ?? 500);
+    $calculationMethod = $settings['fine_calculation_method'] ?? 'daily';
+
     $returnDate = $returnDate ?: date('Y-m-d');
     $borrowTimestamp = strtotime($borrowDate);
     $returnTimestamp = strtotime($returnDate);
 
-    $daysDiff = ($returnTimestamp - $borrowTimestamp) / (60 * 60 * 24);
-    $maxDays = 14; // 2 weeks borrowing period
+    $daysDiff = floor(($returnTimestamp - $borrowTimestamp) / (60 * 60 * 24));
+    
+    // Calculate overdue days after max borrow period and grace period
+    $overdueDays = $daysDiff - $maxBorrowDays - $gracePeriodDays;
 
-    if ($daysDiff > $maxDays) {
-      $overdueDays = $daysDiff - $maxDays;
-      return $overdueDays * 5; // 5 rupees per day fine
+    if ($overdueDays > 0) {
+      if ($calculationMethod === 'fixed') {
+        // Fixed fine amount
+        $fine = min($finePerDay, $maxFineAmount);
+      } else {
+        // Daily calculation
+        $fine = min($overdueDays * $finePerDay, $maxFineAmount);
+      }
+      return $fine;
     }
 
     return 0;
@@ -375,7 +393,8 @@ class AdminService
       $settings = [];
       if ($result) {
         while ($row = $result->fetch_assoc()) {
-          $settings[] = $row;
+          // Map database columns to array keys
+          $settings[$row['setting_name']] = $row['setting_value'];
         }
       }
 
@@ -429,553 +448,191 @@ class AdminService
   }
 
   /**
-   * Update fine settings
+   * Update fine settings and recalculate pending fines
    */
   public function updateFineSettings($settings)
   {
     global $conn;
 
     try {
+      $conn->begin_transaction();
+      
       $updatedCount = 0;
 
+      // Update each setting
       foreach ($settings as $key => $value) {
-        $stmt = $conn->prepare("UPDATE fine_settings SET settingValue = ? WHERE settingKey = ?");
+        $stmt = $conn->prepare("UPDATE fine_settings SET setting_value = ? WHERE setting_name = ?");
         $stmt->bind_param("ss", $value, $key);
 
-        if ($stmt->execute()) {
+        if ($stmt->execute() && $stmt->affected_rows > 0) {
           $updatedCount++;
         }
+        $stmt->close();
       }
 
+      if ($updatedCount > 0) {
+        // Recalculate all pending fines
+        $recalculatedCount = $this->recalculatePendingFines();
+        
+        // Notify users about fine changes
+        $this->notifyUsersAboutFineChanges();
+      }
+
+      $conn->commit();
       return $updatedCount;
+      
     } catch (\Exception $e) {
+      $conn->rollback();
       error_log("Error updating fine settings: " . $e->getMessage());
       return 0;
     }
   }
 
   /**
-   * Get borrow requests
+   * Recalculate all pending fines based on new settings
    */
-  public function getBorrowRequests($status = 'pending')
+  private function recalculatePendingFines()
   {
     global $conn;
-
+    
     try {
-      $sql = "SELECT br.*, u.emailId, u.userType, b.bookName, b.authorName, b.available
-              FROM borrow_requests br
-              LEFT JOIN users u ON br.userId = u.userId
-              LEFT JOIN books b ON br.isbn = b.isbn
-              WHERE br.status = ?
-              ORDER BY br.requestDate DESC";
-
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param("s", $status);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      $requests = [];
-      while ($row = $result->fetch_assoc()) {
-        $requests[] = $row;
+      // Get all transactions with pending fines or no return date
+      $sql = "SELECT tid, borrowDate, returnDate, fineAmount, fineStatus 
+              FROM transactions 
+              WHERE (fineStatus = 'pending' OR returnDate IS NULL)
+              AND borrowDate IS NOT NULL";
+      
+      $result = $conn->query($sql);
+      $updatedCount = 0;
+      
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $tid = $row['tid'];
+          $borrowDate = $row['borrowDate'];
+          $returnDate = $row['returnDate'];
+          $currentFine = (float)($row['fineAmount'] ?? 0);
+          
+          // Calculate new fine amount
+          $newFine = $this->calculateFine($borrowDate, $returnDate);
+          
+          // Only update if fine amount changed
+          if ($newFine != $currentFine) {
+            $stmt = $conn->prepare("UPDATE transactions SET fineAmount = ?, fineStatus = ? WHERE tid = ?");
+            $status = $newFine > 0 ? 'pending' : 'none';
+            $stmt->bind_param("dss", $newFine, $status, $tid);
+            
+            if ($stmt->execute()) {
+              $updatedCount++;
+            }
+            $stmt->close();
+          }
+        }
       }
-
-      return $requests;
+      
+      return $updatedCount;
+      
     } catch (\Exception $e) {
-      error_log("Error getting borrow requests: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Approve borrow request
-   */
-  public function approveBorrowRequest($requestId)
-  {
-    global $conn;
-
-    try {
-      // Start transaction
-      $conn->begin_transaction();
-
-      // Get request details
-      $stmt = $conn->prepare("SELECT * FROM borrow_requests WHERE id = ?");
-      $stmt->bind_param("i", $requestId);
-      $stmt->execute();
-      $request = $stmt->get_result()->fetch_assoc();
-
-      if (!$request) {
-        $conn->rollback();
-        return false;
-      }
-
-      // Check if book is available
-      $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
-      $stmt->bind_param("s", $request['isbn']);
-      $stmt->execute();
-      $book = $stmt->get_result()->fetch_assoc();
-
-      if (!$book || $book['available'] <= 0) {
-        $conn->rollback();
-        return false;
-      }
-
-      // Update borrow request status
-      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', approvedBy = ? WHERE id = ?");
-      $adminId = $_SESSION['userId'] ?? 'ADM001';
-      $stmt->bind_param("si", $adminId, $requestId);
-      $stmt->execute();
-
-      // Create transaction
-      $tid = 'TXN' . time() . rand(100, 999);
-      $borrowDate = date('Y-m-d');
-      $stmt = $conn->prepare("INSERT INTO transactions (tid, userId, isbn, borrowDate) VALUES (?, ?, ?, ?)");
-      $stmt->bind_param("ssss", $tid, $request['userId'], $request['isbn'], $borrowDate);
-      $stmt->execute();
-
-      // Update book availability
-      $stmt = $conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ?");
-      $stmt->bind_param("s", $request['isbn']);
-      $stmt->execute();
-
-      $conn->commit();
-      return true;
-    } catch (\Exception $e) {
-      $conn->rollback();
-      error_log("Error approving borrow request: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Reject borrow request
-   */
-  public function rejectBorrowRequest($requestId, $reason)
-  {
-    global $conn;
-
-    try {
-      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Rejected', rejectionReason = ? WHERE id = ?");
-      $stmt->bind_param("si", $reason, $requestId);
-
-      return $stmt->execute();
-    } catch (\Exception $e) {
-      error_log("Error rejecting borrow request: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Get all notifications
-   */
-  public function getAllNotifications($userId = null, $type = null, $unreadOnly = false)
-  {
-    global $conn;
-
-    try {
-      $sql = "SELECT * FROM notifications WHERE 1=1";
-
-      if ($userId) {
-        $sql .= " AND userId = ?";
-      }
-
-      if ($type) {
-        $sql .= " AND type = ?";
-      }
-
-      if ($unreadOnly) {
-        $sql .= " AND isRead = 0";
-      }
-
-      $sql .= " ORDER BY createdAt DESC";
-
-      $stmt = $conn->prepare($sql);
-
-      $params = [];
-      $types = "";
-
-      if ($userId) {
-        $params[] = $userId;
-        $types .= "s";
-      }
-
-      if ($type) {
-        $params[] = $type;
-        $types .= "s";
-      }
-
-      if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-      }
-
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      $notifications = [];
-      while ($row = $result->fetch_assoc()) {
-        $notifications[] = $row;
-      }
-
-      return $notifications;
-    } catch (\Exception $e) {
-      error_log("Error getting notifications: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Mark notification as read
-   */
-  public function markNotificationAsRead($notificationId)
-  {
-    global $conn;
-
-    try {
-      $stmt = $conn->prepare("UPDATE notifications SET isRead = 1 WHERE id = ?");
-      $stmt->bind_param("i", $notificationId);
-
-      return $stmt->execute();
-    } catch (\Exception $e) {
-      error_log("Error marking notification as read: " . $e->getMessage());
-      return false;
-    }
-  }
-
-  /**
-   * Get system health
-   */
-  public function getSystemHealth()
-  {
-    global $conn;
-
-    try {
-      $health = [
-        'database' => $conn->ping() ? 'healthy' : 'error',
-        'disk_space' => 'healthy',
-        'overdue_books' => 0,
-        'low_stock_books' => 0,
-        'overall' => 'healthy'
-      ];
-
-      // Get overdue books count
-      $result = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL AND DATEDIFF(CURDATE(), borrowDate) > 14");
-      $health['overdue_books'] = $result->fetch_assoc()['count'] ?? 0;
-
-      // Get low stock books count
-      $result = $conn->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
-      $health['low_stock_books'] = $result->fetch_assoc()['count'] ?? 0;
-
-      // Determine overall health
-      if ($health['overdue_books'] > 50 || $health['low_stock_books'] > 20) {
-        $health['overall'] = 'warning';
-      }
-
-      return $health;
-    } catch (\Exception $e) {
-      error_log("Error getting system health: " . $e->getMessage());
-      return [
-        'database' => 'error',
-        'overall' => 'error'
-      ];
-    }
-  }
-
-  /**
-   * Get backup history
-   */
-  public function getBackupHistory($limit = 10)
-  {
-    // This would require a backups table
-    // For now, return empty array
-    return [];
-  }
-
-  /**
-   * Get maintenance log
-   */
-  public function getMaintenanceLog($limit = 20)
-  {
-    global $conn;
-
-    try {
-      $sql = "SELECT * FROM audit_logs WHERE action LIKE '%MAINTENANCE%' ORDER BY createdAt DESC LIMIT ?";
-      $stmt = $conn->prepare($sql);
-      $stmt->bind_param("i", $limit);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      $logs = [];
-      while ($row = $result->fetch_assoc()) {
-        $logs[] = $row;
-      }
-
-      return $logs;
-    } catch (\Exception $e) {
-      error_log("Error getting maintenance log: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Create database backup
-   */
-  public function createDatabaseBackup($backupType = 'manual')
-  {
-    // This would require mysqldump or similar
-    // Implementation depends on server environment
-    return false;
-  }
-
-  /**
-   * Perform maintenance tasks
-   */
-  public function performMaintenance($tasks)
-  {
-    $results = [];
-
-    foreach ($tasks as $task) {
-      switch ($task) {
-        case 'update_fines':
-          $results[$task] = $this->updateAllFines();
-          break;
-
-        case 'clean_expired_tokens':
-          $results[$task] = $this->cleanExpiredTokens();
-          break;
-
-        case 'optimize_tables':
-          $results[$task] = $this->optimizeTables();
-          break;
-
-        default:
-          $results[$task] = 0;
-      }
-    }
-
-    return $results;
-  }
-
-  /**
-   * Clean expired tokens
-   */
-  private function cleanExpiredTokens()
-  {
-    global $conn;
-
-    try {
-      $stmt = $conn->prepare("UPDATE users SET verificationToken = NULL, otp = NULL WHERE otpExpiry < NOW()");
-      $stmt->execute();
-
-      return $stmt->affected_rows;
-    } catch (\Exception $e) {
-      error_log("Error cleaning expired tokens: " . $e->getMessage());
+      error_log("Error recalculating pending fines: " . $e->getMessage());
       return 0;
     }
   }
 
   /**
-   * Optimize database tables
+   * Notify all users with pending fines about changes
    */
-  private function optimizeTables()
+  private function notifyUsersAboutFineChanges()
   {
     global $conn;
-
+    
     try {
-      $tables = ['users', 'books', 'transactions', 'borrow_requests', 'notifications'];
-      $optimized = 0;
-
-      foreach ($tables as $table) {
-        $conn->query("OPTIMIZE TABLE $table");
-        $optimized++;
-      }
-
-      return $optimized;
-    } catch (\Exception $e) {
-      error_log("Error optimizing tables: " . $e->getMessage());
-      return 0;
-    }
-  }
-
-  /**
-   * Get overall statistics
-   */
-  public function getOverallStats()
-  {
-    global $conn;
-
-    try {
-      $stats = [];
-
-      // Total books
-      $result = $conn->query("SELECT COUNT(*) as total FROM books");
-      $stats['total_books'] = $result->fetch_assoc()['total'] ?? 0;
-
-      // Total users
-      $result = $conn->query("SELECT COUNT(*) as total FROM users");
-      $stats['total_users'] = $result->fetch_assoc()['total'] ?? 0;
-
-      // Total transactions
-      $result = $conn->query("SELECT COUNT(*) as total FROM transactions");
-      $stats['total_transactions'] = $result->fetch_assoc()['total'] ?? 0;
-
-      // Active borrowings
-      $result = $conn->query("SELECT COUNT(*) as total FROM transactions WHERE returnDate IS NULL");
-      $stats['active_borrowings'] = $result->fetch_assoc()['total'] ?? 0;
-
-      // Total fines - FIXED: Changed 'fine' to 'fineAmount'
-      $result = $conn->query("SELECT SUM(fineAmount) as total FROM transactions WHERE fineAmount > 0");
-      $stats['total_fines'] = $result->fetch_assoc()['total'] ?? 0;
-
-      return $stats;
-    } catch (\Exception $e) {
-      error_log("Error getting overall stats: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Get borrow trends for the last 30 days
-   */
-  public function getBorrowTrends()
-  {
-    global $conn;
-
-    try {
-      $sql = "SELECT DATE(borrowDate) as date, COUNT(*) as count
-              FROM transactions
-              WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-              GROUP BY DATE(borrowDate)
-              ORDER BY date ASC";
-
+      // Get all users with pending fines
+      $sql = "SELECT DISTINCT t.userId, u.username, u.emailId, SUM(t.fineAmount) as totalFine
+              FROM transactions t
+              LEFT JOIN users u ON t.userId = u.userId
+              WHERE t.fineStatus = 'pending' AND t.fineAmount > 0
+              GROUP BY t.userId, u.username, u.emailId";
+      
       $result = $conn->query($sql);
-      $trends = [];
-
+      
       if ($result) {
         while ($row = $result->fetch_assoc()) {
-          $trends[] = [
-            'date' => $row['date'] ?? '',
-            'count' => (int)($row['count'] ?? 0)
-          ];
+          $userId = $row['userId'];
+          $username = $row['username'] ?? 'User';
+          $totalFine = number_format($row['totalFine'], 2);
+          
+          // Create notification
+          $title = "Fine Settings Updated";
+          $message = "Dear {$username}, the library fine settings have been updated. Your current pending fine is LKR {$totalFine}. Please visit the library to review your account.";
+          
+          // FIXED: Removed relatedId parameter to match the table structure
+          $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (?, ?, ?, 'system', 'high', NOW())");
+          $stmt->bind_param("sss", $userId, $title, $message);
+          $stmt->execute();
+          $stmt->close();
+          
+          // Optionally send email notification
+          $this->sendEmailNotification($row['emailId'], $title, $message);
         }
       }
-
-      return $trends;
+      
     } catch (\Exception $e) {
-      error_log("Error getting borrow trends: " . $e->getMessage());
-      return [];
+      error_log("Error notifying users about fine changes: " . $e->getMessage());
     }
   }
 
   /**
-   * Get top 10 most borrowed books in the last 90 days
+   * Send email notification to user
    */
-  public function getTopBooks()
+  private function sendEmailNotification($emailId, $subject, $message)
   {
-    global $conn;
-
+    // Only send if email is valid
+    if (!filter_var($emailId, FILTER_VALIDATE_EMAIL)) {
+      return false;
+    }
+    
     try {
-      $sql = "SELECT b.bookName, b.authorName, b.isbn, COUNT(t.tid) as borrowCount
-                FROM books b
-                LEFT JOIN transactions t ON b.isbn = t.isbn
-                WHERE t.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
-                GROUP BY b.isbn, b.bookName, b.authorName
-                ORDER BY borrowCount DESC
-                LIMIT 10";
-
-      $result = $conn->query($sql);
-      $books = [];
-
-      if ($result) {
-        while ($row = $result->fetch_assoc()) {
-          $books[] = [
-            'bookName' => $row['bookName'] ?? 'Unknown',
-            'authorName' => $row['authorName'] ?? 'Unknown',
-            'isbn' => $row['isbn'] ?? '',
-            'borrowCount' => (int)($row['borrowCount'] ?? 0)
-          ];
-        }
-      }
-
-      return $books;
+      $headers = "From: library@example.com\r\n";
+      $headers .= "Reply-To: library@example.com\r\n";
+      $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+      
+      $htmlMessage = "
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #6366f1; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9fafb; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class='container'>
+          <div class='header'>
+            <h2>{$subject}</h2>
+          </div>
+          <div class='content'>
+            <p>{$message}</p>
+          </div>
+          <div class='footer'>
+            <p>This is an automated message from the Library Management System.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      ";
+      
+      return mail($emailId, $subject, $htmlMessage, $headers);
+      
     } catch (\Exception $e) {
-      error_log("Error getting top books: " . $e->getMessage());
-      return [];
+      error_log("Error sending email to {$emailId}: " . $e->getMessage());
+      return false;
     }
   }
 
   /**
-   * Get category distribution of books
-   */
-  public function getCategoryDistribution()
-  {
-    global $conn;
-
-    try {
-      $sql = "SELECT
-                COALESCE(category, 'Uncategorized') as category,
-                COUNT(*) as count,
-                COALESCE(SUM(totalCopies), 0) as copies
-                FROM books
-                GROUP BY category
-                ORDER BY count DESC";
-
-      $result = $conn->query($sql);
-      $distribution = [];
-
-      if ($result) {
-        while ($row = $result->fetch_assoc()) {
-          $distribution[] = [
-            'category' => $row['category'] ?? 'Uncategorized',
-            'count' => (int)($row['count'] ?? 0),
-            'copies' => (int)($row['copies'] ?? 0)
-          ];
-        }
-      }
-
-      return $distribution;
-    } catch (\Exception $e) {
-      error_log("Error getting category distribution: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Get user activity statistics for the last 30 days
-   */
-  public function getUserActivity()
-  {
-    global $conn;
-
-    try {
-      $sql = "SELECT u.userType,
-                COUNT(DISTINCT t.userId) as activeUsers,
-                COUNT(t.tid) as transactions
-                FROM transactions t
-                JOIN users u ON t.userId = u.userId
-                WHERE t.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                GROUP BY u.userType";
-
-      $result = $conn->query($sql);
-      $activity = [];
-
-      if ($result) {
-        while ($row = $result->fetch_assoc()) {
-          $activity[] = [
-            'userType' => $row['userType'] ?? 'Unknown',
-            'activeUsers' => (int)($row['activeUsers'] ?? 0),
-            'transactions' => (int)($row['transactions'] ?? 0)
-          ];
-        }
-      }
-
-      return $activity;
-    } catch (\Exception $e) {
-      error_log("Error getting user activity: " . $e->getMessage());
-      return [];
-    }
-  }
-
-  /**
-   * Get fine statistics for the last 6 months - FIXED
+   * Generate fine statistics for the last 6 months - FIXED
    * Changed 'fine' to 'fineAmount'
    */
   public function getFineStats()
@@ -1363,7 +1020,7 @@ class AdminService
           $stmt->close();
           
           // Create notification for user
-          $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority, relatedId, createdAt) VALUES (?, 'Book Returned', ?, 'system', 'medium', ?, NOW())");
+          $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (?, 'Book Returned', ?, 'system', 'medium', NOW())");
           $message = "Your borrowed book (ISBN: {$isbn}) has been successfully returned on {$returnDate}.";
           $notifStmt->bind_param("ssi", $borrowedBook['userId'], $message, $id);
           $notifStmt->execute();
@@ -1435,5 +1092,525 @@ class AdminService
               'message' => 'Failed to delete borrowed book record: ' . $e->getMessage()
           ];
       }
+  }
+
+  /**
+   * Get borrow requests
+   */
+  public function getBorrowRequests($status = 'pending')
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT br.*, u.emailId, u.userType, b.bookName, b.authorName, b.available
+              FROM borrow_requests br
+              LEFT JOIN users u ON br.userId = u.userId
+              LEFT JOIN books b ON br.isbn = b.isbn
+              WHERE br.status = ?
+              ORDER BY br.requestDate DESC";
+
+      $stmt = $conn->prepare($sql);
+      $stmt->bind_param("s", $status);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $requests = [];
+      while ($row = $result->fetch_assoc()) {
+        $requests[] = $row;
+      }
+
+      return $requests;
+    } catch (\Exception $e) {
+      error_log("Error getting borrow requests: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Approve borrow request
+   */
+  public function approveBorrowRequest($requestId)
+  {
+    global $conn;
+
+    try {
+      // Start transaction
+      $conn->begin_transaction();
+
+      // Get request details
+      $stmt = $conn->prepare("SELECT * FROM borrow_requests WHERE id = ?");
+      $stmt->bind_param("i", $requestId);
+      $stmt->execute();
+      $request = $stmt->get_result()->fetch_assoc();
+
+      if (!$request) {
+        $conn->rollback();
+        return false;
+      }
+
+      // Check if book is available
+      $stmt = $conn->prepare("SELECT available FROM books WHERE isbn = ?");
+      $stmt->bind_param("s", $request['isbn']);
+      $stmt->execute();
+      $book = $stmt->get_result()->fetch_assoc();
+
+      if (!$book || $book['available'] <= 0) {
+        $conn->rollback();
+        return false;
+      }
+
+      // Update borrow request status
+      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', approvedBy = ? WHERE id = ?");
+      $adminId = $_SESSION['userId'] ?? 'ADM001';
+      $stmt->bind_param("si", $adminId, $requestId);
+      $stmt->execute();
+
+      // Create transaction
+      $tid = 'TXN' . time() . rand(100, 999);
+      $borrowDate = date('Y-m-d');
+      $stmt = $conn->prepare("INSERT INTO transactions (tid, userId, isbn, borrowDate) VALUES (?, ?, ?, ?)");
+      $stmt->bind_param("ssss", $tid, $request['userId'], $request['isbn'], $borrowDate);
+      $stmt->execute();
+
+      // Update book availability
+      $stmt = $conn->prepare("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ?");
+      $stmt->bind_param("s", $request['isbn']);
+      $stmt->execute();
+
+      $conn->commit();
+      return true;
+    } catch (\Exception $e) {
+      $conn->rollback();
+      error_log("Error approving borrow request: " . $e->getMessage());
+      return false;
+    }
+  }
+
+  /**
+   * Reject borrow request
+   */
+  public function rejectBorrowRequest($requestId, $reason)
+  {
+    global $conn;
+
+    try {
+      $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Rejected', rejectionReason = ? WHERE id = ?");
+      $stmt->bind_param("si", $reason, $requestId);
+
+      return $stmt->execute();
+    } catch (\Exception $e) {
+      error_log("Error rejecting borrow request: " . $e->getMessage());
+      return false;
+    }
+  }
+
+  /**
+   * Get all notifications
+   */
+  public function getAllNotifications($userId = null, $type = null, $unreadOnly = false)
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT * FROM notifications WHERE 1=1";
+
+      if ($userId) {
+        $sql .= " AND userId = ?";
+      }
+
+      if ($type) {
+        $sql .= " AND type = ?";
+      }
+
+      if ($unreadOnly) {
+        $sql .= " AND isRead = 0";
+      }
+
+      $sql .= " ORDER BY createdAt DESC";
+
+      $stmt = $conn->prepare($sql);
+
+      $params = [];
+      $types = "";
+
+      if ($userId) {
+        $params[] = $userId;
+        $types .= "s";
+      }
+
+      if ($type) {
+        $params[] = $type;
+        $types .= "s";
+      }
+
+      if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+      }
+
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $notifications = [];
+      while ($row = $result->fetch_assoc()) {
+        $notifications[] = $row;
+      }
+
+      return $notifications;
+    } catch (\Exception $e) {
+      error_log("Error getting notifications: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  public function markNotificationAsRead($notificationId)
+  {
+    global $conn;
+
+    try {
+      $stmt = $conn->prepare("UPDATE notifications SET isRead = 1 WHERE id = ?");
+      $stmt->bind_param("i", $notificationId);
+
+      return $stmt->execute();
+    } catch (\Exception $e) {
+      error_log("Error marking notification as read: " . $e->getMessage());
+      return false;
+    }
+  }
+
+  /**
+   * Get system health
+   */
+  public function getSystemHealth()
+  {
+    global $conn;
+
+    try {
+      $health = [
+        'database' => $conn->ping() ? 'healthy' : 'error',
+        'disk_space' => 'healthy',
+        'overdue_books' => 0,
+        'low_stock_books' => 0,
+        'overall' => 'healthy'
+      ];
+
+      // Get overdue books count
+      $result = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL AND DATEDIFF(CURDATE(), borrowDate) > 14");
+      $health['overdue_books'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Get low stock books count
+      $result = $conn->query("SELECT COUNT(*) as count FROM books WHERE available <= 2");
+      $health['low_stock_books'] = $result->fetch_assoc()['count'] ?? 0;
+
+      // Determine overall health
+      if ($health['overdue_books'] > 50 || $health['low_stock_books'] > 20) {
+        $health['overall'] = 'warning';
+      }
+
+      return $health;
+    } catch (\Exception $e) {
+      error_log("Error getting system health: " . $e->getMessage());
+      return [
+        'database' => 'error',
+        'overall' => 'error'
+      ];
+    }
+  }
+
+  /**
+   * Get backup history
+   */
+  public function getBackupHistory($limit = 10)
+  {
+    // This would require a backups table
+    // For now, return empty array
+    return [];
+  }
+
+  /**
+   * Get maintenance log
+   */
+  public function getMaintenanceLog($limit = 20)
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT * FROM audit_logs WHERE action LIKE '%MAINTENANCE%' ORDER BY createdAt DESC LIMIT ?";
+      $stmt = $conn->prepare($sql);
+      $stmt->bind_param("i", $limit);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $logs = [];
+      while ($row = $result->fetch_assoc()) {
+        $logs[] = $row;
+      }
+
+      return $logs;
+    } catch (\Exception $e) {
+      error_log("Error getting maintenance log: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Create database backup
+   */
+  public function createDatabaseBackup($backupType = 'manual')
+  {
+    // This would require mysqldump or similar
+    // Implementation depends on server environment
+    return false;
+  }
+
+  /**
+   * Perform maintenance tasks
+   */
+  public function performMaintenance($tasks)
+  {
+    $results = [];
+
+    foreach ($tasks as $task) {
+      switch ($task) {
+        case 'update_fines':
+          $results[$task] = $this->updateAllFines();
+          break;
+
+        case 'clean_expired_tokens':
+          $results[$task] = $this->cleanExpiredTokens();
+          break;
+
+        case 'optimize_tables':
+          $results[$task] = $this->optimizeTables();
+          break;
+
+        default:
+          $results[$task] = 0;
+      }
+    }
+
+    return $results;
+  }
+
+  /**
+   * Clean expired tokens
+   */
+  private function cleanExpiredTokens()
+  {
+    global $conn;
+
+    try {
+      $stmt = $conn->prepare("UPDATE users SET verificationToken = NULL, otp = NULL WHERE otpExpiry < NOW()");
+      $stmt->execute();
+
+      return $stmt->affected_rows;
+    } catch (\Exception $e) {
+      error_log("Error cleaning expired tokens: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Optimize database tables
+   */
+  private function optimizeTables()
+  {
+    global $conn;
+
+    try {
+      $tables = ['users', 'books', 'transactions', 'borrow_requests', 'notifications'];
+      $optimized = 0;
+
+      foreach ($tables as $table) {
+        $conn->query("OPTIMIZE TABLE $table");
+        $optimized++;
+      }
+
+      return $optimized;
+    } catch (\Exception $e) {
+      error_log("Error optimizing tables: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Get overall statistics
+   */
+  public function getOverallStats()
+  {
+    global $conn;
+
+    try {
+      $stats = [];
+
+      // Total books
+      $result = $conn->query("SELECT COUNT(*) as total FROM books");
+      $stats['total_books'] = $result->fetch_assoc()['total'] ?? 0;
+
+      // Total users
+      $result = $conn->query("SELECT COUNT(*) as total FROM users");
+      $stats['total_users'] = $result->fetch_assoc()['total'] ?? 0;
+
+      // Total transactions
+      $result = $conn->query("SELECT COUNT(*) as total FROM transactions");
+      $stats['total_transactions'] = $result->fetch_assoc()['total'] ?? 0;
+
+      // Active borrowings
+      $result = $conn->query("SELECT COUNT(*) as total FROM transactions WHERE returnDate IS NULL");
+      $stats['active_borrowings'] = $result->fetch_assoc()['total'] ?? 0;
+
+      // Total fines
+      $result = $conn->query("SELECT SUM(fineAmount) as total FROM transactions WHERE fineAmount > 0");
+      $stats['total_fines'] = $result->fetch_assoc()['total'] ?? 0;
+
+      return $stats;
+    } catch (\Exception $e) {
+      error_log("Error getting overall stats: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Get borrow trends for the last 30 days
+   */
+  public function getBorrowTrends()
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT DATE(borrowDate) as date, COUNT(*) as count
+              FROM transactions
+              WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+              GROUP BY DATE(borrowDate)
+              ORDER BY date ASC";
+
+      $result = $conn->query($sql);
+      $trends = [];
+
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $trends[] = [
+            'date' => $row['date'] ?? '',
+            'count' => (int)($row['count'] ?? 0)
+          ];
+        }
+      }
+
+      return $trends;
+    } catch (\Exception $e) {
+      error_log("Error getting borrow trends: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Get top 10 most borrowed books in the last 90 days
+   */
+  public function getTopBooks()
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT b.bookName, b.authorName, b.isbn, COUNT(t.tid) as borrowCount
+                FROM books b
+                LEFT JOIN transactions t ON b.isbn = t.isbn
+                WHERE t.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+                GROUP BY b.isbn, b.bookName, b.authorName
+                ORDER BY borrowCount DESC
+                LIMIT 10";
+
+      $result = $conn->query($sql);
+      $books = [];
+
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $books[] = [
+            'bookName' => $row['bookName'] ?? 'Unknown',
+            'authorName' => $row['authorName'] ?? 'Unknown',
+            'isbn' => $row['isbn'] ?? '',
+            'borrowCount' => (int)($row['borrowCount'] ?? 0)
+          ];
+        }
+      }
+
+      return $books;
+    } catch (\Exception $e) {
+      error_log("Error getting top books: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Get category distribution of books
+   */
+  public function getCategoryDistribution()
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT
+                COALESCE(category, 'Uncategorized') as category,
+                COUNT(*) as count,
+                COALESCE(SUM(totalCopies), 0) as copies
+                FROM books
+                GROUP BY category
+                ORDER BY count DESC";
+
+      $result = $conn->query($sql);
+      $distribution = [];
+
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $distribution[] = [
+            'category' => $row['category'] ?? 'Uncategorized',
+            'count' => (int)($row['count'] ?? 0),
+            'copies' => (int)($row['copies'] ?? 0)
+          ];
+        }
+      }
+
+      return $distribution;
+    } catch (\Exception $e) {
+      error_log("Error getting category distribution: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Get user activity statistics for the last 30 days
+   */
+  public function getUserActivity()
+  {
+    global $conn;
+
+    try {
+      $sql = "SELECT u.userType,
+                COUNT(DISTINCT t.userId) as activeUsers,
+                COUNT(t.tid) as transactions
+                FROM transactions t
+                JOIN users u ON t.userId = u.userId
+                WHERE t.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                GROUP BY u.userType";
+
+      $result = $conn->query($sql);
+      $activity = [];
+
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $activity[] = [
+            'userType' => $row['userType'] ?? 'Unknown',
+            'activeUsers' => (int)($row['activeUsers'] ?? 0),
+            'transactions' => (int)($row['transactions'] ?? 0)
+          ];
+        }
+      }
+
+      return $activity;
+    } catch (\Exception $e) {
+      error_log("Error getting user activity: " . $e->getMessage());
+      return [];
+    }
   }
 }

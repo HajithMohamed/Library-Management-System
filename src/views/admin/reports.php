@@ -609,8 +609,11 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-search"></i> Generate Report
                             </button>
-                            <button type="button" class="btn btn-success" onclick="exportReport()">
-                                <i class="fas fa-download"></i> Export
+                            <button type="button" class="btn btn-success" onclick="exportReport('csv')">
+                                <i class="fas fa-file-excel"></i> Export to Excel
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="exportReport('txt')" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                                <i class="fas fa-file-alt"></i> Export to Text
                             </button>
                         </div>
                     </div>
@@ -781,13 +784,13 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
 </div>
 
 <script>
-function exportReport() {
+function exportReport(format) {
     const reportType = document.getElementById('report_type').value;
     const startDate = document.getElementById('start_date').value;
     const endDate = document.getElementById('end_date').value;
     
     // Construct the URL for the export endpoint
-    const exportUrl = `<?= BASE_URL ?>admin/reports/export?type=${reportType}&start_date=${startDate}&end_date=${endDate}`;
+    const exportUrl = `<?= BASE_URL ?>admin/reports/export?type=${reportType}&start_date=${startDate}&end_date=${endDate}&format=${format}`;
     
     // Redirect to the export endpoint, which will trigger the file download
     window.location.href = exportUrl;

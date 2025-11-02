@@ -126,21 +126,36 @@ class Book extends BaseModel
     /**
      * Get popular books based on borrow count
      */
-    public function getPopularBooks($limit = 10)
+    public function getPopularBooks($limit = 10, $startDate = null, $endDate = null)
     {
         try {
-            $sql = "SELECT b.*, COUNT(t.tid) as borrowCount
-                    FROM {$this->table} b
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT b.*, COUNT(t.tid) as borrow_count
+                    FROM books b
+                    LEFT JOIN transactions t ON b.isbn = t.isbn
+                    WHERE t.borrowDate BETWEEN ? AND ?
+                    GROUP BY b.isbn
+                    ORDER BY borrow_count DESC
+                    LIMIT ?
+                ");
+                $stmt->bind_param("ssi", $startDate, $endDate, $limit);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT b.*, COUNT(t.tid) as borrow_count
+                    FROM books b
                     LEFT JOIN transactions t ON b.isbn = t.isbn
                     GROUP BY b.isbn
-                    ORDER BY borrowCount DESC
-                    LIMIT ?";
+                    ORDER BY borrow_count DESC
+                    LIMIT ?
+                ");
+                $stmt->bind_param("i", $limit);
+            }
             
-            $stmt = $this->db->prepare($sql);
-            $stmt->bind_param('i', $limit);
             $stmt->execute();
+            $result = $stmt->get_result();
             
-            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            return $result->fetch_all(MYSQLI_ASSOC);
         } catch (\Exception $e) {
             error_log("Error getting popular books: " . $e->getMessage());
             return [];
@@ -308,5 +323,49 @@ class Book extends BaseModel
         
         $result = $this->db->query($sql);
         return $result->fetch_assoc();
+    }
+
+    /**
+     * Get total books count
+     */
+    public function getTotalBooksCount()
+    {
+        try {
+            global $mysqli;
+            // Count distinct books (not total copies)
+            $sql = "SELECT COUNT(*) as count FROM books";
+            $result = $mysqli->query($sql);
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting total books count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get available books count
+     */
+    public function getAvailableBooksCount()
+    {
+        try {
+            global $mysqli;
+            // Sum available copies from all books
+            $sql = "SELECT COALESCE(SUM(available), 0) as count FROM books";
+            $result = $mysqli->query($sql);
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting available books count: " . $e->getMessage());
+            return 0;
+        }
     }
 }

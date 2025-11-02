@@ -1222,7 +1222,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     <tr>
                                         <td>
                                             <?php if (!empty($book['bookImage'])): ?>
-                                                <img src="<?= BASE_URL ?>public/<?= htmlspecialchars($book['bookImage']) ?>" 
+                                                <img src="<?= BASE_URL ?>uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
                                                      alt="<?= htmlspecialchars($book['bookName']) ?>" 
                                                      class="book-cover"
                                                      onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -1970,7 +1970,7 @@ function openEditModal(book) {
     
     // Set image preview
     if (book.bookImage) {
-        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>public/' + book.bookImage;
+        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>uploads/books/' + book.bookImage;
     } else {
         document.getElementById('edit_previewImage').src = '';
     }

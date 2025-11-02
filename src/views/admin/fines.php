@@ -842,38 +842,67 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <h5>Fine Settings</h5>
                 </div>
                 
-                <form method="POST" action="<?= BASE_URL ?>admin/fines">
+                <div class="alert alert-info" style="background: #dbeafe; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Updating these settings will automatically recalculate all pending fines and notify affected users.
+                </div>
+                
+                <form method="POST" action="<?= BASE_URL ?>admin/fines" onsubmit="return confirmSettingsUpdate()">
                     <input type="hidden" name="action" value="update_settings">
                     
                     <div class="settings-grid">
                         <div class="form-group">
-                            <label for="fine_per_day" class="form-label">Fine Per Day (LKR)</label>
-                            <input type="number" class="form-control" id="fine_per_day" name="settings[fine_per_day]" 
-                                   value="<?= $fineSettings['fine_per_day'] ?? '5' ?>" min="0" step="0.01">
+                            <label for="fine_per_day" class="form-label">
+                                Fine Per Day (LKR)
+                                <i class="fas fa-question-circle" title="Amount charged per day after due date"></i>
+                            </label>
+                            <input type="number" class="form-control" id="fine_per_day" 
+                                   name="settings[fine_per_day]" 
+                                   value="<?= htmlspecialchars($fineSettings['fine_per_day'] ?? '5') ?>" 
+                                   min="0" step="0.01" required>
                         </div>
                         <div class="form-group">
-                            <label for="max_borrow_days" class="form-label">Max Borrow Days</label>
-                            <input type="number" class="form-control" id="max_borrow_days" name="settings[max_borrow_days]" 
-                                   value="<?= $fineSettings['max_borrow_days'] ?? '14' ?>" min="1">
+                            <label for="max_borrow_days" class="form-label">
+                                Max Borrow Days
+                                <i class="fas fa-question-circle" title="Maximum days a book can be borrowed"></i>
+                            </label>
+                            <input type="number" class="form-control" id="max_borrow_days" 
+                                   name="settings[max_borrow_days]" 
+                                   value="<?= htmlspecialchars($fineSettings['max_borrow_days'] ?? '14') ?>" 
+                                   min="1" required>
                         </div>
                         <div class="form-group">
-                            <label for="grace_period_days" class="form-label">Grace Period (Days)</label>
-                            <input type="number" class="form-control" id="grace_period_days" name="settings[grace_period_days]" 
-                                   value="<?= $fineSettings['grace_period_days'] ?? '0' ?>" min="0">
+                            <label for="grace_period_days" class="form-label">
+                                Grace Period (Days)
+                                <i class="fas fa-question-circle" title="Additional days before fines start"></i>
+                            </label>
+                            <input type="number" class="form-control" id="grace_period_days" 
+                                   name="settings[grace_period_days]" 
+                                   value="<?= htmlspecialchars($fineSettings['grace_period_days'] ?? '0') ?>" 
+                                   min="0" required>
                         </div>
                         <div class="form-group">
-                            <label for="max_fine_amount" class="form-label">Max Fine Amount (LKR)</label>
-                            <input type="number" class="form-control" id="max_fine_amount" name="settings[max_fine_amount]" 
-                                   value="<?= $fineSettings['max_fine_amount'] ?? '500' ?>" min="0" step="0.01">
+                            <label for="max_fine_amount" class="form-label">
+                                Max Fine Amount (LKR)
+                                <i class="fas fa-question-circle" title="Maximum fine that can be charged per book"></i>
+                            </label>
+                            <input type="number" class="form-control" id="max_fine_amount" 
+                                   name="settings[max_fine_amount]" 
+                                   value="<?= htmlspecialchars($fineSettings['max_fine_amount'] ?? '500') ?>" 
+                                   min="0" step="0.01" required>
                         </div>
                     </div>
                     
                     <div class="settings-grid" style="grid-template-columns: 2fr 1fr;">
                         <div class="form-group">
-                            <label for="fine_calculation_method" class="form-label">Calculation Method</label>
-                            <select class="form-control" id="fine_calculation_method" name="settings[fine_calculation_method]">
-                                <option value="daily" <?= ($fineSettings['fine_calculation_method'] ?? 'daily') === 'daily' ? 'selected' : '' ?>>Daily</option>
-                                <option value="fixed" <?= ($fineSettings['fine_calculation_method'] ?? 'daily') === 'fixed' ? 'selected' : '' ?>>Fixed</option>
+                            <label for="fine_calculation_method" class="form-label">
+                                Calculation Method
+                                <i class="fas fa-question-circle" title="Daily: Fine increases per day | Fixed: One-time fine amount"></i>
+                            </label>
+                            <select class="form-control" id="fine_calculation_method" 
+                                    name="settings[fine_calculation_method]" required>
+                                <option value="daily" <?= (($fineSettings['fine_calculation_method'] ?? 'daily') === 'daily') ? 'selected' : '' ?>>Daily (Accumulating)</option>
+                                <option value="fixed" <?= (($fineSettings['fine_calculation_method'] ?? 'daily') === 'fixed') ? 'selected' : '' ?>>Fixed Amount</option>
                             </select>
                         </div>
                         <div class="form-group" style="display: flex; align-items: flex-end;">
@@ -1178,4 +1207,8 @@ document.querySelectorAll('.modal').forEach(modal => {
         }
     });
 });
+
+function confirmSettingsUpdate() {
+    return confirm('Updating fine settings will recalculate all pending fines and notify users. Do you want to continue?');
+}
 </script>

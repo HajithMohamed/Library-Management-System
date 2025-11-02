@@ -562,6 +562,83 @@ class User extends BaseModel
     }
 
     /**
+     * Get total users count
+     */
+    public function getTotalUsersCount()
+    {
+        try {
+            $sql = "SELECT COUNT(*) as count FROM users";
+            $result = $this->db->query($sql);
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting total users count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get active users count (users who borrowed books in date range)
+     */
+    public function getActiveUsersCount($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(DISTINCT userId) as count 
+                    FROM transactions 
+                    WHERE borrowDate BETWEEN ? AND ?
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT COUNT(DISTINCT userId) as count 
+                    FROM transactions 
+                    WHERE returnDate IS NULL
+                ");
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                return (int)$row['count'];
+            }
+            
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error getting active users count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get users by date range
+     */
+    public function getUsersByDateRange($startDate, $endDate)
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT * FROM users 
+                WHERE createdAt BETWEEN ? AND ?
+                ORDER BY createdAt DESC
+            ");
+            $stmt->bind_param("ss", $startDate, $endDate);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting users by date range: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Delete user by ID
      */
     public function deleteUser($userId)

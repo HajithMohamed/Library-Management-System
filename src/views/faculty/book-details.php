@@ -808,7 +808,7 @@ if (!$book) {
             <div class="book-image-section">
                 <div class="book-image-wrapper">
                     <?php if (!empty($book['bookImage'])): ?>
-                        <img src="<?= BASE_URL ?>assets/images/books/<?= htmlspecialchars($book['bookImage']) ?>" 
+                        <img src="<?= BASE_URL ?>uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
                              alt="<?= htmlspecialchars($book['bookName']) ?>" 
                              class="book-image"
                              onerror="this.onerror=null; this.src='<?= BASE_URL ?>assets/images/no-book-cover.jpg'; if(this.complete && this.naturalHeight === 0) { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">
