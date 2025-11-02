@@ -2,8 +2,13 @@
 $pageTitle = 'Payment';
 include APP_ROOT . '/views/layouts/header.php';
 
+// Get transaction data from URL or passed variables
+$borrowId = $_GET['borrow_id'] ?? ($transaction['tid'] ?? '');
+$amount = $_GET['amount'] ?? ($transaction['fineAmount'] ?? 0);
+$bookName = $_GET['book_name'] ?? ($transaction['bookName'] ?? 'N/A');
+
 $payAll = $pay_all ?? false;
-$totalAmount = $amount ?? 0;
+$totalAmount = $payAll ? ($total_amount ?? 0) : $amount;
 ?>
 
 <style>
@@ -310,11 +315,11 @@ $totalAmount = $amount ?? 0;
                 <?php } else { ?>
                     <div class="summary-row">
                         <span>Book:</span>
-                        <strong><?= htmlspecialchars($transaction['bookName'] ?? 'N/A') ?></strong>
+                        <strong><?= htmlspecialchars($bookName) ?></strong>
                     </div>
                     <div class="summary-row">
                         <span>Transaction ID:</span>
-                        <strong>#<?= htmlspecialchars($transaction['tid'] ?? '') ?></strong>
+                        <strong>#<?= htmlspecialchars($borrowId) ?></strong>
                     </div>
                 <?php } ?>
                 <div class="summary-row">
@@ -323,15 +328,15 @@ $totalAmount = $amount ?? 0;
                 </div>
             </div>
             
-            <form id="paymentForm" method="POST" action="<?= BASE_URL ?>user/payFine">
+            <form id="paymentForm" method="POST" action="<?= BASE_URL ?>faculty/fines">
+                <input type="hidden" name="pay_online" value="1">
                 <?php if ($payAll) { ?>
                     <input type="hidden" name="pay_all" value="true">
                     <?php foreach ($transactions ?? [] as $txn) { ?>
                         <input type="hidden" name="transaction_ids[]" value="<?= htmlspecialchars($txn['tid']) ?>">
                     <?php } ?>
                 <?php } else { ?>
-                    <input type="hidden" name="transaction_id" value="<?= htmlspecialchars($transaction['tid'] ?? '') ?>">
-                    <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($transaction['tid'] ?? '') ?>">
+                    <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($borrowId) ?>">
                 <?php } ?>
                 <input type="hidden" name="amount" value="<?= htmlspecialchars($totalAmount) ?>">
                 <input type="hidden" name="payment_method" id="payment_method" value="credit_card">
@@ -457,7 +462,7 @@ $totalAmount = $amount ?? 0;
                     Pay LKR <?= number_format($totalAmount, 2) ?>
                 </button>
                 
-                <a href="<?= BASE_URL ?>user/fines" class="btn-cancel">
+                <a href="<?= BASE_URL ?>faculty/fines" class="btn-cancel">
                     <i class="fas fa-times"></i> Cancel
                 </a>
                 

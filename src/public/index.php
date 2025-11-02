@@ -579,7 +579,10 @@ $router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 $router->addRoute('GET', '/user/fines', 'UserController', 'fines');
 $router->addRoute('GET', '/user/payFine', 'UserController', 'showPaymentForm');
 $router->addRoute('POST', '/user/payFine', 'UserController', 'payFine');
+$router->addRoute('GET', '/user/payment-form', 'UserController', 'showPaymentForm');
+$router->addRoute('POST', '/user/payment-form', 'UserController', 'payFine');
 $router->addRoute('POST', '/user/fines', 'UserController', 'payFine');
+$router->addRoute('POST', '/user/pay-all-fines', 'UserController', 'payAllFines');
 
 // User Notifications
 $router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
@@ -623,6 +626,8 @@ $router->addRoute('POST', '/faculty/return', 'FacultyController', 'returnBook');
 // Faculty Fines
 $router->addRoute('GET', '/faculty/fines', 'FacultyController', 'fines');
 $router->addRoute('POST', '/faculty/fines', 'FacultyController', 'fines');
+$router->addRoute('GET', '/faculty/payment-form', 'FacultyController', 'showPaymentForm');
+$router->addRoute('POST', '/faculty/payment-form', 'FacultyController', 'payFine');
 
 // Faculty Profile
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');

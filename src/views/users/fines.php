@@ -2,13 +2,26 @@
 $pageTitle = 'Your Fines';
 include APP_ROOT . '/views/layouts/header.php';
 
-// Calculate total fine
+// Calculate totals - FIXED: Only count UNPAID fines in "Total Amount Due"
 $totalFine = 0;
+$pendingFine = 0;
+$paidFine = 0;
+
 if (!empty($fines)) {
     foreach ($fines as $fine) {
-        $totalFine += (float)($fine['fineAmount'] ?? 0);
+        $amount = (float)($fine['fineAmount'] ?? 0);
+        
+        // Check fineStatus to categorize
+        if (isset($fine['fineStatus']) && ($fine['fineStatus'] === 'paid' || $fine['fineStatus'] === 'Paid')) {
+            $paidFine += $amount;
+        } else {
+            $pendingFine += $amount;
+        }
     }
 }
+
+// Total Amount Due = ONLY pending fines
+$totalFine = $pendingFine;
 ?>
 
 <style>
@@ -711,13 +724,22 @@ if (!empty($fines)) {
                                     </span>
                                 </td>
                                 <td data-label="Action">
-                                    <?php if ($fineAmount > 0): ?>
+                                    <?php 
+                                    // FIXED: Check fineStatus instead of just fineAmount
+                                    $isPaid = isset($fine['fineStatus']) && ($fine['fineStatus'] === 'paid' || $fine['fineStatus'] === 'Paid');
+                                    
+                                    if (!$isPaid && $fineAmount > 0): 
+                                    ?>
                                         <a href="<?php echo BASE_URL; ?>user/payFine?tid=<?php echo urlencode($fine['tid']); ?>&amount=<?php echo urlencode($fine['fineAmount']); ?>" 
-                                           class="btn btn-success btn-sm">
-                                            <i class="fas fa-credit-card"></i> Pay Now
+                                           class="btn-pay">
+                                            <i class="fas fa-credit-card"></i>
+                                            <span>Pay Now</span>
                                         </a>
                                     <?php else: ?>
-                                        <span class="badge bg-success">Paid</span>
+                                        <span class="no-fine-badge">
+                                            <i class="fas fa-check-circle"></i>
+                                            Paid
+                                        </span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -731,7 +753,7 @@ if (!empty($fines)) {
                     <span class="total-summary-label">Total Amount Due:</span>
                     <span class="total-summary-amount">
                         <i class="fas fa-rupee-sign"></i>
-                        <?= number_format($totalFine, 2) ?>
+                        <?= number_format($pendingFine, 2) ?>
                     </span>
                 </div>
             <?php } else { ?>

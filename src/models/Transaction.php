@@ -155,12 +155,12 @@ class Transaction
     }
 
     /**
-     * Get fines for a user
+     * Get fines for a user (ALL fines - paid and unpaid)
      */
     public function getFinesByUserId($userId)
     {
         try {
-            // Query to get all unreturned books OR books with unpaid fines
+            // Query to get ALL transactions with fines (paid or unpaid)
             $stmt = $this->db->prepare("
                 SELECT t.*, b.bookName, b.isbn, b.authorName
                 FROM transactions t
@@ -169,9 +169,14 @@ class Transaction
                 AND (
                     t.fineAmount > 0 
                     OR (t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > 14)
-                    OR (t.fineStatus IN ('pending', 'Unpaid'))
+                    OR t.fineStatus IS NOT NULL
                 )
-                ORDER BY t.borrowDate ASC
+                ORDER BY 
+                    CASE 
+                        WHEN t.fineStatus = 'pending' OR t.fineStatus IS NULL THEN 0
+                        ELSE 1
+                    END,
+                    t.borrowDate DESC
             ");
             
             if (!$stmt) {
@@ -199,25 +204,17 @@ class Transaction
                     }
                 }
                 
-                // Only include records with actual fines or overdue status
-                if (($row['fineAmount'] ?? 0) > 0 || $row['fineStatus'] === 'pending' || $row['fineStatus'] === 'Unpaid') {
-                    // Ensure fineAmount is set
-                    if (!isset($row['fineAmount']) || $row['fineAmount'] == 0) {
-                        // Calculate it if it's not set but status says there should be a fine
-                        if ($row['returnDate'] === null) {
-                            $borrowDate = new \DateTime($row['borrowDate']);
-                            $currentDate = new \DateTime();
-                            $interval = $borrowDate->diff($currentDate);
-                            $daysOverdue = max(0, $interval->days - 14);
-                            $row['fineAmount'] = $daysOverdue * 5;
-                        }
-                    }
-                    
-                    // Only add if there's actually a fine amount
-                    if (($row['fineAmount'] ?? 0) > 0) {
-                        $fines[] = $row;
-                    }
+                // Ensure fineAmount is set
+                if (!isset($row['fineAmount'])) {
+                    $row['fineAmount'] = 0;
                 }
+                
+                // Ensure fineStatus is set - if fine exists but no status, it's pending
+                if (!isset($row['fineStatus']) || empty($row['fineStatus'])) {
+                    $row['fineStatus'] = ($row['fineAmount'] > 0) ? 'pending' : null;
+                }
+                
+                $fines[] = $row;
             }
             
             return $fines;
@@ -407,6 +404,74 @@ class Transaction
             return $stmt->execute();
         } catch (\Exception $e) {
             error_log("Error updating fine: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Pay fine for a transaction (cash or online)
+     */
+    public function payFine($tid, $amount, $paymentMethod = 'cash', $cardDetails = null)
+    {
+        try {
+            $this->db->begin_transaction();
+            
+            // Validate amount matches transaction fine
+            $stmt = $this->db->prepare("SELECT fineAmount, fineStatus FROM transactions WHERE tid = ?");
+            $stmt->bind_param("s", $tid);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            
+            if (!$result) {
+                throw new \Exception("Transaction not found");
+            }
+            
+            if ($result['fineStatus'] === 'paid') {
+                throw new \Exception("Fine already paid");
+            }
+            
+            if ((float)$result['fineAmount'] != (float)$amount) {
+                throw new \Exception("Amount mismatch");
+            }
+            
+            // Update transaction fine status
+            $stmt = $this->db->prepare("
+                UPDATE transactions 
+                SET fineStatus = 'paid', 
+                    finePaymentDate = CURDATE(), 
+                    finePaymentMethod = ?,
+                    lastFinePaymentDate = CURDATE() 
+                WHERE tid = ?
+            ");
+            
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+            
+            $stmt->bind_param("ss", $paymentMethod, $tid);
+            $success = $stmt->execute();
+            
+            if (!$success) {
+                throw new \Exception("Failed to update transaction: " . $stmt->error);
+            }
+            
+            // Record payment in payments table if it exists
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'payments'");
+            if ($tableCheck->num_rows > 0) {
+                $stmt = $this->db->prepare("
+                    INSERT INTO payments (transactionId, amount, paymentMethod, paymentDate, status)
+                    VALUES (?, ?, ?, CURDATE(), 'completed')
+                ");
+                $stmt->bind_param("sds", $tid, $amount, $paymentMethod);
+                $stmt->execute();
+            }
+            
+            $this->db->commit();
+            return true;
+            
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            error_log("Error paying fine: " . $e->getMessage());
             return false;
         }
     }
