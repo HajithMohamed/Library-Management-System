@@ -997,7 +997,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         </td>
                                         <td>
                                             <div class="book-info-cell">
-                                                <strong><?= htmlspecialchars($fine['bookName']) ?></strong><br>
+                                                <strong><?= htmlspecialchars($fine['bookName'] ?? 'Unknown Book') ?></strong><br>
                                                 <small class="text-muted">ISBN: <?= htmlspecialchars($fine['isbn']) ?></small>
                                             </div>
                                         </td>
