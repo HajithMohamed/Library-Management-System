@@ -483,6 +483,11 @@ $recentActivity = $recentActivity ?? [];
         padding: 2rem;
     }
     
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
     .modern-table {
         width: 100%;
         border-collapse: separate;
@@ -548,13 +553,7 @@ $recentActivity = $recentActivity ?? [];
         }
         
         .welcome-header {
-            padding: 1.75rem;
-            text-align: center;
-            flex-direction: column;
-        }
-        
-        .welcome-text h1 {
-            font-size: 1.65rem;
+            display: none;
         }
         
         .stats-grid {
@@ -574,25 +573,53 @@ $recentActivity = $recentActivity ?? [];
             padding: 1.5rem;
         }
         
+        .table-responsive {
+            margin: -1.5rem;
+            padding: 1.5rem;
+        }
+        
         .modern-table {
+            display: block;
             font-size: 0.85rem;
         }
         
-        .modern-table thead th,
+        .modern-table thead {
+            display: none;
+        }
+        
+        .modern-table tbody {
+            display: block;
+        }
+        
+        .modern-table tbody tr {
+            display: block;
+            margin-bottom: 1.5rem;
+            background: rgba(102, 126, 234, 0.03);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
         .modern-table tbody td {
-            padding: 0.9rem 0.65rem;
+            display: block;
+            padding: 0.75rem 0;
+            border: none;
+            text-align: left;
+        }
+        
+        .modern-table tbody td::before {
+            content: attr(data-label);
+            font-weight: 800;
+            color: #667eea;
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
     }
     
     @media (max-width: 480px) {
-        .welcome-header {
-            padding: 1.5rem;
-        }
-        
-        .welcome-text h1 {
-            font-size: 1.4rem;
-        }
-        
         .section-header h3 {
             font-size: 1.3rem;
         }
@@ -785,11 +812,11 @@ $recentActivity = $recentActivity ?? [];
                             <?php else: ?>
                                 <?php foreach ($recentActivity as $activity): ?>
                                 <tr>
-                                    <td><?= date('M d, Y', strtotime($activity['borrow_date'])) ?></td>
-                                    <td><?= htmlspecialchars($activity['title']) ?></td>
-                                    <td><?= htmlspecialchars($activity['author']) ?></td>
-                                    <td><?= $activity['return_date'] ? 'Returned' : 'Borrowed' ?></td>
-                                    <td>
+                                    <td data-label="Date"><?= date('M d, Y', strtotime($activity['borrow_date'])) ?></td>
+                                    <td data-label="Book"><?= htmlspecialchars($activity['title']) ?></td>
+                                    <td data-label="Author"><?= htmlspecialchars($activity['author']) ?></td>
+                                    <td data-label="Action"><?= $activity['return_date'] ? 'Returned' : 'Borrowed' ?></td>
+                                    <td data-label="Status">
                                         <?php if ($activity['return_date']): ?>
                                             <span style="color: #10b981; font-weight: 700;">✓ Returned</span>
                                         <?php elseif (strtotime($activity['due_date']) < time()): ?>
