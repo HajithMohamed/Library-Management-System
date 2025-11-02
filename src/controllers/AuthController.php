@@ -199,9 +199,34 @@ class AuthController
       }
 
       if ($this->userModel->verifyUser($userId, $otp)) {
-        unset($_SESSION['signup_userId']);
-        $_SESSION['success'] = 'Account verified successfully! You can now login.';
-        $this->redirect('/');
+        // Get user details to set session
+        $user = $this->userModel->getUserById($userId);
+        
+        if ($user) {
+          // Clear signup session variables
+          unset($_SESSION['signup_userId']);
+          unset($_SESSION['signup_email']);
+          
+          // Set user session (auto-login)
+          $_SESSION['userId'] = $user['userId'];
+          $_SESSION['username'] = $user['username'];
+          $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
+          $_SESSION['emailId'] = $user['emailId'];
+          
+          // Migrate wishlist to favorites if exists
+          if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
+            $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
+            unset($_SESSION['guest_wishlist']);
+          }
+          
+          $_SESSION['success'] = 'Account verified successfully! Welcome, ' . $user['username'] . '!';
+          
+          // Redirect to appropriate dashboard based on user type
+          $this->authHelper->redirectByUserType();
+        } else {
+          $_SESSION['error'] = 'Account verification successful but unable to log you in. Please login manually.';
+          $this->redirect('/');
+        }
       } else {
         $_SESSION['error'] = 'Invalid or expired verification code.';
         $this->redirect('/verify-otp');
