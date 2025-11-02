@@ -160,12 +160,18 @@ class Transaction
     public function getFinesByUserId($userId)
     {
         try {
+            // Query to get all unreturned books OR books with unpaid fines
             $stmt = $this->db->prepare("
-                SELECT t.*, b.bookName, b.isbn
+                SELECT t.*, b.bookName, b.isbn, b.authorName
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
-                WHERE t.userId = ? AND t.fineAmount > 0
-                ORDER BY t.borrowDate DESC
+                WHERE t.userId = ? 
+                AND (
+                    t.fineAmount > 0 
+                    OR (t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > 14)
+                    OR (t.fineStatus IN ('pending', 'Unpaid'))
+                )
+                ORDER BY t.borrowDate ASC
             ");
             
             if (!$stmt) {
@@ -176,7 +182,45 @@ class Transaction
             $stmt->execute();
             $result = $stmt->get_result();
             
-            return $result->fetch_all(MYSQLI_ASSOC);
+            $fines = [];
+            while ($row = $result->fetch_assoc()) {
+                // Calculate fine for unreturned books
+                if ($row['returnDate'] === null) {
+                    $borrowDate = new \DateTime($row['borrowDate']);
+                    $currentDate = new \DateTime();
+                    $interval = $borrowDate->diff($currentDate);
+                    $totalDays = $interval->days;
+                    $daysOverdue = max(0, $totalDays - 14); // 14 day borrow period
+                    
+                    if ($daysOverdue > 0) {
+                        $calculatedFine = $daysOverdue * 5; // ₹5 per day
+                        // Use the higher of database fine or calculated fine
+                        $row['fineAmount'] = max($row['fineAmount'] ?? 0, $calculatedFine);
+                    }
+                }
+                
+                // Only include records with actual fines or overdue status
+                if (($row['fineAmount'] ?? 0) > 0 || $row['fineStatus'] === 'pending' || $row['fineStatus'] === 'Unpaid') {
+                    // Ensure fineAmount is set
+                    if (!isset($row['fineAmount']) || $row['fineAmount'] == 0) {
+                        // Calculate it if it's not set but status says there should be a fine
+                        if ($row['returnDate'] === null) {
+                            $borrowDate = new \DateTime($row['borrowDate']);
+                            $currentDate = new \DateTime();
+                            $interval = $borrowDate->diff($currentDate);
+                            $daysOverdue = max(0, $interval->days - 14);
+                            $row['fineAmount'] = $daysOverdue * 5;
+                        }
+                    }
+                    
+                    // Only add if there's actually a fine amount
+                    if (($row['fineAmount'] ?? 0) > 0) {
+                        $fines[] = $row;
+                    }
+                }
+            }
+            
+            return $fines;
         } catch (\Exception $e) {
             error_log("Error getting fines: " . $e->getMessage());
             return [];

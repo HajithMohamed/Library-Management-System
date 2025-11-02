@@ -811,4 +811,17 @@ INSERT IGNORE INTO `books_borrowed` (`userId`, `isbn`, `borrowDate`, `dueDate`, 
 -- Re-enable FK checks after data insertion
 SET FOREIGN_KEY_CHECKS = 1;
 
+-- ====================================================================
+-- DATA CLEANUP: Fix fineStatus values to match ENUM
+-- ====================================================================
+UPDATE `transactions` SET fineStatus = 'pending' WHERE fineStatus = 'Unpaid';
+
+-- Update fines for overdue books that don't have fineAmount set
+UPDATE `transactions` t
+SET t.fineAmount = GREATEST(0, (DATEDIFF(CURDATE(), t.borrowDate) - 14) * 5),
+    t.fineStatus = 'pending'
+WHERE t.returnDate IS NULL 
+AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+AND (t.fineAmount IS NULL OR t.fineAmount = 0);
+
 -- End of file
