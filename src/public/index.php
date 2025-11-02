@@ -635,6 +635,7 @@ $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
 
 // Faculty Notifications
 $router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
+$router->addRoute('POST', '/faculty/notifications', 'FacultyController', 'notifications');
 
 // Faculty Feedback & Requests
 $router->addRoute('GET', '/faculty/feedback', 'FacultyController', 'feedback');
@@ -743,6 +744,12 @@ $router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
 // ============================================================================
 // DISPATCH REQUEST
 // ============================================================================
+
+// TEMPORARY DEBUG - Remove after fixing
+error_log("All registered routes:");
+foreach ($router->getRoutes() as $route) {
+    error_log("  {$route['method']} {$route['path']} -> {$route['controller']}::{$route['action']}");
+}
 
 error_log("Routes registered (" . count($router->getRoutes()) . " total), dispatching...");
 
