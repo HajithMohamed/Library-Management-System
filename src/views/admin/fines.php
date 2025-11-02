@@ -847,7 +847,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     
                     <div class="settings-grid">
                         <div class="form-group">
-                            <label for="fine_per_day" class="form-label">Fine Per Day (₹)</label>
+                            <label for="fine_per_day" class="form-label">Fine Per Day (LKR)</label>
                             <input type="number" class="form-control" id="fine_per_day" name="settings[fine_per_day]" 
                                    value="<?= $fineSettings['fine_per_day'] ?? '5' ?>" min="0" step="0.01">
                         </div>
@@ -862,7 +862,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                    value="<?= $fineSettings['grace_period_days'] ?? '0' ?>" min="0">
                         </div>
                         <div class="form-group">
-                            <label for="max_fine_amount" class="form-label">Max Fine Amount (₹)</label>
+                            <label for="max_fine_amount" class="form-label">Max Fine Amount (LKR)</label>
                             <input type="number" class="form-control" id="max_fine_amount" name="settings[max_fine_amount]" 
                                    value="<?= $fineSettings['max_fine_amount'] ?? '500' ?>" min="0" step="0.01">
                         </div>
@@ -1019,9 +1019,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         </td>
                                         <td>
                                             <?php if ($fine['fineAmount'] > 0): ?>
-                                                <span class="fine-amount">₹<?= number_format($fine['fineAmount'], 2) ?></span>
+                                                <span class="fine-amount">LKR<?= number_format($fine['fineAmount'], 2) ?></span>
                                             <?php else: ?>
-                                                <span class="text-muted">₹0.00</span>
+                                                <span class="text-muted">LKR0.00</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
