@@ -3,19 +3,17 @@
 
 services:
   #-----------------------------------
-  # PHP Backend Service (now a public Web Service)
+  # PHP Backend Service (as a public Web Service)
   #-----------------------------------
-  - type: web # Changed from private_service to web
+  - type: web
     name: ils-php
     env: docker
-    plan: free # Services on the free plan will spin down when inactive
+    plan: free
     dockerfilePath: ./docker/php/Dockerfile
     dockerContext: .
     startCommand: /usr/local/bin/render-start.sh
-    # Web services need to have a port defined. php-fpm defaults to 9000.
-    ports:
-      - port: 9000
-        protocol: TCP
+    # The 'ports' section has been removed as it's not valid for Docker web services.
+    # Render automatically detects the port exposed by the Docker container (9000 for php-fpm).
     envVars:
       - key: TZ
         value: Asia/Kolkata
@@ -52,19 +50,20 @@ services:
     dockerfilePath: ./docker/nginx/Dockerfile.render
     dockerContext: .
     plan: free
+    # The port for the Nginx container itself is also auto-detected (port 80).
+    # This 'ports' section is for telling Render's router to forward traffic to port 80.
     ports:
       - port: 80
         protocol: TCP
     envVars:
-      # These variables now reference ils-php as a 'web' service
       - key: PHP_HOST
         fromService:
-          type: web # Changed from private_service
+          type: web
           name: ils-php
           property: host
       - key: PHP_PORT
         fromService:
-          type: web # Changed from private_service
+          type: web
           name: ils-php
           property: port
 
