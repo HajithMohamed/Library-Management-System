@@ -284,20 +284,18 @@ include APP_ROOT . '/views/layouts/header.php';
         margin-bottom: 30px;
     }
     
-    .map-placeholder {
+    .map-container {
         width: 100%;
         height: 400px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
         border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px dashed rgba(255,255,255,0.3);
+        overflow: hidden;
+        border: 2px solid rgba(255,255,255,0.3);
     }
     
-    .map-placeholder i {
-        font-size: 4rem;
-        color: rgba(255,255,255,0.5);
+    .map-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
     }
     
     /* Responsive Design */
@@ -319,7 +317,7 @@ include APP_ROOT . '/views/layouts/header.php';
             padding: 25px;
         }
         
-        .map-placeholder {
+        .map-container {
             height: 300px;
         }
     }
@@ -398,8 +396,8 @@ include APP_ROOT . '/views/layouts/header.php';
         
         <div class="map-section">
             <h2 class="map-title">Find Us on the Map</h2>
-            <div class="map-placeholder">
-                <i class="fas fa-map-marked-alt"></i>
+            <div class="map-container">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3967.887962137212!2d80.5744783147684!3d5.988338995648839!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae143e440c30249%3A0x4f123a317135b675!2sFaculty%20of%20Technology%2C%20University%20of%20Ruhuna!5e0!3m2!1sen!2slk!4v1672233555555!5m2!1sen!2slk" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
         </div>
     </div>
