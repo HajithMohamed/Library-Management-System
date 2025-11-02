@@ -14,38 +14,85 @@ $recentActivity = $recentActivity ?? [];
 ?>
 
 <style>
+    /* Hide scrollbars globally */
+    body {
+        overflow-x: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    body::-webkit-scrollbar {
+        display: none;
+    }
+
+    .dashboard-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* Animated background particles */
+    .dashboard-wrapper::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: float 20s infinite ease-in-out;
+    }
+    
+    .dashboard-wrapper::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -10%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: float 25s infinite ease-in-out reverse;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        33% { transform: translateY(-30px) translateX(30px) rotate(120deg); }
+        66% { transform: translateY(30px) translateX(-30px) rotate(240deg); }
+    }
+
     .dashboard-container {
-        padding: 2rem 0;
-        animation: fadeIn 0.6s ease-out;
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
         position: relative;
         z-index: 1;
     }
     
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
     /* Welcome Header */
     .welcome-header {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-        border-radius: 20px;
-        padding: 2rem;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 2rem 2.5rem;
         margin-bottom: 2rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 1.5rem;
         animation: slideInDown 0.6s ease-out;
-        position: relative;
-        z-index: 10;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     @keyframes slideInDown {
         from {
             opacity: 0;
-            transform: translateY(-20px);
+            transform: translateY(-30px);
         }
         to {
             opacity: 1;
@@ -54,16 +101,18 @@ $recentActivity = $recentActivity ?? [];
     }
     
     .welcome-text h1 {
-        font-size: clamp(1.5rem, 3vw, 2.5rem);
-        font-weight: 800;
+        font-size: 2rem;
+        font-weight: 900;
         color: #1f2937;
         margin-bottom: 0.5rem;
+        letter-spacing: -0.5px;
     }
     
     .welcome-text p {
         color: #6b7280;
-        font-size: 1.05rem;
+        font-size: 1rem;
         margin: 0;
+        font-weight: 500;
     }
     
     .user-badge {
@@ -71,38 +120,34 @@ $recentActivity = $recentActivity ?? [];
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border-radius: 50px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        font-weight: 800;
+        font-size: 1rem;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
     }
     
     /* Stats Cards */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
     }
     
     .stat-card {
-        background: white;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
         border-radius: 20px;
         padding: 1.75rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         transition: all 0.3s ease;
-        border: 2px solid transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
         position: relative;
         overflow: hidden;
         animation: slideInUp 0.6s ease-out;
         animation-fill-mode: both;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
     }
     
     .stat-card:nth-child(1) { animation-delay: 0.1s; }
@@ -129,19 +174,11 @@ $recentActivity = $recentActivity ?? [];
         right: 0;
         height: 4px;
         background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
-    }
-    
-    .stat-card:hover::before {
-        transform: scaleX(1);
     }
     
     .stat-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
-        border-color: rgba(102, 126, 234, 0.2);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
     }
     
     .stat-card.primary {
@@ -165,17 +202,19 @@ $recentActivity = $recentActivity ?? [];
     }
     
     .stat-info h4 {
-        font-size: 2rem;
-        font-weight: 800;
+        font-size: 2.25rem;
+        font-weight: 900;
         color: #1f2937;
         margin-bottom: 0.25rem;
     }
     
     .stat-info p {
         color: #6b7280;
-        font-size: 0.95rem;
-        font-weight: 600;
+        font-size: 0.9rem;
+        font-weight: 700;
         margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
     
     .stat-icon {
@@ -185,27 +224,27 @@ $recentActivity = $recentActivity ?? [];
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.75rem;
+        font-size: 1.65rem;
         transition: all 0.3s ease;
     }
     
     .stat-card.primary .stat-icon {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
         color: #667eea;
     }
     
     .stat-card.warning .stat-icon {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(249, 115, 22, 0.12));
         color: #f59e0b;
     }
     
     .stat-card.danger .stat-icon {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.12));
         color: #ef4444;
     }
     
     .stat-card.info .stat-icon {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(6, 182, 212, 0.12));
         color: #3b82f6;
     }
     
@@ -215,190 +254,219 @@ $recentActivity = $recentActivity ?? [];
     
     /* Section Headers */
     .section-header {
-        margin: 3rem 0 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+        margin: 2.5rem 0 1.5rem;
+        padding-left: 0.5rem;
     }
     
     .section-header h3 {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: #1f2937;
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: white;
         margin: 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        display: inline-block;
+        position: relative;
+        padding-bottom: 0.5rem;
     }
     
-    .section-header::after {
+    .section-header h3::after {
         content: '';
-        flex: 1;
-        height: 2px;
-        background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), transparent);
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background: white;
+        border-radius: 2px;
     }
     
     /* Quick Actions Grid */
     .actions-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 3rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
     }
     
     .action-card {
-        background: white;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
         border-radius: 20px;
-        padding: 2rem;
+        padding: 2rem 1.75rem;
         text-align: center;
         transition: all 0.3s ease;
-        border: 2px solid #f3f4f6;
+        border: 1px solid rgba(255, 255, 255, 0.5);
         position: relative;
         overflow: hidden;
         animation: slideInUp 0.6s ease-out;
         animation-fill-mode: both;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        min-height: 280px;
     }
     
     .action-card:nth-child(1) { animation-delay: 0.5s; }
     .action-card:nth-child(2) { animation-delay: 0.6s; }
     .action-card:nth-child(3) { animation-delay: 0.7s; }
     .action-card:nth-child(4) { animation-delay: 0.8s; }
-    
-    .action-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .action-card:hover::before {
-        opacity: 1;
-    }
+    .action-card:nth-child(5) { animation-delay: 0.9s; }
+    .action-card:nth-child(6) { animation-delay: 1.0s; }
     
     .action-card:hover {
-        transform: translateY(-10px);
+        transform: translateY(-8px);
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-        border-color: #667eea;
     }
     
     .action-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 1.5rem;
-        border-radius: 20px;
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 1.25rem;
+        border-radius: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
+        font-size: 2rem;
         transition: all 0.3s ease;
         position: relative;
         z-index: 1;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     }
     
     .action-card:hover .action-icon {
         transform: scale(1.1) rotate(-5deg);
     }
     
+    /* Action Card Colors */
     .action-card:nth-child(1) .action-icon {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
         color: #667eea;
     }
     
-    .action-card:nth-child(2) .action-icon {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-        color: #10b981;
+    .action-card:nth-child(1) .action-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
     }
     
-    .action-card:nth-child(3) .action-icon {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
+    .action-card:nth-child(2) .action-icon {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(249, 115, 22, 0.12));
         color: #f59e0b;
     }
     
+    .action-card:nth-child(2) .action-btn {
+        background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+    }
+    
+    .action-card:nth-child(3) .action-icon {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(124, 58, 237, 0.12));
+        color: #8b5cf6;
+    }
+    
+    .action-card:nth-child(3) .action-btn {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
+    }
+    
     .action-card:nth-child(4) .action-icon {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.12));
+        color: #10b981;
+    }
+    
+    .action-card:nth-child(4) .action-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+    }
+    
+    .action-card:nth-child(5) .action-icon {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.12));
+        color: #ef4444;
+    }
+    
+    .action-card:nth-child(5) .action-btn {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+    }
+    
+    .action-card:nth-child(6) .action-icon {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(6, 182, 212, 0.12));
         color: #3b82f6;
     }
     
+    .action-card:nth-child(6) .action-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        color: white;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+    }
+    
     .action-card h5 {
-        font-size: 1.3rem;
-        font-weight: 700;
+        font-size: 1.2rem;
+        font-weight: 800;
         color: #1f2937;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.65rem;
         position: relative;
         z-index: 1;
     }
     
     .action-card p {
         color: #6b7280;
-        margin-bottom: 1.5rem;
-        font-size: 0.95rem;
+        margin-bottom: auto;
+        padding-bottom: 1.5rem;
+        font-size: 0.9rem;
         position: relative;
         z-index: 1;
+        line-height: 1.5;
+        font-weight: 500;
+        flex-grow: 1;
     }
     
     .action-btn {
-        padding: 0.75rem 1.75rem;
+        padding: 0.75rem 1.5rem;
         border-radius: 12px;
         border: none;
-        font-weight: 700;
+        font-weight: 800;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.5rem;
         transition: all 0.3s ease;
         position: relative;
         z-index: 1;
-    }
-    
-    .action-card:nth-child(1) .action-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-    }
-    
-    .action-card:nth-child(2) .action-btn {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-    }
-    
-    .action-card:nth-child(3) .action-btn {
-        background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
-    }
-    
-    .action-card:nth-child(4) .action-btn {
-        background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-        color: white;
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        font-size: 0.9rem;
+        margin-top: auto;
     }
     
     .action-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
     }
     
-    /* Recent Activity Table */
+    /* Recent Activity Card */
     .activity-card {
-        background: white;
-        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        animation: slideInUp 0.6s ease-out 0.9s both;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+        animation: slideInUp 0.6s ease-out 1.1s both;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
     .activity-header {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(118, 75, 162, 0.06));
         padding: 1.75rem 2rem;
-        border-bottom: 2px solid #f3f4f6;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
     }
     
     .activity-header h5 {
-        font-size: 1.5rem;
-        font-weight: 800;
+        font-size: 1.4rem;
+        font-weight: 900;
         color: #1f2937;
         margin: 0;
         display: flex;
@@ -408,6 +476,7 @@ $recentActivity = $recentActivity ?? [];
     
     .activity-header i {
         color: #667eea;
+        font-size: 1.5rem;
     }
     
     .activity-body {
@@ -423,18 +492,20 @@ $recentActivity = $recentActivity ?? [];
     .modern-table thead th {
         padding: 1rem;
         text-align: left;
-        font-weight: 700;
+        font-weight: 800;
         color: #6b7280;
-        font-size: 0.875rem;
+        font-size: 0.85rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        border-bottom: 2px solid #f3f4f6;
+        letter-spacing: 0.3px;
+        border-bottom: 2px solid #e5e7eb;
     }
     
     .modern-table tbody td {
         padding: 1.25rem 1rem;
         color: #374151;
         border-bottom: 1px solid #f3f4f6;
+        font-weight: 600;
+        font-size: 0.95rem;
     }
     
     .modern-table tbody tr {
@@ -442,81 +513,110 @@ $recentActivity = $recentActivity ?? [];
     }
     
     .modern-table tbody tr:hover {
-        background: rgba(102, 126, 234, 0.03);
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
     }
     
     .empty-state {
         text-align: center;
-        padding: 3rem 1rem;
+        padding: 3.5rem 1rem;
         color: #9ca3af;
     }
     
     .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+        font-size: 3.5rem;
+        margin-bottom: 1.25rem;
+        opacity: 0.3;
+        color: #667eea;
     }
     
     .empty-state p {
         font-size: 1.05rem;
         margin: 0;
+        font-weight: 600;
     }
     
     /* Responsive Design */
+    @media (max-width: 1200px) {
+        .dashboard-container {
+            width: 96%;
+        }
+    }
+    
     @media (max-width: 768px) {
+        .dashboard-wrapper {
+            padding: 1.5rem 1rem;
+        }
+        
         .welcome-header {
-            display: none;
+            padding: 1.75rem;
+            text-align: center;
+            flex-direction: column;
+        }
+        
+        .welcome-text h1 {
+            font-size: 1.65rem;
         }
         
         .stats-grid {
             grid-template-columns: 1fr;
-            gap: 1rem;
         }
         
         .actions-grid {
             grid-template-columns: 1fr;
         }
         
+        .action-card {
+            min-height: auto;
+        }
+        
         .activity-header,
         .activity-body {
-            padding: 1.25rem;
+            padding: 1.5rem;
         }
         
         .modern-table {
-            font-size: 0.875rem;
+            font-size: 0.85rem;
         }
         
         .modern-table thead th,
         .modern-table tbody td {
-            padding: 0.75rem 0.5rem;
+            padding: 0.9rem 0.65rem;
         }
     }
     
-    @media (max-width: 576px) {
+    @media (max-width: 480px) {
+        .welcome-header {
+            padding: 1.5rem;
+        }
+        
+        .welcome-text h1 {
+            font-size: 1.4rem;
+        }
+        
         .section-header h3 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
         }
         
         .stat-info h4 {
-            font-size: 1.5rem;
+            font-size: 1.9rem;
         }
         
         .stat-icon {
-            width: 50px;
-            height: 50px;
+            width: 52px;
+            height: 52px;
             font-size: 1.5rem;
         }
         
         .action-icon {
-            width: 60px;
-            height: 60px;
-            font-size: 2rem;
+            width: 62px;
+            height: 62px;
+            font-size: 1.85rem;
         }
     }
 </style>
 
-<div class="dashboard-container">
-    <div class="container">
+<div class="dashboard-wrapper">
+    <div class="dashboard-container">
         <!-- Welcome Header -->
         <div class="welcome-header">
             <div class="welcome-text">
@@ -589,13 +689,37 @@ $recentActivity = $recentActivity ?? [];
             
             <div class="action-card">
                 <div class="action-icon">
+                    <i class="fas fa-bookmark"></i>
+                </div>
+                <h5>Reserved Books</h5>
+                <p>View your pending and approved book reservations</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/reserved-books" class="action-btn">
+                    <i class="fas fa-bookmark"></i>
+                    <span>View Reserved</span>
+                </a>
+            </div>
+            
+            <div class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h5>Borrow History</h5>
+                <p>Track all your past and current book borrowings</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/borrow-history" class="action-btn">
+                    <i class="fas fa-history"></i>
+                    <span>View History</span>
+                </a>
+            </div>
+            
+            <div class="action-card">
+                <div class="action-icon">
                     <i class="fas fa-undo"></i>
                 </div>
-                <h5>Return Books</h5>
-                <p>Return your borrowed books quickly and easily</p>
-                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/return" class="action-btn">
+                <h5>Returns</h5>
+                <p>View all books you have returned</p>
+                <a href="<?= BASE_URL ?><?= $_SESSION['userType'] === 'Faculty' ? 'faculty' : 'user' ?>/returns" class="action-btn">
                     <i class="fas fa-undo"></i>
-                    <span>Return Now</span>
+                    <span>View Returns</span>
                 </a>
             </div>
             
@@ -667,11 +791,11 @@ $recentActivity = $recentActivity ?? [];
                                     <td><?= $activity['return_date'] ? 'Returned' : 'Borrowed' ?></td>
                                     <td>
                                         <?php if ($activity['return_date']): ?>
-                                            <span style="color: #10b981; font-weight: 600;">✓ Returned</span>
+                                            <span style="color: #10b981; font-weight: 700;">✓ Returned</span>
                                         <?php elseif (strtotime($activity['due_date']) < time()): ?>
-                                            <span style="color: #ef4444; font-weight: 600;">⚠ Overdue</span>
+                                            <span style="color: #ef4444; font-weight: 700;">⚠ Overdue</span>
                                         <?php else: ?>
-                                            <span style="color: #3b82f6; font-weight: 600;">📖 Active</span>
+                                            <span style="color: #3b82f6; font-weight: 700;">📖 Active</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -684,5 +808,15 @@ $recentActivity = $recentActivity ?? [];
         </div>
     </div>
 </div>
+
+<script>
+// Add Font Awesome if not already included
+if (!document.querySelector('link[href*="font-awesome"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+    document.head.appendChild(link);
+}
+</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

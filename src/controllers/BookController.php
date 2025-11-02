@@ -583,8 +583,8 @@ class BookController
         
         $pageTitle = 'Available Books';
         
-        // Check if user view file exists, otherwise use faculty view
-        $userViewPath = APP_ROOT . '/views/user/books.php';
+        // Check if user view file exists (plural "users"), otherwise use faculty view as fallback
+        $userViewPath = APP_ROOT . '/views/users/books.php';
         $facultyViewPath = APP_ROOT . '/views/faculty/books.php';
         
         if (file_exists($userViewPath)) {
@@ -754,14 +754,14 @@ class BookController
                     $updateStmt->close();
                 }
                 
-                header('Location: /user/return');
+                header('Location: /users/returns');
                 exit();
             }
         }
         
         // Load user return view
         $pageTitle = 'Return Books';
-        include APP_ROOT . '/views/users/return.php';
+        include APP_ROOT . '/views/users/returns.php';
     }
 
     /**
@@ -784,29 +784,48 @@ class BookController
 
     /**
      * View details for a single book (user/student)
+     * Supports both path parameters (from route) and query parameters (from links)
      */
     public function viewBook($params = [])
     {
-        // Check user type and redirect if needed
-        if (isset($_SESSION['userType']) || isset($_SESSION['user_type'])) {
-            $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-            if ($userType === 'Faculty') {
-                header('Location: /faculty/books');
-                exit();
-            }
-            if ($userType === 'Admin') {
-                header('Location: /admin/books');
-                exit();
-            }
+        // Log access attempt for debugging
+        error_log("=== BookController::viewBook() CALLED ===");
+        error_log("Session userType: " . ($_SESSION['userType'] ?? 'NOT SET'));
+        error_log("Session userId: " . ($_SESSION['userId'] ?? 'NOT SET'));
+        error_log("Params: " . print_r($params, true));
+        error_log("GET: " . print_r($_GET, true));
+        
+        // Check authentication FIRST - only require login, no role restriction
+        if (!isset($_SESSION['userId'])) {
+            error_log("BookController::viewBook() - User not logged in, redirecting to login");
+            $_SESSION['error'] = 'Please login to view book details';
+            header('Location: ' . BASE_URL . 'login');
+            exit();
         }
+        
+        // Only redirect if user is Faculty or Admin - Students can access this page
+        $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
+        if ($userType === 'Faculty') {
+            error_log("BookController::viewBook() - Faculty user, redirecting to faculty/books");
+            header('Location: /faculty/books');
+            exit();
+        }
+        if ($userType === 'Admin') {
+            error_log("BookController::viewBook() - Admin user, redirecting to admin/books");
+            header('Location: /admin/books');
+            exit();
+        }
+        
+        // If we get here, user is logged in and is Student (or userType is null/empty)
+        error_log("BookController::viewBook() - Allowing access for userType: " . ($userType ?? 'null/Student'));
         
         global $mysqli;
         
-        // FIXED: Get ISBN from params or query string
-        $isbn = $_GET['isbn'] ?? ($params['isbn'] ?? '');
+        // Get ISBN from either path parameter (route) or query parameter (link)
+        $isbn = $params['isbn'] ?? $_GET['isbn'] ?? '';
         
         if (empty($isbn)) {
-            $_SESSION['error'] = 'No book specified';
+            // Redirect to books page if no ISBN provided
             header('Location: ' . BASE_URL . 'user/books');
             exit();
         }
@@ -820,13 +839,21 @@ class BookController
         $stmt->close();
 
         if (!$book) {
+            // Book not found
             $_SESSION['error'] = 'Book not found';
             header('Location: ' . BASE_URL . 'user/books');
             exit();
         }
 
-        // FIXED: Pass data to view properly
+        // Make sure $book is available in the view scope
         $pageTitle = 'Book Details';
+        
+        // Log for debugging
+        error_log("BookController::viewBook() - Book found: " . ($book['bookName'] ?? 'Unknown'));
+        error_log("BookController::viewBook() - User Type: " . ($_SESSION['userType'] ?? 'Not set'));
+        error_log("BookController::viewBook() - User ID: " . ($_SESSION['userId'] ?? 'Not set'));
+        
+        // Include view with book variable in scope
         include APP_ROOT . '/views/users/view-book.php';
     }
 }
