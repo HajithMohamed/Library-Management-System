@@ -531,8 +531,9 @@ class FacultyController extends BaseController
     public function notifications()
     {
         $this->requireLogin(['Faculty']);
+        
         $userId = $_SESSION['userId'];
-        $userType = 'Faculty';
+        
         // Handle mark as read
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
@@ -542,11 +543,13 @@ class FacultyController extends BaseController
                 $stmt = $mysqli->prepare($sql);
                 $stmt->bind_param('is', $notificationId, $userId);
                 $stmt->execute();
+                $stmt->close();
             }
             $this->redirect('faculty/notifications');
             return;
         }
-        // Get notifications with proper user email and type based on userId
+        
+        // Get notifications
         global $mysqli;
         $sql = "SELECT 
                     n.id,
@@ -573,8 +576,10 @@ class FacultyController extends BaseController
         while ($row = $result->fetch_assoc()) {
             $notifications[] = $row;
         }
+        $stmt->close();
+        
         $this->data['notifications'] = $notifications;
-        $this->data['userType'] = $userType;
+        $this->data['userType'] = 'Faculty';
         $this->view('faculty/notifications', $this->data);
     }
 

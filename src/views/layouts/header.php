@@ -537,11 +537,19 @@
             
             <!-- Profile Icon for Mobile (shown outside menu) -->
             <?php if (isset($_SESSION['userId'])): ?>
+            <?php
+                // Fetch unread notification count
+                require_once __DIR__ . '/../../models/Notification.php';
+                $notificationModel = new \App\Models\Notification();
+                $unreadCount = $notificationModel->getUnreadCount($_SESSION['userId']);
+            ?>
             <div class="mobile-profile-wrapper d-lg-none">
                 <!-- Notification Icon -->
                 <a href="<?= BASE_URL ?>user/notifications" class="notification-icon">
                     <i class="fas fa-bell"></i>
-                    <span class="notification-badge">3</span>
+                    <?php if ($unreadCount > 0): ?>
+                    <span class="notification-badge"><?= $unreadCount > 99 ? '99+' : $unreadCount ?></span>
+                    <?php endif; ?>
                 </a>
                 
                 <div class="nav-item dropdown">
@@ -652,7 +660,9 @@
                         <li class="nav-item d-none d-lg-block">
                             <a href="<?= BASE_URL ?>user/notifications" class="nav-link notification-icon">
                                 <i class="fas fa-bell"></i>
-                                <span class="notification-badge">3</span>
+                                <?php if ($unreadCount > 0): ?>
+                                <span class="notification-badge"><?= $unreadCount > 99 ? '99+' : $unreadCount ?></span>
+                                <?php endif; ?>
                             </a>
                         </li>
                         
