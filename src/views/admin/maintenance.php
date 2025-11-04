@@ -558,7 +558,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <form method="POST" action="<?= BASE_URL ?>admin/backup">
+                                <form method="POST" action="<?= BASE_URL ?>admin/maintenance/backup">
                                     <div class="mb-3">
                                         <label for="backupType" class="form-label">Backup Type</label>
                                         <select class="form-control" id="backupType" name="backupType" required>

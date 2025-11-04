@@ -719,6 +719,7 @@ $router->addRoute('POST', '/admin/settings', 'AdminController', 'updateSettings'
 $router->addRoute('GET', '/admin/maintenance', 'AdminController', 'maintenance');
 $router->addRoute('POST', '/admin/maintenance', 'AdminController', 'performMaintenance');
 $router->addRoute('POST', '/admin/maintenance/perform', 'AdminController', 'performMaintenance');
+$router->addRoute('POST', '/admin/maintenance/run', 'AdminController', 'performMaintenance'); // ADD THIS LINE
 $router->addRoute('POST', '/admin/backup', 'AdminController', 'createBackup');
 $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'createBackup');
 

@@ -837,12 +837,12 @@ class AdminController
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $backupType = $_POST['backupType'] ?? 'manual';
 
-      $filename = $this->adminService->createDatabaseBackup($backupType);
+      $result = $this->adminService->createDatabaseBackup($backupType);
 
-      if ($filename) {
-        $_SESSION['success'] = "Backup created successfully: {$filename}";
+      if ($result['success']) {
+        $_SESSION['success'] = $result['message'];
       } else {
-        $_SESSION['error'] = 'Failed to create backup.';
+        $_SESSION['error'] = $result['message'];
       }
     }
 
@@ -863,13 +863,23 @@ class AdminController
         $results = $this->adminService->performMaintenance($tasks);
 
         $successCount = 0;
+        $messages = [];
+        
         foreach ($results as $task => $result) {
           if ($result > 0) {
             $successCount++;
+            $taskName = ucwords(str_replace('_', ' ', $task));
+            $messages[] = "{$taskName}: {$result} items processed";
           }
         }
 
-        $_SESSION['success'] = "Completed {$successCount} maintenance tasks.";
+        if ($successCount > 0) {
+          $_SESSION['success'] = "Completed {$successCount} maintenance task(s). " . implode(', ', $messages);
+        } else {
+          $_SESSION['error'] = 'No maintenance tasks were completed.';
+        }
+      } else {
+        $_SESSION['error'] = 'Please select at least one maintenance task.';
       }
     }
 
