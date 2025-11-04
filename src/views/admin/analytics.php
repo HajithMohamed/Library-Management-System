@@ -628,7 +628,6 @@ $recentActivities = $recentActivities ?? [];
         <div class="chart-header">
           <h3 class="chart-title"><i class="fas fa-money-bill-wave"></i> Fine Collection (6 Months)</h3>
           <div class="chart-actions">
-            <button class="chart-btn"><i class="fas fa-download"></i> Export</button>
           </div>
         </div>
         <canvas id="fineStatsChart"></canvas>
