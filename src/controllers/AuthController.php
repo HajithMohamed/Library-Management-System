@@ -392,9 +392,9 @@ class AuthController
   }
 
   /**
-   * Send email using PHPMailer
+   * Send email using PHPMailer (PUBLIC for reuse by other controllers)
    */
-  private function sendEmailWithPHPMailer($to, $subject, $body)
+  public function sendEmailWithPHPMailer($to, $subject, $body)
   {
     try {
       $mail = new PHPMailer(true);

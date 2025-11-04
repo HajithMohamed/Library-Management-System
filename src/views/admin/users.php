@@ -1349,7 +1349,7 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/users/add">
+            <form method="POST" action="<?= BASE_URL ?>admin/users">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
@@ -1425,8 +1425,9 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>admin/users/edit">
+            <form method="POST" action="<?= BASE_URL ?>admin/users">
                 <div class="modal-body">
+                    <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="userId" id="edit_userId">
                     <div class="row">
                         <div class="col-md-6">

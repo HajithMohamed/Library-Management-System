@@ -654,8 +654,7 @@ $router->addRoute('GET', '/admin', 'AdminController', 'dashboard');
 
 // Admin Users Management
 $router->addRoute('GET', '/admin/users', 'AdminController', 'users');
-$router->addRoute('POST', '/admin/users/add', 'AdminController', 'addUser');
-$router->addRoute('POST', '/admin/users/edit', 'AdminController', 'editUser');
+$router->addRoute('POST', '/admin/users', 'AdminController', 'users'); // FIXED: Handle POST for add/edit/delete
 $router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
 
 // Admin Books Management

@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\AdminService;
+use App\Services\AuthService; // ADDED: Import AuthService
 use App\Helpers\AuthHelper;
 use App\Helpers\ValidationHelper; // FIXED: Add this
 
@@ -10,11 +11,13 @@ class AdminController
 {
   private $adminService;
   private $authHelper;
+  private $authService; // ADDED: AuthService instance
 
   public function __construct()
   {
     $this->adminService = new AdminService();
     $this->authHelper = new AuthHelper();
+    $this->authService = new AuthService(); // ADDED: Initialize AuthService
   }
 
   /**
@@ -180,6 +183,161 @@ class AdminController
     }
 
     global $conn;
+
+    // Handle POST requests
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $action = $_POST['action'] ?? 'add';
+
+      if ($action === 'edit') {
+        // Handle edit user
+        $userId = trim($_POST['userId'] ?? '');
+        $username = trim($_POST['username'] ?? '');
+        $emailId = trim($_POST['emailId'] ?? '');
+        $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+        $userType = $_POST['userType'] ?? 'Student';
+        $gender = $_POST['gender'] ?? '';
+        $dob = $_POST['dob'] ?? '';
+        $address = $_POST['address'] ?? '';
+        $isVerified = isset($_POST['isVerified']) ? 1 : 0;
+        $newPassword = $_POST['new_password'] ?? '';
+
+        // Validate required fields
+        if (empty($userId) || empty($username) || empty($emailId) || empty($phoneNumber)) {
+          $_SESSION['error'] = 'Please fill all required fields.';
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+
+        // Check if username or email already exists for other users
+        $checkStmt = $conn->prepare("SELECT userId FROM users WHERE (username = ? OR emailId = ?) AND userId != ?");
+        $checkStmt->bind_param("sss", $username, $emailId, $userId);
+        $checkStmt->execute();
+        if ($checkStmt->get_result()->num_rows > 0) {
+          $_SESSION['error'] = 'Username or email already exists.';
+          $checkStmt->close();
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+        $checkStmt->close();
+
+        // Update user (without password if not provided)
+        if (!empty($newPassword)) {
+          $hashedPassword = $this->authHelper->hashPassword($newPassword);
+          $updateStmt = $conn->prepare("
+            UPDATE users 
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, password = ?, updatedAt = NOW()
+            WHERE userId = ?
+          ");
+          $updateStmt->bind_param("ssssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $hashedPassword, $userId);
+        } else {
+          $updateStmt = $conn->prepare("
+            UPDATE users 
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, updatedAt = NOW()
+            WHERE userId = ?
+          ");
+          $updateStmt->bind_param("sssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $userId);
+        }
+
+        if ($updateStmt->execute()) {
+          $_SESSION['success'] = "User '{$username}' updated successfully!";
+        } else {
+          $_SESSION['error'] = 'Failed to update user. Please try again.';
+        }
+        $updateStmt->close();
+
+        header('Location: ' . BASE_URL . 'admin/users');
+        exit();
+      } else {
+        // Handle add user (existing code)
+        $username = trim($_POST['username'] ?? '');
+        $emailId = trim($_POST['emailId'] ?? '');
+        $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+        $plainPassword = $_POST['password'] ?? '';
+        $userType = $_POST['userType'] ?? 'Student';
+        $gender = $_POST['gender'] ?? '';
+        $dob = $_POST['dob'] ?? '';
+        $address = $_POST['address'] ?? '';
+        $isVerified = isset($_POST['isVerified']) ? 1 : 0;
+
+        // Validate required fields
+        if (empty($username) || empty($emailId) || empty($phoneNumber) || empty($plainPassword)) {
+          $_SESSION['error'] = 'Please fill all required fields.';
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+
+        // Check if username or email already exists
+        $checkStmt = $conn->prepare("SELECT userId FROM users WHERE username = ? OR emailId = ?");
+        $checkStmt->bind_param("ss", $username, $emailId);
+        $checkStmt->execute();
+        if ($checkStmt->get_result()->num_rows > 0) {
+          $_SESSION['error'] = 'Username or email already exists.';
+          $checkStmt->close();
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+        $checkStmt->close();
+
+        // Hash password
+        $hashedPassword = $this->authHelper->hashPassword($plainPassword);
+
+        // Generate user ID based on type
+        $currentYear = date('Y');
+        $prefix = ($userType === 'Faculty') ? 'FAC' : 'STU';
+        
+        $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE userId LIKE ?");
+        $pattern = $prefix . $currentYear . '%';
+        $countStmt->bind_param("s", $pattern);
+        $countStmt->execute();
+        $count = $countStmt->get_result()->fetch_assoc()['count'];
+        $countStmt->close();
+        
+        $userId = $prefix . $currentYear . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+
+        // Insert new user
+        $insertStmt = $conn->prepare("
+          INSERT INTO users (userId, username, emailId, phoneNumber, password, userType, gender, dob, address, isVerified, createdAt) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $insertStmt->bind_param("sssssssssi", $userId, $username, $emailId, $phoneNumber, $hashedPassword, $userType, $gender, $dob, $address, $isVerified);
+
+        if ($insertStmt->execute()) {
+          // ADDED: Send email to Faculty user with credentials
+          if ($userType === 'Faculty') {
+            $emailSubject = "Your Library Account - Faculty Access";
+            $emailBody = "Dear {$username},\n\n";
+            $emailBody .= "Your faculty account has been created in the Library Management System.\n\n";
+            $emailBody .= "Login Credentials:\n";
+            $emailBody .= "User ID: {$userId}\n";
+            $emailBody .= "Username: {$username}\n";
+            $emailBody .= "Password: {$plainPassword}\n\n";
+            $emailBody .= "Please login at: " . BASE_URL . "\n\n";
+            $emailBody .= "IMPORTANT: Please change your password after your first login for security purposes.\n\n";
+            $emailBody .= "If you did not request this account, please contact the library administrator immediately.\n\n";
+            $emailBody .= "Best regards,\n";
+            $emailBody .= "Library Management System\n";
+            $emailBody .= "Automated Email - Please Do Not Reply";
+
+            // Send email using AuthService
+            $emailSent = $this->authService->sendEmail($emailId, $emailSubject, $emailBody);
+
+            if ($emailSent) {
+              $_SESSION['success'] = "Faculty user '{$username}' added successfully! Login credentials sent to {$emailId}. User ID: {$userId}";
+            } else {
+              $_SESSION['success'] = "Faculty user '{$username}' added successfully! User ID: {$userId}. Note: Email notification failed - please share credentials manually.";
+            }
+          } else {
+            $_SESSION['success'] = "User '{$username}' added successfully! User ID: {$userId}";
+          }
+        } else {
+          $_SESSION['error'] = 'Failed to add user. Please try again.';
+        }
+        $insertStmt->close();
+
+        header('Location: ' . BASE_URL . 'admin/users');
+        exit();
+      }
+    }
 
     // Fetch all users with username
     $sql = "SELECT userId, username, emailId, phoneNumber, userType, gender, dob, address, isVerified, createdAt
