@@ -15,10 +15,7 @@
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 
--- Create database if not exists
-DROP DATABASE IF EXISTS `integrated_library_system`;
-CREATE DATABASE `integrated_library_system` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `integrated_library_system`;
+
 
 -- ====================================================================
 -- Table structure for table `users`
