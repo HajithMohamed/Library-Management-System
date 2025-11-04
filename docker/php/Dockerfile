@@ -1,16 +1,22 @@
 # Use official PHP 8.2 FPM as a base
 FROM php:8.2-fpm-alpine
 
-# Install Nginx and Supervisor. We don't need Composer's dependencies.
-RUN apk update && apk add --no-cache nginx supervisor
+# Install Nginx, Supervisor, and required system libraries for PHP extensions
+RUN apk update && apk add --no-cache \
+    nginx \
+    supervisor \
+    libzip-dev
+
+# --- THIS IS THE FIX ---
+# Install the required PHP extensions, including mysqli
+RUN docker-php-ext-install mysqli pdo pdo_mysql zip
+# --- END OF FIX ---
 
 # Set the working directory
 WORKDIR /var/www/html
 
-# --- THE KEY CHANGE ---
-# Copy your entire 'src' directory, which already contains the 'vendor' folder,
-# into the container's web root. This is the build-time equivalent
-# of your local docker-compose volume mount.
+# Copy your entire 'src' directory, which includes the 'vendor' folder,
+# into the container's web root.
 COPY src/ .
 
 # Copy your configuration files
