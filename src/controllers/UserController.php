@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Book;
 use App\Models\BorrowRecord;
 use App\Models\Transaction;
+use App\Helpers\ValidationHelper;
 
 class UserController extends BaseController
 {
@@ -160,20 +161,37 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
-        $userId = $_SESSION['userId'];
-        $data = [
-            'email' => $_POST['email'] ?? '',
-            'phone' => $_POST['phone'] ?? '',
-            'address' => $_POST['address'] ?? ''
-        ];
-        
-        if ($this->userModel->updateProfile($userId, $data)) {
-            $_SESSION['success'] = 'Profile updated successfully';
-        } else {
-            $_SESSION['error'] = 'Failed to update profile';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validate using ValidationHelper
+            $errors = ValidationHelper::validateProfileUpdate($_POST);
+            
+            if (!empty($errors)) {
+                $_SESSION['validation_errors'] = $errors;
+                ValidationHelper::setFormData($_POST);
+                $_SESSION['error'] = 'Please fix the validation errors below';
+                header('Location: ' . BASE_URL . 'user/profile');
+                exit;
+            }
+            
+            ValidationHelper::clearValidation();
+            
+            $userId = $_SESSION['userId'];
+            $data = [
+                'emailId' => $_POST['emailId'] ?? '',
+                'phoneNumber' => $_POST['phoneNumber'] ?? '',
+                'address' => $_POST['address'] ?? '',
+                'gender' => $_POST['gender'] ?? '',
+                'dob' => $_POST['dob'] ?? ''
+            ];
+            
+            if ($this->userModel->updateProfile($userId, $data)) {
+                $_SESSION['success'] = 'Profile updated successfully';
+            } else {
+                $_SESSION['error'] = 'Failed to update profile';
+            }
+            
+            $this->redirect('user/profile');
         }
-        
-        $this->redirect('user/profile');
     }
 
     /**

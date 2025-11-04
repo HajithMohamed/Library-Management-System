@@ -237,5 +237,78 @@ if (isset($_SESSION['reset_email']) && isset($_SESSION['otp_verified'])) {
             <a href="<?php echo BASE_URL;?>login"><i class="fa-solid fa-arrow-left"></i> Back to Login</a>
         </div>
     </div>
+
+    <script src="<?php echo BASE_URL;?>assets/js/form-validation.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const emailInput = this.querySelector('[name="email"]');
+            const otpInput = this.querySelector('[name="otp"]');
+            const passwordInput = this.querySelector('[name="password"]');
+            const confirmPasswordInput = this.querySelector('[name="confirmPassword"]');
+            
+            let isValid = true;
+            
+            // Clear previous errors
+            this.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+                el.style.borderColor = '';
+            });
+            this.querySelectorAll('.error-message').forEach(el => el.remove());
+            
+            // Email validation
+            if (emailInput && emailInput.value) {
+                if (!validateEmail(emailInput.value)) {
+                    showError(emailInput, 'Please enter a valid email address');
+                    isValid = false;
+                }
+            }
+            
+            // OTP validation
+            if (otpInput && otpInput.value) {
+                if (!validateOTP(otpInput.value)) {
+                    showError(otpInput, 'OTP must be exactly 6 digits');
+                    isValid = false;
+                }
+            }
+            
+            // Password validation
+            if (passwordInput && passwordInput.value) {
+                if (!validatePassword(passwordInput.value)) {
+                    showError(passwordInput, 'Password must be at least 6 characters');
+                    isValid = false;
+                }
+                
+                // Confirm password match
+                if (confirmPasswordInput && confirmPasswordInput.value !== passwordInput.value) {
+                    showError(confirmPasswordInput, 'Passwords do not match');
+                    isValid = false;
+                }
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                
+                const firstError = this.querySelector('.is-invalid');
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }
+            }
+        });
+    });
+    
+    // OTP input - only numbers
+    const otpInput = document.querySelector('[name="otp"]');
+    if (otpInput) {
+        otpInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    }
+});
+</script>
 </body>
 </html>

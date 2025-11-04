@@ -276,6 +276,47 @@ include APP_ROOT . '/views/layouts/header.php';
             padding: 0.75rem;
         }
     }
+
+    .form-control-modern.is-invalid,
+    .form-select-modern.is-invalid,
+    .form-textarea-modern.is-invalid {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2;
+    }
+
+    .error-message {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .error-message i {
+        margin-top: 2px;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .alert-danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left: 4px solid #10b981;
+    }
 </style>
 <link rel="stylesheet" href="../assets/css/form-icons-fix.css">
 
@@ -293,6 +334,22 @@ include APP_ROOT . '/views/layouts/header.php';
                     </div>
 
                     <div class="auth-body">
+                        <?php if (isset($_SESSION['error'])): ?>
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <?= htmlspecialchars($_SESSION['error']) ?>
+                            </div>
+                            <?php unset($_SESSION['error']); ?>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_SESSION['success'])): ?>
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <?= htmlspecialchars($_SESSION['success']) ?>
+                            </div>
+                            <?php unset($_SESSION['success']); ?>
+                        <?php endif; ?>
+
                         <form method="POST" action="<?= BASE_URL ?>signup">
                             <!-- Username -->
                             <div class="form-group">
@@ -301,14 +358,20 @@ include APP_ROOT . '/views/layouts/header.php';
                                 </label>
                                 <div class="input-group-modern">
                                     <input type="text"
-                                        class="form-control-modern"
+                                        class="form-control-modern <?= isset($_SESSION['validation_errors']['username']) ? 'is-invalid' : '' ?>"
                                         id="username"
                                         name="username"
                                         placeholder="Choose your username"
                                         required
-                                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+                                        value="<?= htmlspecialchars($_SESSION['form_data']['username'] ?? $_POST['username'] ?? '') ?>">
                                     <i class="fas fa-user input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['username'])): ?>
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['username']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Password -->
@@ -318,13 +381,19 @@ include APP_ROOT . '/views/layouts/header.php';
                                 </label>
                                 <div class="input-group-modern">
                                     <input type="password"
-                                        class="form-control-modern"
+                                        class="form-control-modern <?= isset($_SESSION['validation_errors']['password']) ? 'is-invalid' : '' ?>"
                                         id="password"
                                         name="password"
                                         placeholder="Create a strong password"
                                         required>
                                     <i class="fas fa-lock input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['password'])): ?>
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['password']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Gender -->
@@ -333,14 +402,20 @@ include APP_ROOT . '/views/layouts/header.php';
                                     Gender <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <select class="form-select-modern" id="gender" name="gender" required>
+                                    <select class="form-select-modern <?= isset($_SESSION['validation_errors']['gender']) ? 'is-invalid' : '' ?>" id="gender" name="gender" required>
                                         <option value="">Select Gender</option>
-                                        <option value="Male" <?= ($_POST['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                                        <option value="Female" <?= ($_POST['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                                        <option value="Other" <?= ($_POST['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                                        <option value="Male" <?= ($_SESSION['form_data']['gender'] ?? $_POST['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                                        <option value="Female" <?= ($_SESSION['form_data']['gender'] ?? $_POST['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                                        <option value="Other" <?= ($_SESSION['form_data']['gender'] ?? $_POST['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
                                     </select>
                                     <i class="fas fa-venus-mars input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['gender'])): ?>
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['gender']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Email & Phone -->
@@ -351,14 +426,20 @@ include APP_ROOT . '/views/layouts/header.php';
                                     </label>
                                     <div class="input-group-modern">
                                         <input type="email"
-                                            class="form-control-modern"
+                                            class="form-control-modern <?= isset($_SESSION['validation_errors']['emailId']) ? 'is-invalid' : '' ?>"
                                             id="emailId"
                                             name="emailId"
                                             placeholder="your.email@example.com"
                                             required
-                                            value="<?= htmlspecialchars($_POST['emailId'] ?? '') ?>">
+                                            value="<?= htmlspecialchars($_SESSION['form_data']['emailId'] ?? $_POST['emailId'] ?? '') ?>">
                                         <i class="fas fa-envelope input-icon"></i>
                                     </div>
+                                    <?php if (isset($_SESSION['validation_errors']['emailId'])): ?>
+                                        <div class="error-message">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <span><?= htmlspecialchars($_SESSION['validation_errors']['emailId']) ?></span>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="form-group">
@@ -367,14 +448,20 @@ include APP_ROOT . '/views/layouts/header.php';
                                     </label>
                                     <div class="input-group-modern">
                                         <input type="tel"
-                                            class="form-control-modern"
+                                            class="form-control-modern <?= isset($_SESSION['validation_errors']['phoneNumber']) ? 'is-invalid' : '' ?>"
                                             id="phoneNumber"
                                             name="phoneNumber"
                                             placeholder="+94 XXX XXX XXX"
                                             required
-                                            value="<?= htmlspecialchars($_POST['phoneNumber'] ?? '') ?>">
+                                            value="<?= htmlspecialchars($_SESSION['form_data']['phoneNumber'] ?? $_POST['phoneNumber'] ?? '') ?>">
                                         <i class="fas fa-phone input-icon"></i>
                                     </div>
+                                    <?php if (isset($_SESSION['validation_errors']['phoneNumber'])): ?>
+                                        <div class="error-message">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <span><?= htmlspecialchars($_SESSION['validation_errors']['phoneNumber']) ?></span>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
@@ -385,13 +472,19 @@ include APP_ROOT . '/views/layouts/header.php';
                                 </label>
                                 <div class="input-group-modern">
                                     <input type="date"
-                                        class="form-control-modern"
+                                        class="form-control-modern <?= isset($_SESSION['validation_errors']['dob']) ? 'is-invalid' : '' ?>"
                                         id="dob"
                                         name="dob"
                                         required
-                                        value="<?= htmlspecialchars($_POST['dob'] ?? '') ?>">
+                                        value="<?= htmlspecialchars($_SESSION['form_data']['dob'] ?? $_POST['dob'] ?? '') ?>">
                                     <i class="fas fa-calendar-alt input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['dob'])): ?>
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['dob']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Address -->
@@ -400,14 +493,20 @@ include APP_ROOT . '/views/layouts/header.php';
                                     Address <span class="required-star">*</span>
                                 </label>
                                 <div class="input-group-modern">
-                                    <textarea class="form-textarea-modern"
+                                    <textarea class="form-textarea-modern <?= isset($_SESSION['validation_errors']['address']) ? 'is-invalid' : '' ?>"
                                         id="address"
                                         name="address"
                                         rows="3"
                                         placeholder="Enter your complete address"
-                                        required><?= htmlspecialchars($_POST['address'] ?? '') ?></textarea>
+                                        required><?= htmlspecialchars($_SESSION['form_data']['address'] ?? $_POST['address'] ?? '') ?></textarea>
                                     <i class="fas fa-map-marker-alt input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['address'])): ?>
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['address']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Terms & Conditions -->
@@ -442,5 +541,140 @@ include APP_ROOT . '/views/layouts/header.php';
         </div>
     </div>
 </div>
+
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const emailInput = document.getElementById('emailId');
+    const phoneInput = document.getElementById('phoneNumber');
+    const passwordInput = document.getElementById('password');
+    const dobInput = document.getElementById('dob');
+    const usernameInput = document.getElementById('username');
+    
+    // Email validation
+    emailInput.addEventListener('blur', function() {
+        if (this.value && !validateEmail(this.value)) {
+            showError(this, 'Please enter a valid email address');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    // Phone validation
+    phoneInput.addEventListener('blur', function() {
+        if (this.value && !validatePhone(this.value)) {
+            showError(this, 'Please enter a valid phone number (+94XXXXXXXXX)');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    phoneInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^\d+\s-]/g, '');
+    });
+    
+    // Password validation
+    passwordInput.addEventListener('blur', function() {
+        if (this.value && !validatePassword(this.value)) {
+            showError(this, 'Password must be at least 6 characters');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    // DOB validation
+    dobInput.addEventListener('blur', function() {
+        if (this.value && !validateDOB(this.value)) {
+            showError(this, 'You must be at least 13 years old');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    // Username validation
+    usernameInput.addEventListener('blur', function() {
+        if (this.value && !validateUsername(this.value)) {
+            showError(this, 'Username must be 3-20 characters (letters, numbers, underscore only)');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    // Form submit validation - UPDATED
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Clear all errors first
+        document.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+            el.style.borderColor = '';
+        });
+        document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+        
+        // Validate all fields
+        if (!validateUsername(usernameInput.value)) {
+            showError(usernameInput, 'Username must be 3-20 characters (letters, numbers, underscore)');
+            isValid = false;
+        }
+        
+        if (!validatePassword(passwordInput.value)) {
+            showError(passwordInput, 'Password must be at least 6 characters');
+            isValid = false;
+        }
+        
+        if (!validateEmail(emailInput.value)) {
+            showError(emailInput, 'Please enter a valid email address');
+            isValid = false;
+        }
+        
+        if (!validatePhone(phoneInput.value)) {
+            showError(phoneInput, 'Please enter a valid phone number');
+            isValid = false;
+        }
+        
+        if (dobInput.value && !validateDOB(dobInput.value)) {
+            showError(dobInput, 'You must be at least 13 years old');
+            isValid = false;
+        }
+        
+        // Check required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!validateNotEmpty(field.value)) {
+                const label = form.querySelector(`label[for="${field.id}"]`);
+                const fieldName = label ? label.textContent.replace('*', '').trim() : field.name;
+                showError(field, `${fieldName} is required`);
+                isValid = false;
+            }
+        });
+        
+        // Check terms checkbox
+        const termsCheckbox = document.getElementById('terms');
+        if (!termsCheckbox.checked) {
+            alert('⚠️ You must agree to the terms and conditions');
+            termsCheckbox.focus();
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Scroll to first error
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+});
+</script>
+
+<?php 
+// Clear validation errors and form data after displaying
+unset($_SESSION['validation_errors']);
+unset($_SESSION['form_data']);
+?>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

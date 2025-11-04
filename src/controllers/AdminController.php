@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Services\AdminService;
 use App\Helpers\AuthHelper;
+use App\Helpers\ValidationHelper; // FIXED: Add this
 
 class AdminController
 {
@@ -1319,6 +1320,19 @@ class AdminController
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      // Validate using ValidationHelper
+      $errors = ValidationHelper::validateProfileUpdate($_POST);
+      
+      if (!empty($errors)) {
+        $_SESSION['validation_errors'] = $errors;
+        ValidationHelper::setFormData($_POST);
+        $_SESSION['error'] = 'Please fix the validation errors below';
+        header('Location: ' . BASE_URL . 'admin/profile');
+        exit;
+      }
+      
+      ValidationHelper::clearValidation();
+      
       // Validate only fields that exist in the users table
       $data = [
         'emailId' => trim($_POST['emailId'] ?? ''),

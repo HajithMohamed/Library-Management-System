@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\BorrowRecord;
 use App\Models\User;
 use App\Models\Transaction;
+use App\Helpers\ValidationHelper; // FIXED: Add this
 
 class FacultyController extends BaseController
 {
@@ -449,6 +450,19 @@ class FacultyController extends BaseController
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['update_profile'])) {
+                // Validate using ValidationHelper
+                $errors = ValidationHelper::validateProfileUpdate($_POST);
+                
+                if (!empty($errors)) {
+                    $_SESSION['validation_errors'] = $errors;
+                    ValidationHelper::setFormData($_POST);
+                    $_SESSION['error'] = 'Please fix the validation errors below';
+                    header('Location: ' . BASE_URL . 'faculty/profile');
+                    exit;
+                }
+                
+                ValidationHelper::clearValidation();
+                
                 $data = [
                     'username' => $_POST['name'] ?? '',
                     'emailId' => $_POST['email'] ?? '',

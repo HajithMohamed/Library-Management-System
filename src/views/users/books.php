@@ -996,6 +996,7 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 // Autocomplete functionality
 const searchInput = document.getElementById('searchInput');
@@ -1017,9 +1018,18 @@ searchInput.addEventListener('input', function(e) {
     }, 300);
 });
 
+// Add validation for search
+searchInput.addEventListener('blur', function() {
+    if (this.value && this.value.length < 2) {
+        showError(this, 'Search query must be at least 2 characters');
+    } else {
+        clearError(this);
+    }
+});
+
 async function fetchAutocomplete(query) {
     try {
-        const response = await fetch(`<?= BASE_URL ?>api/books/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${BASE_URL}api/books/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
         
         if (data.success && data.books && data.books.length > 0) {
@@ -1033,16 +1043,16 @@ async function fetchAutocomplete(query) {
 }
 
 function displayAutocomplete(books) {
-    const baseUrl = "<?= rtrim(BASE_URL, '/') ?>";
     autocompleteDropdown.innerHTML = books.slice(0, 5).map(book => `
         <div class="autocomplete-item" onclick="selectBook('${escapeHtml(book.bookName)}')">
-            ${book.bookImage ? `<img src="${baseUrl}/uploads/books/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
+            ${book.bookImage ? `<img src="${BASE_URL}uploads/books/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
             <div class="autocomplete-item-text">
                 <div class="autocomplete-item-title">${escapeHtml(book.bookName)}</div>
                 <div class="autocomplete-item-author">by ${escapeHtml(book.authorName)}</div>
             </div>
         </div>
     `).join('');
+    
     autocompleteDropdown.classList.add('active');
 }
 

@@ -1245,6 +1245,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
   </main>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
   // Toggle Sidebar with smooth animation
   function toggleSidebar() {
@@ -1311,48 +1312,93 @@ include APP_ROOT . '/views/layouts/admin-header.php';
   document.getElementById('profileImage').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (2MB max)
-      if (file.size > 2 * 1024 * 1024) {
-        showAlert('File size must be less than 2 MB', 'error');
-        this.value = '';
-        return;
-      }
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            showAlert('File size must be less than 2 MB', 'error');
+            this.value = '';
+            return;
+        }
 
-      // Validate file type
-      if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-        showAlert('Only JPG and PNG images are allowed', 'error');
-        this.value = '';
-        return;
-      }
+        // Validate file type
+        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+            showAlert('Only JPG and PNG images are allowed', 'error');
+            this.value = '';
+            return;
+        }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const preview = document.getElementById('profilePreview');
-        preview.style.opacity = '0';
-        setTimeout(() => {
-          preview.src = e.target.result;
-          preview.style.opacity = '1';
-          preview.style.transition = 'opacity 0.5s ease';
-        }, 200);
-      };
-      reader.readAsDataURL(file);
-      
-      showAlert('Image selected successfully! Ready to upload.', 'success');
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('profilePreview');
+            preview.style.opacity = '0';
+            setTimeout(() => {
+                preview.src = e.target.result;
+                preview.style.opacity = '1';
+                preview.style.transition = 'opacity 0.5s ease';
+            }, 200);
+        };
+        reader.readAsDataURL(file);
+        
+        showAlert('Image selected successfully! Ready to upload.', 'success');
     }
   });
 
   // Enhanced form validation with visual feedback
   document.querySelector('form').addEventListener('submit', function(e) {
-    const phoneNumber = document.getElementById('phoneNumber').value;
-    const phoneRegex = /^[+]?[\d\s-()]+$/;
-
-    if (!phoneRegex.test(phoneNumber)) {
-      e.preventDefault();
-      showAlert('Please enter a valid phone number', 'error');
-      document.getElementById('phoneNumber').focus();
-      return false;
+    let isValid = true;
+    
+    // Clear errors
+    this.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+        el.style.borderColor = '';
+    });
+    this.querySelectorAll('.error-message').forEach(el => el.remove());
+    
+    const emailId = document.getElementById('emailId');
+    const phoneNumber = document.getElementById('phoneNumber');
+    const dob = document.getElementById('dob');
+    const address = document.getElementById('address');
+    const gender = document.getElementById('gender');
+    
+    // Validate email
+    if (!emailId.value || !validateEmail(emailId.value)) {
+        showError(emailId, 'Please enter a valid email address');
+        isValid = false;
     }
-
+    
+    // Validate phone
+    if (!phoneNumber.value || !validatePhone(phoneNumber.value)) {
+        showError(phoneNumber, 'Please enter a valid phone number');
+        isValid = false;
+    }
+    
+    // Validate DOB
+    if (dob.value && !validateDOB(dob.value)) {
+        showError(dob, 'You must be at least 13 years old');
+        isValid = false;
+    }
+    
+    // Validate address
+    if (!address.value.trim() || address.value.trim().length < 10) {
+        showError(address, 'Address must be at least 10 characters');
+        isValid = false;
+    }
+    
+    // Validate gender
+    if (!gender.value) {
+        showError(gender, 'Please select your gender');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        const firstError = this.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+        return false;
+    }
+    
     // Add loading state to submit button
     const submitBtn = this.querySelector('.btn-submit');
     submitBtn.classList.add('loading');
@@ -1361,19 +1407,52 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     return true;
   });
 
+  // Real-time validation
+  document.getElementById('emailId').addEventListener('blur', function() {
+    if (this.value && !validateEmail(this.value)) {
+        showError(this, 'Please enter a valid email address');
+    } else {
+        clearError(this);
+    }
+  });
+
+  document.getElementById('phoneNumber').addEventListener('blur', function() {
+    if (this.value && !validatePhone(this.value)) {
+        showError(this, 'Please enter a valid phone number');
+    } else {
+        clearError(this);
+    }
+  });
+
+  document.getElementById('dob').addEventListener('blur', function() {
+    if (this.value && !validateDOB(this.value)) {
+        showError(this, 'You must be at least 13 years old');
+    } else {
+        clearError(this);
+    }
+  });
+
+  document.getElementById('address').addEventListener('blur', function() {
+    if (this.value && this.value.trim().length < 10) {
+        showError(this, 'Address must be at least 10 characters');
+    } else {
+        clearError(this);
+    }
+  });
+
   // Show alert messages
   function showAlert(message, type = 'success') {
     // Remove existing alerts
     const existingAlert = document.querySelector('.alert');
     if (existingAlert) {
-      existingAlert.remove();
+        existingAlert.remove();
     }
 
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
     alert.innerHTML = `
-      <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-      <span>${message}</span>
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        <span>${message}</span>
     `;
     
     const form = document.querySelector('form');
@@ -1381,8 +1460,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     
     // Auto remove after 5 seconds
     setTimeout(() => {
-      alert.style.animation = 'slideUp 0.5s ease-out';
-      setTimeout(() => alert.remove(), 500);
+        alert.style.animation = 'slideUp 0.5s ease-out';
+        setTimeout(() => alert.remove(), 500);
     }, 5000);
   }
 

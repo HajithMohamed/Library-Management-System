@@ -59,6 +59,13 @@ class AuthController
         $_SESSION['username'] = $user['username'];
         $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
         $_SESSION['emailId'] = $user['emailId'];
+        
+        // ADDED: Also set these for compatibility
+        $_SESSION['user_id'] = $user['userId'];
+        $_SESSION['name'] = $user['username'];
+        $_SESSION['email'] = $user['emailId'];
+        $_SESSION['role'] = strtolower($user['userType']);
+        $_SESSION['logged_in'] = true;
 
         // Migrate wishlist to favorites if exists
         if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
@@ -90,12 +97,12 @@ class AuthController
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = [
-            'username' => $_POST['username'] ?? '',
+            'username' => $_POST['username'] ?? $_POST['name'] ?? '', // ADDED: Support both 'name' and 'username'
             'password' => $_POST['password'] ?? '',
             'userType' => 'Student', // Automatically set to Student
             'gender' => $_POST['gender'] ?? '',
             'dob' => $_POST['dob'] ?? '',
-            'emailId' => $_POST['emailId'] ?? '',
+            'emailId' => $_POST['emailId'] ?? $_POST['email'] ?? '', // ADDED: Support both 'email' and 'emailId'
             'phoneNumber' => $_POST['phoneNumber'] ?? '',
             'address' => $_POST['address'] ?? '',
             'isVerified' => 0,
@@ -145,7 +152,7 @@ class AuthController
                 $_SESSION['signup_userId'] = $generatedUserId;
                 $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
                 
-                // FIXED: Redirect to verify-otp page instead of login
+                // Redirect to verify-otp page
                 $this->redirect('/verify-otp');
             } else {
                 $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
@@ -213,6 +220,13 @@ class AuthController
           $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
           $_SESSION['emailId'] = $user['emailId'];
           
+          // ADDED: Also set these for compatibility
+          $_SESSION['user_id'] = $user['userId'];
+          $_SESSION['name'] = $user['username'];
+          $_SESSION['email'] = $user['emailId'];
+          $_SESSION['role'] = strtolower($user['userType']);
+          $_SESSION['logged_in'] = true;
+          
           // Migrate wishlist to favorites if exists
           if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
             $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
@@ -236,6 +250,8 @@ class AuthController
       $this->render('auth/verify-otp');
     }
   }
+
+  // ...existing code for forgotPassword, handleSendOtp, handleVerifyOtp, handleResetPassword...
 
   /**
    * Handle forgot password (both GET and POST)

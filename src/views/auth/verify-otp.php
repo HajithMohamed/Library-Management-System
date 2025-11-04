@@ -251,7 +251,7 @@ if (filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
                             <div class="form-group">
                                 <label for="otp" class="form-label">Verification Code</label>
                                 <div class="input-group-modern">
-                                    <input type="tel"
+                                    <input type="text"
                                         class="form-control-modern"
                                         id="otp"
                                         name="otp"
@@ -289,6 +289,7 @@ if (filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 // Auto-submit form when 6 digits are entered
 document.getElementById('otp').addEventListener('input', function(e) {
