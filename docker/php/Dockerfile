@@ -16,12 +16,10 @@ RUN docker-php-ext-install mysqli pdo pdo_mysql zip
 RUN curl -sS https://getcomposer.org/installer | php -- \
     --install-dir=/usr/local/bin --filename=composer
 
-# Copy your custom PHP settings.
-# Putting it in conf.d ensures it's loaded without overwriting other defaults.
+# Copy your custom PHP settings
 COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
 # Configure Nginx and Supervisor
-# These files will tell Nginx how to serve your app and Supervisor how to run both services.
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY supervisord.conf /etc/supervisord.conf
 
@@ -35,10 +33,20 @@ RUN composer update --no-dev --optimize-autoloader
 # Copy your application source code
 COPY src /var/www/html
 
-# Set correct permissions
+# --- Permission Fixes ---
+# Create Nginx log directory and set permissions
+RUN mkdir -p /var/log/nginx && \
+    chown -R www-data:www-data /var/log/nginx
+
+# Set correct permissions on the entire web root
 RUN chown -R www-data:www-data /var/www/html
 
-# Expose port 80 for Nginx (Render's public-facing port)
+# Set correct execute/read permissions for directories and files
+RUN find /var/www/html -type d -exec chmod 755 {} \;
+RUN find /var/www/html -type f -exec chmod 644 {} \;
+# --- End Permission Fixes ---
+
+# Expose port 80 for Nginx
 EXPOSE 80
 
 # Use Supervisor to start and manage Nginx and PHP-FPM
