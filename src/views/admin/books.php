@@ -1271,7 +1271,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if ($book['available'] > 5): ?>
+                                            <?php if ($book['available'] >= 5): ?>
                                                 <span class="status-badge available">
                                                     <i class="fas fa-check-circle"></i> In Stock
                                                 </span>
@@ -1847,7 +1847,7 @@ async function optimizeImage(file) {
                     }
                     
                     // Reduce quality and size for next attempt
-                    quality = Math.max(0.4, quality - 0.1);
+                   
                     maxWidth = Math.max(600, Math.floor(maxWidth * 0.8));
                 }
                 

@@ -998,10 +998,11 @@ include APP_ROOT . '/views/layouts/header.php';
 
 <script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
-// Autocomplete functionality
+// Autocomplete functionality with debouncing
 const searchInput = document.getElementById('searchInput');
 const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 let debounceTimer;
+let currentRequest = null;
 
 searchInput.addEventListener('input', function(e) {
     const query = e.target.value.trim();
@@ -1010,6 +1011,7 @@ searchInput.addEventListener('input', function(e) {
     
     if (query.length < 2) {
         autocompleteDropdown.classList.remove('active');
+        autocompleteDropdown.innerHTML = '';
         return;
     }
     
@@ -1018,51 +1020,99 @@ searchInput.addEventListener('input', function(e) {
     }, 300);
 });
 
-// Add validation for search
-searchInput.addEventListener('blur', function() {
-    if (this.value && this.value.length < 2) {
-        showError(this, 'Search query must be at least 2 characters');
-    } else {
-        clearError(this);
-    }
-});
-
 async function fetchAutocomplete(query) {
+    // Cancel previous request
+    if (currentRequest) {
+        currentRequest.abort();
+    }
+    
+    // Create abort controller
+    const controller = new AbortController();
+    currentRequest = controller;
+    
     try {
-        const response = await fetch(`${BASE_URL}api/books/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`<?= BASE_URL ?>api/books/search?q=${encodeURIComponent(query)}`, {
+            signal: controller.signal
+        });
+        
+        if (!response.ok) {
+            throw new Error('Search request failed');
+        }
+        
         const data = await response.json();
         
         if (data.success && data.books && data.books.length > 0) {
             displayAutocomplete(data.books);
         } else {
-            autocompleteDropdown.classList.remove('active');
+            showNoResults();
         }
     } catch (error) {
-        console.error('Autocomplete error:', error);
+        if (error.name !== 'AbortError') {
+            console.error('Autocomplete error:', error);
+            showError();
+        }
+    } finally {
+        currentRequest = null;
     }
 }
 
 function displayAutocomplete(books) {
-    autocompleteDropdown.innerHTML = books.slice(0, 5).map(book => `
-        <div class="autocomplete-item" onclick="selectBook('${escapeHtml(book.bookName)}')">
-            ${book.bookImage ? `<img src="${BASE_URL}uploads/books/${escapeHtml(book.bookImage)}" alt="${escapeHtml(book.bookName)}">` : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>'}
-            <div class="autocomplete-item-text">
-                <div class="autocomplete-item-title">${escapeHtml(book.bookName)}</div>
-                <div class="autocomplete-item-author">by ${escapeHtml(book.authorName)}</div>
+    const baseUrl = '<?= rtrim(BASE_URL, "/") ?>';
+    
+    autocompleteDropdown.innerHTML = books.slice(0, 8).map(book => {
+        const imagePath = book.bookImage 
+            ? `${baseUrl}/uploads/books/${escapeHtml(book.bookImage)}` 
+            : null;
+        
+        const imageHtml = imagePath 
+            ? `<img src="${imagePath}" alt="${escapeHtml(book.bookName)}" onerror="this.parentElement.innerHTML='<div style=\\'width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;\\'><i class=\\'fas fa-book\\'></i></div>'">` 
+            : '<div style="width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;"><i class="fas fa-book"></i></div>';
+        
+        const availabilityBadge = (book.available > 0) 
+            ? `<span style="background:#10b981;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;margin-left:auto;font-weight:700;">${book.available} Available</span>` 
+            : `<span style="background:#ef4444;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;margin-left:auto;font-weight:700;">Unavailable</span>`;
+        
+        return `
+            <div class="autocomplete-item" onclick="selectBook('<?= BASE_URL ?>user/book?isbn=${encodeURIComponent(book.isbn)}')">
+                ${imageHtml}
+                <div class="autocomplete-item-text">
+                    <div class="autocomplete-item-title">${escapeHtml(book.bookName)}</div>
+                    <div class="autocomplete-item-author">by ${escapeHtml(book.authorName)} • ${escapeHtml(book.publisherName || 'Unknown Publisher')}</div>
+                </div>
+                ${availabilityBadge}
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
     
     autocompleteDropdown.classList.add('active');
 }
 
-function selectBook(bookName) {
-    searchInput.value = bookName;
-    autocompleteDropdown.classList.remove('active');
-    document.getElementById('searchForm').submit();
+function showNoResults() {
+    autocompleteDropdown.innerHTML = `
+        <div style="padding:30px;text-align:center;color:#6b7280;">
+            <i class="fas fa-search" style="font-size:2rem;margin-bottom:10px;opacity:0.3;"></i>
+            <p style="margin:0;">No books found matching your search</p>
+        </div>
+    `;
+    autocompleteDropdown.classList.add('active');
+}
+
+function showError() {
+    autocompleteDropdown.innerHTML = `
+        <div style="padding:30px;text-align:center;color:#ef4444;">
+            <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:10px;"></i>
+            <p style="margin:0;">Error loading suggestions. Please try again.</p>
+        </div>
+    `;
+    autocompleteDropdown.classList.add('active');
+}
+
+function selectBook(url) {
+    window.location.href = url;
 }
 
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -1071,6 +1121,15 @@ function escapeHtml(text) {
 // Close dropdown when clicking outside
 document.addEventListener('click', function(e) {
     if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+        autocompleteDropdown.classList.remove('active');
+    }
+});
+
+// Handle keyboard navigation
+searchInput.addEventListener('keydown', function(e) {
+    const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+    
+    if (e.key === 'Escape') {
         autocompleteDropdown.classList.remove('active');
     }
 });
