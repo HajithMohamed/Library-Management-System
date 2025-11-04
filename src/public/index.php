@@ -694,6 +694,10 @@ $router->addRoute('POST', '/admin/borrow-requests-handle', 'AdminController', 'h
 $router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 $router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 
+// Admin Transactions (redirect to borrowed books)
+$router->addRoute('GET', '/admin/transactions', 'AdminController', 'booksBorrowed');
+$router->addRoute('POST', '/admin/transactions', 'AdminController', 'booksBorrowed');
+
 // Admin Fines
 $router->addRoute('GET', '/admin/fines', 'AdminController', 'fines');
 $router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
