@@ -155,11 +155,144 @@ class FacultyController extends BaseController
     {
         $this->requireLogin(['Faculty']);
         
-        $searchTerm = $_GET['search'] ?? '';
-        $books = $this->bookModel->search($searchTerm);
+        global $mysqli;
         
+        if (!$mysqli) {
+            die("Database connection failed");
+        }
+        
+        // Get filter parameters
+        $searchQuery = trim($_GET['q'] ?? '');
+        $categoryFilter = trim($_GET['category'] ?? '');
+        $statusFilter = trim($_GET['status'] ?? '');
+        $sortBy = trim($_GET['sort'] ?? '');
+        
+        // Build SQL query with filters
+        $sql = "SELECT 
+                    isbn,
+                    bookName,
+                    authorName,
+                    publisherName,
+                    description,
+                    category,
+                    publicationYear,
+                    totalCopies,
+                    bookImage,
+                    available,
+                    borrowed,
+                    isTrending,
+                    isSpecial,
+                    specialBadge
+                FROM books
+                WHERE 1=1";
+        
+        $params = [];
+        $types = '';
+        
+        // Apply search filter
+        if (!empty($searchQuery)) {
+            $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?)";
+            $searchTerm = '%' . $searchQuery . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $types .= 'ssss';
+        }
+        
+        // Apply publisher/category filter
+        if (!empty($categoryFilter)) {
+            $sql .= " AND publisherName = ?";
+            $params[] = $categoryFilter;
+            $types .= 's';
+        }
+        
+        // Apply availability status filter
+        if ($statusFilter === 'available') {
+            $sql .= " AND available > 0";
+        } elseif ($statusFilter === 'borrowed') {
+            $sql .= " AND borrowed > 0";
+        }
+        
+        // Apply sorting
+        switch ($sortBy) {
+            case 'title':
+                $sql .= " ORDER BY bookName ASC";
+                break;
+            case 'author':
+                $sql .= " ORDER BY authorName ASC";
+                break;
+            case 'available':
+                $sql .= " ORDER BY available DESC, bookName ASC";
+                break;
+            default:
+                $sql .= " ORDER BY bookName ASC";
+        }
+        
+        // Prepare and execute query
+        if (!empty($params)) {
+            $stmt = $mysqli->prepare($sql);
+            if (!$stmt) {
+                error_log("SQL Error in faculty books: " . $mysqli->error);
+                die("Error fetching books: " . $mysqli->error);
+            }
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        } else {
+            $result = $mysqli->query($sql);
+            if (!$result) {
+                error_log("SQL Error in faculty books: " . $mysqli->error);
+                die("Error fetching books: " . $mysqli->error);
+            }
+        }
+        
+        $books = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $books[] = $row;
+            }
+            if (isset($stmt)) {
+                $stmt->close();
+            } else {
+                $result->free();
+            }
+        }
+        
+        // Get all publishers for filter dropdown
+        $categories = [];
+        $publisherSql = "SELECT DISTINCT publisherName 
+                        FROM books 
+                        WHERE publisherName IS NOT NULL AND publisherName != '' 
+                        ORDER BY publisherName ASC";
+        $publisherResult = $mysqli->query($publisherSql);
+        
+        if ($publisherResult) {
+            while ($row = $publisherResult->fetch_assoc()) {
+                if (!empty($row['publisherName'])) {
+                    $categories[] = $row['publisherName'];
+                }
+            }
+            $publisherResult->free();
+        }
+        
+        // Calculate stats
+        $totalBooks = count($books);
+        $availableBooks = 0;
+        foreach ($books as $book) {
+            if ($book['available'] > 0) {
+                $availableBooks++;
+            }
+        }
+        $totalCategories = count($categories);
+        
+        // Pass data to view
         $this->data['books'] = $books;
-        $this->data['searchTerm'] = $searchTerm;
+        $this->data['categories'] = $categories;
+        $this->data['totalBooks'] = $totalBooks;
+        $this->data['availableBooks'] = $availableBooks;
+        $this->data['totalCategories'] = $totalCategories;
+        $this->data['searchTerm'] = $searchQuery;
         
         $this->view('faculty/books', $this->data);
     }

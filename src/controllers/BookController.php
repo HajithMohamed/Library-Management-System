@@ -517,7 +517,13 @@ class BookController
             die("Database connection failed");
         }
         
-        // Fetch all available books - UPDATED: Fetch all fields
+        // Get filter parameters
+        $searchQuery = trim($_GET['q'] ?? '');
+        $categoryFilter = trim($_GET['category'] ?? '');
+        $statusFilter = trim($_GET['status'] ?? '');
+        $sortBy = trim($_GET['sort'] ?? '');
+        
+        // Build SQL query with filters
         $sql = "SELECT 
                     isbn,
                     bookName,
@@ -534,24 +540,80 @@ class BookController
                     isSpecial,
                     specialBadge
                 FROM books
-                WHERE available > 0
-                ORDER BY bookName ASC";
+                WHERE 1=1";
         
-        $result = $mysqli->query($sql);
+        $params = [];
+        $types = '';
         
-        if (!$result) {
-            error_log("SQL Error in userBooks: " . $mysqli->error);
-            die("Error fetching books: " . $mysqli->error);
+        // Apply search filter
+        if (!empty($searchQuery)) {
+            $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?)";
+            $searchTerm = '%' . $searchQuery . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+            $types .= 'ssss';
+        }
+        
+        // Apply publisher/category filter
+        if (!empty($categoryFilter)) {
+            $sql .= " AND publisherName = ?";
+            $params[] = $categoryFilter;
+            $types .= 's';
+        }
+        
+        // Apply availability status filter
+        if ($statusFilter === 'available') {
+            $sql .= " AND available > 0";
+        } elseif ($statusFilter === 'borrowed') {
+            $sql .= " AND borrowed > 0";
+        }
+        
+        // Apply sorting
+        switch ($sortBy) {
+            case 'title':
+                $sql .= " ORDER BY bookName ASC";
+                break;
+            case 'author':
+                $sql .= " ORDER BY authorName ASC";
+                break;
+            case 'available':
+                $sql .= " ORDER BY available DESC, bookName ASC";
+                break;
+            default:
+                $sql .= " ORDER BY bookName ASC";
+        }
+        
+        // Prepare and execute query
+        if (!empty($params)) {
+            $stmt = $mysqli->prepare($sql);
+            if (!$stmt) {
+                error_log("SQL Error in userBooks: " . $mysqli->error);
+                die("Error fetching books: " . $mysqli->error);
+            }
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        } else {
+            $result = $mysqli->query($sql);
+            if (!$result) {
+                error_log("SQL Error in userBooks: " . $mysqli->error);
+                die("Error fetching books: " . $mysqli->error);
+            }
         }
         
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Add 'image' alias for backward compatibility if needed
                 $row['image'] = $row['bookImage'];
                 $books[] = $row;
             }
-            $result->free();
+            if (isset($stmt)) {
+                $stmt->close();
+            } else {
+                $result->free();
+            }
         }
         
         // Calculate statistics
@@ -619,7 +681,6 @@ class BookController
         }
         
         $searchTerm = '%' . $query . '%';
-        // UPDATED: Fetch all fields
         $stmt = $mysqli->prepare("SELECT 
                 isbn, 
                 bookName, 
@@ -630,12 +691,20 @@ class BookController
                 publicationYear,
                 bookImage,
                 available,
+                totalCopies,
+                borrowed,
                 isTrending,
                 isSpecial,
                 specialBadge
             FROM books 
             WHERE bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?
-            ORDER BY bookName ASC
+            ORDER BY 
+                CASE 
+                    WHEN bookName LIKE ? THEN 1
+                    WHEN authorName LIKE ? THEN 2
+                    ELSE 3
+                END,
+                bookName ASC
             LIMIT 20");
         
         if (!$stmt) {
@@ -644,20 +713,19 @@ class BookController
             exit();
         }
         
-        $stmt->bind_param("ssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+        $exactMatch = $query . '%';
+        $stmt->bind_param("ssssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm, $exactMatch, $exactMatch);
         $stmt->execute();
         $result = $stmt->get_result();
         
         $books = [];
         while ($row = $result->fetch_assoc()) {
-            // Add 'image' alias for backward compatibility if needed
-            $row['image'] = $row['bookImage'];
             $books[] = $row;
         }
         
         $stmt->close();
         
-        echo json_encode(['success' => true, 'books' => $books]);
+        echo json_encode(['success' => true, 'books' => $books, 'count' => count($books)]);
         exit();
     }
 
