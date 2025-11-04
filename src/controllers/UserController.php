@@ -674,12 +674,20 @@ class UserController extends BaseController
     /**
      * Display user notifications
      */
-    public function notifications()
+    public function notifications($params = [])
     {
+        error_log("=== NOTIFICATIONS METHOD CALLED ===");
+        error_log("Session data: " . print_r($_SESSION, true));
+        error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+        error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+        error_log("POST data: " . print_r($_POST, true));
+        error_log("Base URL: " . (defined('BASE_URL') ? BASE_URL : 'NOT DEFINED'));
+        
         $this->requireLogin();
         
         // Redirect Faculty users to their own notifications page
         if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            error_log("Redirecting Faculty user to faculty/notifications");
             $this->redirect('faculty/notifications');
             return;
         }
@@ -687,16 +695,63 @@ class UserController extends BaseController
         $userId = $_SESSION['userId'];
         $userType = $_SESSION['userType'] ?? 'Student';
         
-        // Handle mark as read
+        error_log("Processing notifications for user: $userId, type: $userType");
+        
+        // Handle mark as read BEFORE fetching notifications
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
-            $this->markNotificationRead($notificationId);
+            error_log("POST request to mark notification $notificationId as read");
+            
+            if ($notificationId) {
+                global $mysqli;
+                
+                error_log("Executing UPDATE query for notification $notificationId");
+                
+                $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
+                $stmt = $mysqli->prepare($sql);
+                
+                if (!$stmt) {
+                    error_log("ERROR: Failed to prepare statement: " . $mysqli->error);
+                    $_SESSION['error'] = 'Failed to mark notification as read';
+                } else {
+                    $stmt->bind_param('is', $notificationId, $userId);
+                    
+                    if ($stmt->execute()) {
+                        $affectedRows = $stmt->affected_rows;
+                        error_log("✓ UPDATE successful - Affected rows: $affectedRows");
+                        
+                        if ($affectedRows > 0) {
+                            $_SESSION['success'] = 'Notification marked as read';
+                            error_log("✓ Notification marked as read successfully");
+                        } else {
+                            error_log("WARNING: No rows affected - notification may not exist or already read");
+                            $_SESSION['info'] = 'Notification already marked as read';
+                        }
+                    } else {
+                        error_log("✗ Failed to execute UPDATE: " . $stmt->error);
+                        $_SESSION['error'] = 'Failed to mark notification as read';
+                    }
+                    $stmt->close();
+                }
+            } else {
+                error_log("ERROR: No notification ID provided in POST");
+                $_SESSION['error'] = 'Invalid notification';
+            }
+            
+            error_log("Redirecting back to notifications after marking as read");
             $this->redirect('user/notifications');
             return;
         }
         
         // Get notifications with proper user email and type based on userId
         global $mysqli;
+        
+        if (!$mysqli) {
+            error_log("ERROR: Database connection not available");
+            $_SESSION['error'] = 'Database connection error';
+            $this->redirect('user/dashboard');
+            return;
+        }
         
         // Simpler query - get all notifications for this user OR system-wide notifications
         $sql = "SELECT 
@@ -718,6 +773,13 @@ class UserController extends BaseController
                 ORDER BY n.isRead ASC, n.createdAt DESC";
         
         $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            error_log("ERROR: Failed to prepare statement: " . $mysqli->error);
+            $_SESSION['error'] = 'Failed to load notifications';
+            $this->redirect('user/dashboard');
+            return;
+        }
+        
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -726,32 +788,69 @@ class UserController extends BaseController
         while ($row = $result->fetch_assoc()) {
             $notifications[] = $row;
         }
+        $stmt->close();
+        
+        error_log("Found " . count($notifications) . " notifications for user $userId");
         
         $this->data['notifications'] = $notifications;
         $this->data['userType'] = $userType;
-        $this->view('users/notifications', $this->data);
+        
+        error_log("Loading view: users/notifications");
+        
+        try {
+            $this->view('users/notifications', $this->data);
+            error_log("View loaded successfully");
+        } catch (\Exception $e) {
+            error_log("ERROR loading view: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
-
+    
     /**
-     * Mark notification as read
+     * Mark notification as read - STANDALONE METHOD (not used anymore but kept for compatibility)
      */
     public function markNotificationRead($notificationId = null)
     {
+        error_log("=== STANDALONE MARK NOTIFICATION READ CALLED (DEPRECATED) ===");
+        error_log("This method is deprecated - use POST to /user/notifications instead");
+        
         $this->requireLogin();
         
-        if (!$notificationId && isset($_POST['notification_id'])) {
-            $notificationId = $_POST['notification_id'];
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            error_log("ERROR: Not a POST request");
+            $this->redirect('user/notifications');
+            return;
         }
+        
+        $notificationId = $_POST['notification_id'] ?? null;
+        error_log("Notification ID: " . ($notificationId ?? 'NULL'));
         
         if ($notificationId) {
             global $mysqli;
+            $userId = $_SESSION['userId'];
+            
+            error_log("Marking notification $notificationId as read for user $userId");
+            
             $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
             $stmt = $mysqli->prepare($sql);
-            $stmt->bind_param('is', $notificationId, $_SESSION['userId']);
-            $stmt->execute();
+            $stmt->bind_param('is', $notificationId, $userId);
+            
+            if ($stmt->execute()) {
+                error_log("✓ Notification marked as read successfully");
+                $_SESSION['success'] = 'Notification marked as read';
+            } else {
+                error_log("✗ Failed to mark notification as read: " . $stmt->error);
+                $_SESSION['error'] = 'Failed to mark notification as read';
+            }
+            $stmt->close();
+        } else {
+            error_log("ERROR: No notification ID provided");
+            $_SESSION['error'] = 'Invalid notification';
         }
         
-        return true;
+        error_log("Redirecting back to notifications");
+        $this->redirect('user/notifications');
     }
     
     /**
