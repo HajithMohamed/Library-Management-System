@@ -598,7 +598,6 @@ $recentActivities = $recentActivities ?? [];
         <div class="chart-header">
           <h3 class="chart-title"><i class="fas fa-chart-line"></i> Borrowing Trends (30 Days)</h3>
           <div class="chart-actions">
-            <button class="chart-btn"><i class="fas fa-download"></i> Export</button>
           </div>
         </div>
         <canvas id="borrowTrendsChart"></canvas>
@@ -609,7 +608,6 @@ $recentActivities = $recentActivities ?? [];
         <div class="chart-header">
           <h3 class="chart-title"><i class="fas fa-chart-pie"></i> Books by Category</h3>
           <div class="chart-actions">
-            <button class="chart-btn"><i class="fas fa-download"></i> Export</button>
           </div>
         </div>
         <canvas id="categoryChart"></canvas>
@@ -620,7 +618,6 @@ $recentActivities = $recentActivities ?? [];
         <div class="chart-header">
           <h3 class="chart-title"><i class="fas fa-chart-bar"></i> Monthly Activity</h3>
           <div class="chart-actions">
-            <button class="chart-btn"><i class="fas fa-download"></i> Export</button>
           </div>
         </div>
         <canvas id="monthlyStatsChart"></canvas>
@@ -631,7 +628,6 @@ $recentActivities = $recentActivities ?? [];
         <div class="chart-header">
           <h3 class="chart-title"><i class="fas fa-money-bill-wave"></i> Fine Collection (6 Months)</h3>
           <div class="chart-actions">
-            <button class="chart-btn"><i class="fas fa-download"></i> Export</button>
           </div>
         </div>
         <canvas id="fineStatsChart"></canvas>
