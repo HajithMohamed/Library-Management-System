@@ -1705,9 +1705,9 @@ class AdminService
   }
 
   /**
-   * Log maintenance activity
+   * Log maintenance activity (make public if currently private)
    */
-  private function logMaintenanceActivity($action, $description, $status = 'success')
+  public function logMaintenanceActivity($action, $description, $status = 'success')
   {
     global $conn;
 

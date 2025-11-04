@@ -704,7 +704,16 @@ $router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
 
 // Admin Notifications
 $router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
+$router->addRoute('POST', '/admin/notifications', 'AdminController', 'notifications');
 $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
+$router->addRoute('GET', '/admin/notifications/mark-all-read', 'AdminController', 'markAllNotificationsRead');
+$router->addRoute('POST', '/admin/notifications/mark-all-read', 'AdminController', 'markAllNotificationsRead');
+$router->addRoute('GET', '/admin/notifications/check-overdue', 'AdminController', 'checkOverdueNotifications');
+$router->addRoute('POST', '/admin/notifications/check-overdue', 'AdminController', 'checkOverdueNotifications');
+$router->addRoute('GET', '/admin/notifications/check-stock', 'AdminController', 'checkOutOfStockNotifications');
+$router->addRoute('POST', '/admin/notifications/check-stock', 'AdminController', 'checkOutOfStockNotifications');
+$router->addRoute('GET', '/admin/notifications/clear-old', 'AdminController', 'clearOldNotifications');
+$router->addRoute('POST', '/admin/notifications/clear-old', 'AdminController', 'clearOldNotifications');
 
 // Admin Reports & Analytics
 $router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');

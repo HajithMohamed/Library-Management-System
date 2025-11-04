@@ -1594,4 +1594,193 @@ class AdminController
     $pageTitle = 'Admin Profile';
     include APP_ROOT . '/views/admin/admin-profile.php';
   }
+
+  /**
+   * Mark All Notifications as Read
+   */
+  public function markAllNotificationsRead()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      $adminUserId = $_SESSION['userId'];
+      
+      // Mark all notifications for this admin as read
+      $stmt = $conn->prepare("UPDATE notifications SET isRead = 1 WHERE (userId = ? OR userId IS NULL) AND isRead = 0");
+      $stmt->bind_param("s", $adminUserId);
+      
+      if ($stmt->execute()) {
+        $affectedRows = $stmt->affected_rows;
+        $_SESSION['success'] = "Marked {$affectedRows} notification(s) as read.";
+      } else {
+        $_SESSION['error'] = 'Failed to mark notifications as read.';
+      }
+      $stmt->close();
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Check and Create Overdue Notifications
+   */
+  public function checkOverdueNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Get overdue books (borrowed more than 14 days ago, not returned)
+        $sql = "SELECT t.tid, t.userId, t.isbn, t.borrowDate, 
+                       u.username, u.emailId, b.bookName,
+                       DATEDIFF(CURDATE(), t.borrowDate) as daysOverdue
+                FROM transactions t
+                LEFT JOIN users u ON t.userId = u.userId
+                LEFT JOIN books b ON t.isbn = b.isbn
+                WHERE t.returnDate IS NULL 
+                AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+                AND NOT EXISTS (
+                  SELECT 1 FROM notifications n 
+                  WHERE n.userId = t.userId 
+                  AND n.type = 'overdue' 
+                  AND n.relatedId = t.tid
+                  AND DATE(n.createdAt) = CURDATE()
+                )";
+        
+        $result = $conn->query($sql);
+        $count = 0;
+        
+        if ($result) {
+          while ($row = $result->fetch_assoc()) {
+            $title = "Overdue Book Reminder";
+            $message = "Your borrowed book '{$row['bookName']}' is overdue by {$row['daysOverdue']} days. Please return it immediately to avoid additional fines.";
+            
+            $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, relatedId, createdAt) VALUES (?, ?, ?, 'overdue', 'high', ?, NOW())");
+            $stmt->bind_param("sssi", $row['userId'], $title, $message, $row['tid']);
+            
+            if ($stmt->execute()) {
+              $count++;
+            }
+            $stmt->close();
+          }
+        }
+        
+        if ($count > 0) {
+          $_SESSION['success'] = "Created {$count} overdue notification(s).";
+        } else {
+          $_SESSION['info'] = 'No new overdue notifications needed.';
+        }
+        
+      } catch (\Exception $e) {
+        error_log("Error checking overdue notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to check overdue notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Check and Create Out of Stock Notifications
+   */
+  public function checkOutOfStockNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Get books that are out of stock or low stock
+        $sql = "SELECT isbn, bookName, available, totalCopies
+                FROM books
+                WHERE available <= 2
+                AND NOT EXISTS (
+                  SELECT 1 FROM notifications n 
+                  WHERE n.type = 'out_of_stock' 
+                  AND n.message LIKE CONCAT('%', books.isbn, '%')
+                  AND DATE(n.createdAt) = CURDATE()
+                )";
+        
+        $result = $conn->query($sql);
+        $count = 0;
+        
+        if ($result) {
+          while ($row = $result->fetch_assoc()) {
+            $status = $row['available'] <= 0 ? 'out of stock' : 'low stock';
+            $title = "Book Stock Alert";
+            $message = "The book '{$row['bookName']}' (ISBN: {$row['isbn']}) is {$status}. Available: {$row['available']}, Total: {$row['totalCopies']}. Please consider restocking.";
+            
+            // Send to all admins (userId = NULL for system-wide)
+            $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (NULL, ?, ?, 'out_of_stock', 'medium', NOW())");
+            $stmt->bind_param("ss", $title, $message);
+            
+            if ($stmt->execute()) {
+              $count++;
+            }
+            $stmt->close();
+          }
+        }
+        
+        if ($count > 0) {
+          $_SESSION['success'] = "Created {$count} stock alert notification(s).";
+        } else {
+          $_SESSION['info'] = 'No stock alerts needed. All books are adequately stocked.';
+        }
+        
+      } catch (\Exception $e) {
+        error_log("Error checking stock notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to check stock notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Clear Old Notifications (older than 30 days and read)
+   */
+  public function clearOldNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Delete notifications older than 30 days that are read
+        $stmt = $conn->prepare("DELETE FROM notifications WHERE isRead = 1 AND createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+        
+        if ($stmt->execute()) {
+          $deletedCount = $stmt->affected_rows;
+          
+          if ($deletedCount > 0) {
+            $_SESSION['success'] = "Deleted {$deletedCount} old notification(s).";
+            
+            // Log the maintenance activity
+            $this->adminService->logMaintenanceActivity(
+              'Clear Old Notifications',
+              "Deleted {$deletedCount} read notifications older than 30 days",
+              'success'
+            );
+          } else {
+            $_SESSION['info'] = 'No old notifications to delete.';
+          }
+        } else {
+          $_SESSION['error'] = 'Failed to delete old notifications.';
+        }
+        $stmt->close();
+        
+      } catch (\Exception $e) {
+        error_log("Error clearing old notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to clear old notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
+  }
 }
