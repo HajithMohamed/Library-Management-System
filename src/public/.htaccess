@@ -1,8 +1,11 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
     
-    # Handle Front Controller
+    # Redirect trailing slashes
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)/$ /$1 [L,R=301]
+    
+    # Send all requests to index.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]

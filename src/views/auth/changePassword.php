@@ -222,5 +222,69 @@ $stmt->close();
             </div>
         </form>
     </div>
+
+    <script src="<?php echo BASE_URL;?>assets/js/form-validation.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const currentPassword = document.getElementById('currentPassword');
+        const newPassword = document.getElementById('newPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        
+        // Validate passwords
+        newPassword.addEventListener('blur', function() {
+            if (this.value && !validatePassword(this.value)) {
+                showError(this, 'Password must be at least 6 characters');
+            } else {
+                clearError(this);
+            }
+        });
+        
+        confirmPassword.addEventListener('blur', function() {
+            if (this.value && this.value !== newPassword.value) {
+                showError(this, 'Passwords do not match');
+            } else {
+                clearError(this);
+            }
+        });
+        
+        // Form submit validation
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Clear all errors
+            this.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+                el.style.borderColor = '';
+            });
+            this.querySelectorAll('.error-message').forEach(el => el.remove());
+            
+            if (!validateNotEmpty(currentPassword.value)) {
+                showError(currentPassword, 'Current password is required');
+                isValid = false;
+            }
+            
+            if (!validatePassword(newPassword.value)) {
+                showError(newPassword, 'New password must be at least 6 characters');
+                isValid = false;
+            }
+            
+            if (newPassword.value !== confirmPassword.value) {
+                showError(confirmPassword, 'Passwords do not match');
+                isValid = false;
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                
+                const firstError = this.querySelector('.is-invalid');
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }
+            }
+        });
+    });
+    </script>
 </body>
 </html>

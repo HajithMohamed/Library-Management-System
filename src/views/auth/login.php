@@ -203,6 +203,45 @@ include APP_ROOT . '/views/layouts/header.php';
         text-decoration: underline;
     }
 
+    .form-input.is-invalid {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2;
+    }
+
+    .error-message {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .error-message i {
+        margin-top: 2px;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .alert-danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left: 4px solid #10b981;
+    }
+
     /* Responsive */
     @media (max-width: 576px) {
 
@@ -233,26 +272,40 @@ include APP_ROOT . '/views/layouts/header.php';
                     </div>
 
                     <div class="login-body">
+                        <?php if (isset($_SESSION['error'])): ?>
+                            <div class="alert alert-danger" style="padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444;">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <?= htmlspecialchars($_SESSION['error']) ?>
+                            </div>
+                            <?php unset($_SESSION['error']); ?>
+                        <?php endif; ?>
+
                         <form method="POST" action="<?= BASE_URL ?>login">
                             <div class="form-group">
                                 <label for="username" class="form-label">Username</label>
                                 <div class="input-wrapper">
                                     <input type="text"
-                                        class="form-input"
+                                        class="form-input <?= isset($_SESSION['validation_errors']['username']) ? 'is-invalid' : '' ?>"
                                         id="username"
                                         name="username"
                                         placeholder="Enter your username"
                                         required
-                                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+                                        value="<?= htmlspecialchars($_SESSION['form_data']['username'] ?? $_POST['username'] ?? '') ?>">
                                     <i class="fas fa-user input-icon"></i>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['username'])): ?>
+                                    <div class="error-message" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                        <i class="fas fa-exclamation-circle" style="margin-top: 2px;"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['username']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="form-group">
                                 <label for="password" class="form-label">Password</label>
                                 <div class="input-wrapper password-wrapper">
                                     <input type="password"
-                                        class="form-input"
+                                        class="form-input <?= isset($_SESSION['validation_errors']['password']) ? 'is-invalid' : '' ?>"
                                         id="password"
                                         name="password"
                                         placeholder="Enter your password"
@@ -262,6 +315,12 @@ include APP_ROOT . '/views/layouts/header.php';
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
+                                <?php if (isset($_SESSION['validation_errors']['password'])): ?>
+                                    <div class="error-message" style="color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                        <i class="fas fa-exclamation-circle" style="margin-top: 2px;"></i>
+                                        <span><?= htmlspecialchars($_SESSION['validation_errors']['password']) ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <button type="submit" class="btn-login">
@@ -291,6 +350,7 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
     document.getElementById('togglePassword').addEventListener('click', function() {
         const password = document.getElementById('password');
@@ -306,6 +366,47 @@ include APP_ROOT . '/views/layouts/header.php';
             icon.classList.add('fa-eye');
         }
     });
+
+    // Simple validation for login
+    const loginForm = document.querySelector('form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            const username = document.getElementById('username');
+            const password = document.getElementById('password');
+            let isValid = true;
+            
+            // Clear errors
+            this.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+                el.style.borderColor = '';
+            });
+            this.querySelectorAll('.error-message').forEach(el => el.remove());
+            
+            if (!username.value.trim()) {
+                showError(username, 'Username is required');
+                isValid = false;
+            }
+            
+            if (!password.value.trim()) {
+                showError(password, 'Password is required');
+                isValid = false;
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                const firstError = this.querySelector('.is-invalid');
+                if (firstError) {
+                    firstError.focus();
+                }
+            }
+        });
+    }
 </script>
+
+<?php 
+// Clear validation errors and form data after displaying
+unset($_SESSION['validation_errors']);
+unset($_SESSION['form_data']);
+?>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

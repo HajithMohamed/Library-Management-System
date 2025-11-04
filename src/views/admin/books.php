@@ -1697,6 +1697,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 // Sidebar toggle functions (same as dashboard)
 function toggleSidebar() {
@@ -2092,4 +2093,141 @@ function applyFilters() {
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 document.getElementById('publisherFilter').addEventListener('change', applyFilters);
 document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+// Add form validation to Add Book Modal
+document.querySelector('#addBookModal form').addEventListener('submit', function(e) {
+    let isValid = true;
+    
+    // Clear errors
+    this.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+        el.style.borderColor = '';
+    });
+    this.querySelectorAll('.error-message').forEach(el => el.remove());
+    
+    const isbn = this.querySelector('[name="isbn"]');
+    const bookName = this.querySelector('[name="bookName"]');
+    const authorName = this.querySelector('[name="authorName"]');
+    const publisherName = this.querySelector('[name="publisherName"]');
+    const totalCopies = this.querySelector('[name="totalCopies"]');
+    const available = this.querySelector('[name="available"]');
+    
+    // Validate ISBN
+    if (!isbn.value.trim() || isbn.value.length < 10) {
+        showError(isbn, 'ISBN must be at least 10 characters');
+        isValid = false;
+    }
+    
+    // Validate book name
+    if (!bookName.value.trim() || bookName.value.length < 2) {
+        showError(bookName, 'Book title must be at least 2 characters');
+        isValid = false;
+    }
+    
+    // Validate author name
+    if (!authorName.value.trim() || authorName.value.length < 2) {
+        showError(authorName, 'Author name must be at least 2 characters');
+        isValid = false;
+    }
+    
+    // Validate publisher name
+    if (!publisherName.value.trim() || publisherName.value.length < 2) {
+        showError(publisherName, 'Publisher name must be at least 2 characters');
+        isValid = false;
+    }
+    
+    // Validate copies
+    if (parseInt(totalCopies.value) < 1) {
+        showError(totalCopies, 'Total copies must be at least 1');
+        isValid = false;
+    }
+    
+    if (parseInt(available.value) < 0) {
+        showError(available, 'Available copies cannot be negative');
+        isValid = false;
+    }
+    
+    if (parseInt(available.value) > parseInt(totalCopies.value)) {
+        showError(available, 'Available copies cannot exceed total copies');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        const firstError = this.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+    }
+});
+
+// Add form validation to Edit Book Modal
+document.querySelector('#editBookModal form').addEventListener('submit', function(e) {
+    // Same validation as Add Book Modal
+    let isValid = true;
+    
+    this.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+        el.style.borderColor = '';
+    });
+    this.querySelectorAll('.error-message').forEach(el => el.remove());
+    
+    const bookName = this.querySelector('[name="bookName"]');
+    const authorName = this.querySelector('[name="authorName"]');
+    const publisherName = this.querySelector('[name="publisherName"]');
+    const totalCopies = this.querySelector('[name="totalCopies"]');
+    const available = this.querySelector('[name="available"]');
+    
+    if (!bookName.value.trim() || bookName.value.length < 2) {
+        showError(bookName, 'Book title must be at least 2 characters');
+        isValid = false;
+    }
+    
+    if (!authorName.value.trim() || authorName.value.length < 2) {
+        showError(authorName, 'Author name must be at least 2 characters');
+        isValid = false;
+    }
+    
+    if (!publisherName.value.trim() || publisherName.value.length < 2) {
+        showError(publisherName, 'Publisher name must be at least 2 characters');
+        isValid = false;
+    }
+    
+    if (parseInt(totalCopies.value) < 1) {
+        showError(totalCopies, 'Total copies must be at least 1');
+        isValid = false;
+    }
+    
+    if (parseInt(available.value) < 0) {
+        showError(available, 'Available copies cannot be negative');
+        isValid = false;
+    }
+    
+    if (parseInt(available.value) > parseInt(totalCopies.value)) {
+        showError(available, 'Available copies cannot exceed total copies');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        const firstError = this.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+    }
+});
+
+// Error display function
+function showError(input, message) {
+    input.classList.add('is-invalid');
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'error-message';
+    errorMessage.style.color = '#dc3545';
+    errorMessage.style.fontSize = '0.875rem';
+    errorMessage.style.marginTop = '0.25rem';
+    errorMessage.textContent = message;
+    input.parentElement.appendChild(errorMessage);
+}
 </script>

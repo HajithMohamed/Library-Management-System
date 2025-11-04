@@ -701,6 +701,13 @@ class User extends BaseModel
             $types .= 's';
         }
 
+        // Handle profile image update
+        if (isset($data['profileImage'])) {
+            $fields[] = "profileImage = ?";
+            $values[] = $data['profileImage'];
+            $types .= 's';
+        }
+
         if (empty($fields)) {
             return false;
         }

@@ -1324,9 +1324,50 @@ class AdminService
    */
   public function getBackupHistory($limit = 10)
   {
-    // This would require a backups table
-    // For now, return empty array
-    return [];
+    global $conn;
+
+    try {
+      // Check if backups table exists
+      if (!$this->tableExists('database_backups')) {
+        return [];
+      }
+
+      $sql = "SELECT * FROM database_backups ORDER BY created_at DESC LIMIT ?";
+      $stmt = $conn->prepare($sql);
+      $stmt->bind_param("i", $limit);
+      $stmt->execute();
+      $result = $stmt->get_result();
+
+      $backups = [];
+      while ($row = $result->fetch_assoc()) {
+        $backups[] = [
+          'filename' => $row['filename'] ?? 'backup.sql',
+          'size' => $this->formatBytes($row['size'] ?? 0),
+          'date' => $row['created_at'] ?? date('Y-m-d H:i:s')
+        ];
+      }
+
+      return $backups;
+    } catch (\Exception $e) {
+      error_log("Error getting backup history: " . $e->getMessage());
+      return [];
+    }
+  }
+
+  /**
+   * Format bytes to human readable format
+   */
+  private function formatBytes($bytes, $precision = 2)
+  {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+
+    $bytes /= pow(1024, $pow);
+
+    return round($bytes, $precision) . ' ' . $units[$pow];
   }
 
   /**
@@ -1337,7 +1378,12 @@ class AdminService
     global $conn;
 
     try {
-      $sql = "SELECT * FROM audit_logs WHERE action LIKE '%MAINTENANCE%' ORDER BY createdAt DESC LIMIT ?";
+      // Check if maintenance_logs table exists
+      if (!$this->tableExists('maintenance_logs')) {
+        return [];
+      }
+
+      $sql = "SELECT * FROM maintenance_logs ORDER BY createdAt DESC LIMIT ?";
       $stmt = $conn->prepare($sql);
       $stmt->bind_param("i", $limit);
       $stmt->execute();
@@ -1345,7 +1391,13 @@ class AdminService
 
       $logs = [];
       while ($row = $result->fetch_assoc()) {
-        $logs[] = $row;
+        $logs[] = [
+          'action' => $row['action'] ?? 'Unknown',
+          'description' => $row['description'] ?? '',
+          'performedBy' => $row['performedBy'] ?? 'System',
+          'status' => $row['status'] ?? 'success',
+          'createdAt' => $row['createdAt'] ?? date('Y-m-d H:i:s')
+        ];
       }
 
       return $logs;
@@ -1360,9 +1412,88 @@ class AdminService
    */
   public function createDatabaseBackup($backupType = 'manual')
   {
-    // This would require mysqldump or similar
-    // Implementation depends on server environment
-    return false;
+    global $conn;
+
+    try {
+      $database = DB_NAME;
+      $timestamp = date('Y-m-d_H-i-s');
+      $filename = "backup_{$database}_{$timestamp}.sql";
+      $backupDir = APP_ROOT . '/backups/';
+
+      // Create backups directory if it doesn't exist
+      if (!is_dir($backupDir)) {
+        mkdir($backupDir, 0777, true);
+      }
+
+      $filepath = $backupDir . $filename;
+
+      // Get all tables
+      $tables = [];
+      $result = $conn->query("SHOW TABLES");
+      while ($row = $result->fetch_row()) {
+        $tables[] = $row[0];
+      }
+
+      // Start building SQL
+      $sqlContent = "-- Database Backup\n";
+      $sqlContent .= "-- Type: {$backupType}\n";
+      $sqlContent .= "-- Date: " . date('Y-m-d H:i:s') . "\n\n";
+      $sqlContent .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
+
+      foreach ($tables as $table) {
+        // Get table structure
+        $result = $conn->query("SHOW CREATE TABLE `{$table}`");
+        $row = $result->fetch_row();
+        $sqlContent .= "-- Table: {$table}\n";
+        $sqlContent .= "DROP TABLE IF EXISTS `{$table}`;\n";
+        $sqlContent .= $row[1] . ";\n\n";
+
+        // Get table data
+        $result = $conn->query("SELECT * FROM `{$table}`");
+        if ($result->num_rows > 0) {
+          while ($row = $result->fetch_assoc()) {
+            $values = array_map(function ($value) use ($conn) {
+              return is_null($value) ? 'NULL' : "'" . $conn->real_escape_string($value) . "'";
+            }, array_values($row));
+
+            $sqlContent .= "INSERT INTO `{$table}` VALUES (" . implode(', ', $values) . ");\n";
+          }
+          $sqlContent .= "\n";
+        }
+      }
+
+      $sqlContent .= "SET FOREIGN_KEY_CHECKS=1;\n";
+
+      // Write to file
+      if (file_put_contents($filepath, $sqlContent)) {
+        $filesize = filesize($filepath);
+
+        // Log backup if table exists
+        if ($this->tableExists('database_backups')) {
+          $stmt = $conn->prepare("INSERT INTO database_backups (filename, filepath, size, backup_type, created_at) VALUES (?, ?, ?, ?, NOW())");
+          $stmt->bind_param("ssis", $filename, $filepath, $filesize, $backupType);
+          $stmt->execute();
+        }
+
+        // Log maintenance activity
+        $this->logMaintenanceActivity('Database Backup', "Created {$backupType} backup: {$filename}", 'success');
+
+        return [
+          'success' => true,
+          'message' => "Backup created successfully: {$filename}"
+        ];
+      } else {
+        throw new \Exception("Failed to write backup file");
+      }
+    } catch (\Exception $e) {
+      error_log("Error creating database backup: " . $e->getMessage());
+      $this->logMaintenanceActivity('Database Backup', "Failed to create backup: " . $e->getMessage(), 'failed');
+      
+      return [
+        'success' => false,
+        'message' => 'Failed to create backup: ' . $e->getMessage()
+      ];
+    }
   }
 
   /**
@@ -1374,16 +1505,32 @@ class AdminService
 
     foreach ($tasks as $task) {
       switch ($task) {
-        case 'update_fines':
-          $results[$task] = $this->updateAllFines();
+        case 'clear_cache':
+          $results[$task] = $this->clearCache();
           break;
 
-        case 'clean_expired_tokens':
-          $results[$task] = $this->cleanExpiredTokens();
+        case 'clear_logs':
+          $results[$task] = $this->clearOldLogs();
           break;
 
-        case 'optimize_tables':
+        case 'clear_notifications':
+          $results[$task] = $this->clearOldNotifications();
+          break;
+
+        case 'optimize_database':
           $results[$task] = $this->optimizeTables();
+          break;
+
+        case 'check_out_of_stock':
+          $results[$task] = $this->checkOutOfStock();
+          break;
+
+        case 'check_overdue':
+          $results[$task] = $this->checkOverdueBooks();
+          break;
+
+        case 'update_statistics':
+          $results[$task] = $this->updateStatistics();
           break;
 
         default:
@@ -1395,20 +1542,187 @@ class AdminService
   }
 
   /**
-   * Clean expired tokens
+   * Clear cache files
    */
-  private function cleanExpiredTokens()
+  private function clearCache()
+  {
+    try {
+      $cacheDir = APP_ROOT . '/cache/';
+      if (!is_dir($cacheDir)) {
+        return 0;
+      }
+
+      $count = 0;
+      $files = glob($cacheDir . '*');
+      foreach ($files as $file) {
+        if (is_file($file)) {
+          unlink($file);
+          $count++;
+        }
+      }
+
+      $this->logMaintenanceActivity('Clear Cache', "Cleared {$count} cache files", 'success');
+      return $count;
+    } catch (\Exception $e) {
+      error_log("Error clearing cache: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Clear old logs (older than 30 days)
+   */
+  private function clearOldLogs()
   {
     global $conn;
 
     try {
-      $stmt = $conn->prepare("UPDATE users SET verificationToken = NULL, otp = NULL WHERE otpExpiry < NOW()");
-      $stmt->execute();
+      if (!$this->tableExists('maintenance_logs')) {
+        return 0;
+      }
 
-      return $stmt->affected_rows;
+      $stmt = $conn->prepare("DELETE FROM maintenance_logs WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+      $stmt->execute();
+      $count = $stmt->affected_rows;
+
+      $this->logMaintenanceActivity('Clear Logs', "Deleted {$count} old log entries", 'success');
+      return $count;
     } catch (\Exception $e) {
-      error_log("Error cleaning expired tokens: " . $e->getMessage());
+      error_log("Error clearing old logs: " . $e->getMessage());
       return 0;
+    }
+  }
+
+  /**
+   * Clear old notifications (older than 30 days)
+   */
+  private function clearOldNotifications()
+  {
+    global $conn;
+
+    try {
+      if (!$this->notificationsTableExists()) {
+        return 0;
+      }
+
+      $stmt = $conn->prepare("DELETE FROM notifications WHERE isRead = 1 AND createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+      $stmt->execute();
+      $count = $stmt->affected_rows;
+
+      $this->logMaintenanceActivity('Clear Notifications', "Deleted {$count} old notifications", 'success');
+      return $count;
+    } catch (\Exception $e) {
+      error_log("Error clearing old notifications: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Check for out of stock books and create notifications
+   */
+  private function checkOutOfStock()
+  {
+    global $conn;
+
+    try {
+      $result = $conn->query("SELECT * FROM books WHERE available <= 0");
+      $count = 0;
+
+      if ($result && $this->notificationsTableExists()) {
+        while ($book = $result->fetch_assoc()) {
+          // Create admin notification
+          $title = "Book Out of Stock";
+          $message = "The book '{$book['bookName']}' (ISBN: {$book['isbn']}) is out of stock.";
+          
+          $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (NULL, ?, ?, 'system', 'high', NOW())");
+          $stmt->bind_param("ss", $title, $message);
+          $stmt->execute();
+          $count++;
+        }
+      }
+
+      $this->logMaintenanceActivity('Check Out of Stock', "Generated {$count} notifications for out of stock books", 'success');
+      return $count;
+    } catch (\Exception $e) {
+      error_log("Error checking out of stock: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Check for overdue books and create notifications
+   */
+  private function checkOverdueBooks()
+  {
+    global $conn;
+
+    try {
+      $overdueTransactions = $this->transactionModel->getOverdueTransactions();
+      $count = 0;
+
+      if ($this->notificationsTableExists()) {
+        foreach ($overdueTransactions as $txn) {
+          $daysOverdue = floor((time() - strtotime($txn['borrowDate'])) / (60 * 60 * 24)) - 14;
+          
+          $title = "Overdue Book Reminder";
+          $message = "Your borrowed book '{$txn['bookName']}' is overdue by {$daysOverdue} days. Please return it to avoid additional fines.";
+          
+          $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (?, ?, ?, 'system', 'high', NOW())");
+          $stmt->bind_param("sss", $txn['userId'], $title, $message);
+          $stmt->execute();
+          $count++;
+        }
+      }
+
+      $this->logMaintenanceActivity('Check Overdue', "Generated {$count} notifications for overdue books", 'success');
+      return $count;
+    } catch (\Exception $e) {
+      error_log("Error checking overdue books: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Update book borrowing statistics
+   */
+  private function updateStatistics()
+  {
+    global $conn;
+
+    try {
+      $count = 0;
+
+      // Update popular books count
+      $conn->query("UPDATE books b SET b.borrowCount = (SELECT COUNT(*) FROM transactions t WHERE t.isbn = b.isbn)");
+      $count += $conn->affected_rows;
+
+      $this->logMaintenanceActivity('Update Statistics', "Updated statistics for {$count} books", 'success');
+      return $count;
+    } catch (\Exception $e) {
+      error_log("Error updating statistics: " . $e->getMessage());
+      return 0;
+    }
+  }
+
+  /**
+   * Log maintenance activity (make public if currently private)
+   */
+  public function logMaintenanceActivity($action, $description, $status = 'success')
+  {
+    global $conn;
+
+    try {
+      if (!$this->tableExists('maintenance_logs')) {
+        return;
+      }
+
+      $performedBy = $_SESSION['userId'] ?? 'System';
+      
+      $stmt = $conn->prepare("INSERT INTO maintenance_logs (action, description, performedBy, status, createdAt) VALUES (?, ?, ?, ?, NOW())");
+      $stmt->bind_param("ssss", $action, $description, $performedBy, $status);
+      $stmt->execute();
+    } catch (\Exception $e) {
+      error_log("Error logging maintenance activity: " . $e->getMessage());
     }
   }
 

@@ -999,25 +999,41 @@ $unreadCount = count(array_filter($notifications, fn($n) => !$n['isRead']));
 
     function markAllAsRead() {
         if (confirm('Mark all notifications as read?')) {
-            window.location.href = '<?= BASE_URL ?>admin/notifications/mark-all-read';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?= BASE_URL ?>admin/notifications/mark-all-read';
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 
     function checkOverdueNotifications() {
         if (confirm('Check for overdue notifications?')) {
-            window.location.href = '<?= BASE_URL ?>admin/notifications/check-overdue';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?= BASE_URL ?>admin/notifications/check-overdue';
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 
     function checkOutOfStockNotifications() {
         if (confirm('Check for out of stock notifications?')) {
-            window.location.href = '<?= BASE_URL ?>admin/notifications/check-stock';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?= BASE_URL ?>admin/notifications/check-stock';
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 
     function clearOldNotifications() {
         if (confirm('Clear notifications older than 30 days? This cannot be undone.')) {
-            window.location.href = '<?= BASE_URL ?>admin/notifications/clear-old';
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?= BASE_URL ?>admin/notifications/clear-old';
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 

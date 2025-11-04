@@ -270,14 +270,17 @@ $totalAmount = $amount ?? 0;
         font-size: 0.875rem;
         margin-top: 0.5rem;
         display: none;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .error-message i {
+        margin-top: 2px;
     }
     
     .form-control.is-invalid {
-        border-color: #ef4444;
-    }
-    
-    .form-control.is-invalid + .error-message {
-        display: block;
+        border-color: #ef4444 !important;
+        background-color: #fef2f2;
     }
     
     @media (max-width: 768px) {
@@ -470,6 +473,7 @@ $totalAmount = $amount ?? 0;
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('paymentForm');
@@ -527,16 +531,41 @@ document.addEventListener('DOMContentLoaded', function() {
         cardNameInput.required = required;
     }
     
-    // Format card number
+    // Format card number - IMPROVED
     if (cardNumberInput) {
         cardNumberInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\s+/g, '').replace(/\D/g, '');
             let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
             e.target.value = formattedValue;
+            
+            // Real-time validation
+            if (value.length >= 13) {
+                if (!validateCardNumber(value)) {
+                    this.classList.add('is-invalid');
+                    const errorMsg = this.parentElement.querySelector('.error-message');
+                    if (errorMsg) errorMsg.style.display = 'block';
+                } else {
+                    this.classList.remove('is-invalid');
+                    const errorMsg = this.parentElement.querySelector('.error-message');
+                    if (errorMsg) errorMsg.style.display = 'none';
+                }
+            }
+        });
+        
+        cardNumberInput.addEventListener('blur', function() {
+            const value = this.value.replace(/\s+/g, '');
+            if (value && !validateCardNumber(value)) {
+                this.classList.add('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.textContent = 'Invalid card number';
+                    errorMsg.style.display = 'block';
+                }
+            }
         });
     }
     
-    // Format expiry date
+    // Format expiry date - IMPROVED
     if (expiryDateInput) {
         expiryDateInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
@@ -544,20 +573,99 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = value.slice(0, 2) + '/' + value.slice(2, 4);
             }
             e.target.value = value;
+            
+            // Real-time validation
+            if (value.length === 5) {
+                if (!validateExpiryDate(value)) {
+                    this.classList.add('is-invalid');
+                    const errorMsg = this.parentElement.querySelector('.error-message');
+                    if (errorMsg) errorMsg.style.display = 'block';
+                } else {
+                    this.classList.remove('is-invalid');
+                    const errorMsg = this.parentElement.querySelector('.error-message');
+                    if (errorMsg) errorMsg.style.display = 'none';
+                }
+            }
+        });
+        
+        expiryDateInput.addEventListener('blur', function() {
+            if (this.value && !validateExpiryDate(this.value)) {
+                this.classList.add('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.textContent = 'Card expired or invalid date';
+                    errorMsg.style.display = 'block';
+                }
+            }
         });
     }
     
-    // CVV validation
+    // CVV validation - IMPROVED
     if (cvvInput) {
         cvvInput.addEventListener('input', function(e) {
             e.target.value = e.target.value.replace(/\D/g, '');
+            
+            // Real-time validation
+            if (this.value.length >= 3) {
+                if (!/^\d{3,4}$/.test(this.value)) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
+                    const errorMsg = this.parentElement.querySelector('.error-message');
+                    if (errorMsg) errorMsg.style.display = 'none';
+                }
+            }
+        });
+        
+        cvvInput.addEventListener('blur', function() {
+            if (this.value && !/^\d{3,4}$/.test(this.value)) {
+                this.classList.add('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.textContent = 'CVV must be 3-4 digits';
+                    errorMsg.style.display = 'block';
+                }
+            }
         });
     }
     
-    // Card name validation
+    // Card name validation - IMPROVED
     if (cardNameInput) {
         cardNameInput.addEventListener('input', function(e) {
             e.target.value = e.target.value.replace(/[^a-zA-Z\s]/g, '').toUpperCase();
+        });
+        
+        cardNameInput.addEventListener('blur', function() {
+            if (this.value.trim().length < 3) {
+                this.classList.add('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.textContent = 'Name must be at least 3 characters';
+                    errorMsg.style.display = 'block';
+                }
+            } else {
+                this.classList.remove('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) errorMsg.style.display = 'none';
+            }
+        });
+    }
+    
+    // UPI ID validation
+    if (upiIdInput) {
+        upiIdInput.addEventListener('blur', function() {
+            if (this.value && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(this.value)) {
+                this.classList.add('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) {
+                    errorMsg.textContent = 'Invalid UPI ID format (e.g., username@upi)';
+                    errorMsg.style.display = 'block';
+                }
+            } else {
+                this.classList.remove('is-invalid');
+                const errorMsg = this.parentElement.querySelector('.error-message');
+                if (errorMsg) errorMsg.style.display = 'none';
+            }
         });
     }
     
@@ -592,65 +700,67 @@ document.addEventListener('DOMContentLoaded', function() {
         const [month, year] = expiryDate.split('/');
         const expiry = new Date(2000 + parseInt(year), parseInt(month) - 1);
         const now = new Date();
+        const currentMonth = new Date(now.getFullYear(), now.getMonth());
         
-        return expiry >= now;
+        return expiry >= currentMonth;
     }
     
-    // Form validation
+    // Form validation - COMPREHENSIVE
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
         let isValid = true;
         const errors = [];
         
+        // Clear all previous errors
+        document.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+            el.style.borderColor = '';
+        });
+        document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+        
         // Check if using saved card
         const usingSavedCard = document.querySelector('input[name="saved_card"]:checked');
         
         if (!usingSavedCard && paymentMethodInput.value !== 'upi') {
             // Validate card name
-            if (cardNameInput.value.trim().length < 3) {
-                cardNameInput.classList.add('is-invalid');
-                errors.push('Cardholder name is required');
+            if (!cardNameInput.value.trim() || cardNameInput.value.trim().length < 3) {
+                showError(cardNameInput, 'Cardholder name must be at least 3 characters');
                 isValid = false;
-            } else {
-                cardNameInput.classList.remove('is-invalid');
             }
             
             // Validate card number
-            if (!validateCardNumber(cardNumberInput.value)) {
-                cardNumberInput.classList.add('is-invalid');
-                errors.push('Invalid card number');
+            const cardNumber = cardNumberInput.value.replace(/\s+/g, '');
+            if (!cardNumber || !validateCardNumber(cardNumber)) {
+                showError(cardNumberInput, 'Invalid card number (fails Luhn check)');
                 isValid = false;
-            } else {
-                cardNumberInput.classList.remove('is-invalid');
             }
             
             // Validate expiry date
-            if (!validateExpiryDate(expiryDateInput.value)) {
-                expiryDateInput.classList.add('is-invalid');
-                errors.push('Invalid or expired card');
+            if (!expiryDateInput.value || !validateExpiryDate(expiryDateInput.value)) {
+                showError(expiryDateInput, 'Card has expired or invalid date format');
                 isValid = false;
-            } else {
-                expiryDateInput.classList.remove('is-invalid');
             }
             
             // Validate CVV
-            if (!/^\d{3,4}$/.test(cvvInput.value)) {
-                cvvInput.classList.add('is-invalid');
-                errors.push('Invalid CVV');
+            if (!cvvInput.value || !/^\d{3,4}$/.test(cvvInput.value)) {
+                showError(cvvInput, 'CVV must be 3-4 digits');
                 isValid = false;
-            } else {
-                cvvInput.classList.remove('is-invalid');
             }
         } else if (!usingSavedCard && paymentMethodInput.value === 'upi') {
             // Validate UPI ID
-            if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(upiIdInput.value)) {
-                upiIdInput.classList.add('is-invalid');
-                errors.push('Invalid UPI ID format');
+            if (!upiIdInput.value || !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/.test(upiIdInput.value)) {
+                showError(upiIdInput, 'Invalid UPI ID format (e.g., username@upi)');
                 isValid = false;
-            } else {
-                upiIdInput.classList.remove('is-invalid');
             }
+        }
+        
+        // Check terms checkbox
+        const termsCheckbox = document.getElementById('terms');
+        if (!termsCheckbox.checked) {
+            alert('⚠️ You must agree to the terms and conditions');
+            termsCheckbox.focus();
+            isValid = false;
         }
         
         if (isValid) {
@@ -659,7 +769,12 @@ document.addEventListener('DOMContentLoaded', function() {
             payBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Payment...';
             form.submit();
         } else {
-            alert('Please correct the following errors:\n' + errors.join('\n'));
+            // Scroll to first error
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
         }
     });
 });

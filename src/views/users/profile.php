@@ -500,13 +500,15 @@ include APP_ROOT . '/views/layouts/header.php';
                             </div>
                         </div>
 
-                        <form method="POST" action="<?= BASE_URL ?>user/profile" enctype="multipart/form-data">
+                        <form method="POST" action="<?= BASE_URL ?>faculty/profile" enctype="multipart/form-data">
+                            <input type="hidden" name="update_profile" value="1">
+                            
                             <!-- Basic Info Grid -->
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-id-card"></i>
-                                        Student ID
+                                        Faculty ID
                                     </label>
                                     <input type="text" 
                                            class="form-input" 
@@ -521,16 +523,15 @@ include APP_ROOT . '/views/layouts/header.php';
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-user"></i>
-                                        Username
+                                        Name <span class="required-star">*</span>
                                     </label>
-                                    <input type="text" 
-                                           class="form-input" 
-                                           value="<?= htmlspecialchars($user['username'] ?? '') ?>" 
-                                           disabled>
-                                    <span class="disabled-badge">
-                                        <i class="fas fa-lock"></i>
-                                        Cannot be changed
-                                    </span>
+                                    <input id="name"
+                                           name="name" 
+                                           type="text" 
+                                           class="form-input"
+                                           placeholder="Enter your full name"
+                                           required 
+                                           value="<?= htmlspecialchars($user['username'] ?? '') ?>">
                                 </div>
                             </div>
 
@@ -545,7 +546,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                            name="profileImage" 
                                            type="file" 
                                            class="form-file"
-                                           accept="image/jpeg,image/png">
+                                           accept="image/jpeg,image/png,image/jpg">
                                 </div>
                             </div>
 
@@ -557,7 +558,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                         Email Address <span class="required-star">*</span>
                                     </label>
                                     <input id="emailId" 
-                                           name="emailId" 
+                                           name="email" 
                                            type="email" 
                                            class="form-input"
                                            placeholder="your.email@example.com"
@@ -643,16 +644,121 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 // Image preview functionality
 document.getElementById('profileImage').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('File size must be less than 2 MB');
+            this.value = '';
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+            alert('Only JPG and PNG images are allowed');
+            this.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
             document.getElementById('profilePreview').src = e.target.result;
         };
         reader.readAsDataURL(file);
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    let isValid = true;
+    
+    // Clear errors
+    this.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+        el.style.borderColor = '';
+    });
+    this.querySelectorAll('.error-message').forEach(el => el.remove());
+    
+    const emailId = document.getElementById('emailId');
+    const phoneNumber = document.getElementById('phoneNumber');
+    const dob = document.getElementById('dob');
+    const address = document.getElementById('address');
+    const gender = document.getElementById('gender');
+    
+    // Validate email
+    if (!emailId.value || !validateEmail(emailId.value)) {
+        showError(emailId, 'Please enter a valid email address');
+        isValid = false;
+    }
+    
+    // Validate phone
+    if (!phoneNumber.value || !validatePhone(phoneNumber.value)) {
+        showError(phoneNumber, 'Please enter a valid phone number');
+        isValid = false;
+    }
+    
+    // Validate DOB
+    if (dob.value && !validateDOB(dob.value)) {
+        showError(dob, 'You must be at least 13 years old');
+        isValid = false;
+    }
+    
+    // Validate address
+    if (!address.value.trim() || address.value.trim().length < 10) {
+        showError(address, 'Address must be at least 10 characters');
+        isValid = false;
+    }
+    
+    // Validate gender
+    if (!gender.value) {
+        showError(gender, 'Please select your gender');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        const firstError = this.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+    }
+});
+
+// Real-time validation
+document.getElementById('emailId').addEventListener('blur', function() {
+    if (this.value && !validateEmail(this.value)) {
+        showError(this, 'Please enter a valid email address');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('phoneNumber').addEventListener('blur', function() {
+    if (this.value && !validatePhone(this.value)) {
+        showError(this, 'Please enter a valid phone number');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('dob').addEventListener('blur', function() {
+    if (this.value && !validateDOB(this.value)) {
+        showError(this, 'You must be at least 13 years old');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('address').addEventListener('blur', function() {
+    if (this.value && this.value.trim().length < 10) {
+        showError(this, 'Address must be at least 10 characters');
+    } else {
+        clearError(this);
     }
 });
 </script>

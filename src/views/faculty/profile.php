@@ -647,16 +647,136 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
 // Image preview functionality
 document.getElementById('profileImage').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('File size must be less than 2 MB');
+            this.value = '';
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+            alert('Only JPG and PNG images are allowed');
+            this.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
             document.getElementById('profilePreview').src = e.target.result;
         };
         reader.readAsDataURL(file);
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    let isValid = true;
+    
+    // Clear errors
+    this.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+        el.style.borderColor = '';
+    });
+    this.querySelectorAll('.error-message').forEach(el => el.remove());
+    
+    const name = document.getElementById('name');
+    const email = document.getElementById('email');
+    const phoneNumber = document.getElementById('phoneNumber');
+    const dob = document.getElementById('dob');
+    const address = document.getElementById('address');
+    const gender = document.getElementById('gender');
+    
+    // Validate name
+    if (!name.value.trim() || name.value.length < 2) {
+        showError(name, 'Name must be at least 2 characters');
+        isValid = false;
+    }
+    
+    // Validate email
+    if (!email.value || !validateEmail(email.value)) {
+        showError(email, 'Please enter a valid email address');
+        isValid = false;
+    }
+    
+    // Validate phone
+    if (!phoneNumber.value || !validatePhone(phoneNumber.value)) {
+        showError(phoneNumber, 'Please enter a valid phone number');
+        isValid = false;
+    }
+    
+    // Validate DOB
+    if (dob.value && !validateDOB(dob.value)) {
+        showError(dob, 'You must be at least 13 years old');
+        isValid = false;
+    }
+    
+    // Validate address
+    if (!address.value.trim() || address.value.trim().length < 10) {
+        showError(address, 'Address must be at least 10 characters');
+        isValid = false;
+    }
+    
+    // Validate gender
+    if (!gender.value) {
+        showError(gender, 'Please select your gender');
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        const firstError = this.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+    }
+});
+
+// Real-time validation
+document.getElementById('name').addEventListener('blur', function() {
+    if (this.value && this.value.trim().length < 2) {
+        showError(this, 'Name must be at least 2 characters');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('email').addEventListener('blur', function() {
+    if (this.value && !validateEmail(this.value)) {
+        showError(this, 'Please enter a valid email address');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('phoneNumber').addEventListener('blur', function() {
+    if (this.value && !validatePhone(this.value)) {
+        showError(this, 'Please enter a valid phone number');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('dob').addEventListener('blur', function() {
+    if (this.value && !validateDOB(this.value)) {
+        showError(this, 'You must be at least 13 years old');
+    } else {
+        clearError(this);
+    }
+});
+
+document.getElementById('address').addEventListener('blur', function() {
+    if (this.value && this.value.trim().length < 10) {
+        showError(this, 'Address must be at least 10 characters');
+    } else {
+        clearError(this);
     }
 });
 </script>

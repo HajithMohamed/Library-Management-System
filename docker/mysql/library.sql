@@ -590,7 +590,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `library_hours` WHERE dayOfWeek = 'Sunday');
 -- FIXED: Updated all dates to 2025
 -- ====================================================================
 INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gender`, `dob`, `emailId`, `phoneNumber`, `address`, `profileImage`, `isVerified`, `createdAt`) VALUES
-('USR001', 'student', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
+('USR001', 'student', '$2a$12$GDs.KTZ/lCabnyH2v41aK.vr.tuulNvqf8RiHZFyQsivHaQM8ysc.', 'Student', 'Male', '2002-05-15', 'john.smith@university.edu', '555-0101', '123 Campus Drive, Dorm A, Room 201', 'profile1.jpg', 1, '2025-01-15 09:30:00'),
 ('USR002', 'emily_chen', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-08-22', 'emily.chen@university.edu', '555-0102', '456 University Ave, Dorm B, Room 305', 'profile2.jpg', 1, '2025-01-16 10:15:00'),
 ('USR003', 'michael_brown', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Male', '2002-11-30', 'michael.brown@university.edu', '555-0103', '789 College Blvd, Dorm C, Room 102', 'profile3.jpg', 1, '2025-01-17 11:20:00'),
 ('USR004', 'sarah_davis', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Student', 'Female', '2003-03-18', 'sarah.davis@university.edu', '555-0104', '321 Student Lane, Dorm A, Room 410', 'profile4.jpg', 1, '2025-01-18 14:30:00'),
@@ -605,10 +605,10 @@ INSERT IGNORE INTO `users` (`userId`, `username`, `password`, `userType`, `gende
 ('FAC003', 'dr_william_lee', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1975-11-08', 'w.lee@university.edu', '555-0203', '1003 Faculty Housing, Building A', 'profile_fac3.jpg', 1, '2024-08-01 08:00:00'),
 ('FAC004', 'prof_patricia_martinez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Female', '1980-05-30', 'p.martinez@university.edu', '555-0204', '1004 Faculty Housing, Building C', 'profile_fac4.jpg', 1, '2024-08-01 08:00:00'),
 ('FAC005', 'dr_charles_white', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Faculty', 'Male', '1979-09-16', 'c.white@university.edu', '555-0205', '1005 Faculty Housing, Building B', 'profile_fac5.jpg', 1, '2024-08-01 08:00:00'),
-('LIB001', 'lib', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Faculty', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
+('LIB001', 'lib', '$2a$12$GDs.KTZ/lCabnyH2v41aK.vr.tuulNvqf8RiHZFyQsivHaQM8ysc.', 'Faculty', 'Female', '1985-06-12', 'susan.librarian@university.edu', '555-0301', '2001 Staff Quarters, Block A', 'profile_lib1.jpg', 1, '2023-06-01 08:00:00'),
 ('LIB002', 'librarian_mark', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Male', '1988-02-28', 'mark.librarian@university.edu', '555-0302', '2002 Staff Quarters, Block B', 'profile_lib2.jpg', 1, '2023-06-01 08:00:00'),
 ('LIB003', 'librarian_nancy', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Librarian', 'Female', '1990-10-19', 'nancy.librarian@university.edu', '555-0303', '2003 Staff Quarters, Block A', 'profile_lib3.jpg', 1, '2024-01-15 08:00:00'),
-('ADM001', 'admin', '$2a$12$VI3YXTWXCDaLz6rFU2PQEe6TyGxENyR085V2y1Jhbh8lS1TQq26wm', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
+('ADM001', 'admin', '$2a$12$GDs.KTZ/lCabnyH2v41aK.vr.tuulNvqf8RiHZFyQsivHaQM8ysc.', 'Admin', 'Male', '1975-04-05', 'richard.admin@university.edu', '555-0401', '3001 Admin Building, Office 101', 'profile_adm1.jpg', 1, '2022-01-01 08:00:00'),
 ('ADM002', 'admin_jennifer', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Admin', 'Female', '1980-12-21', 'jennifer.admin@university.edu', '555-0402', '3002 Admin Building, Office 102', 'profile_adm2.jpg', 1, '2022-01-01 08:00:00');
 
 -- ====================================================================

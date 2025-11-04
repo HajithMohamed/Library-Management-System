@@ -3,17 +3,21 @@
 namespace App\Controllers;
 
 use App\Services\AdminService;
+use App\Services\AuthService; // ADDED: Import AuthService
 use App\Helpers\AuthHelper;
+use App\Helpers\ValidationHelper; // FIXED: Add this
 
 class AdminController
 {
   private $adminService;
   private $authHelper;
+  private $authService; // ADDED: AuthService instance
 
   public function __construct()
   {
     $this->adminService = new AdminService();
     $this->authHelper = new AuthHelper();
+    $this->authService = new AuthService(); // ADDED: Initialize AuthService
   }
 
   /**
@@ -179,6 +183,161 @@ class AdminController
     }
 
     global $conn;
+
+    // Handle POST requests
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $action = $_POST['action'] ?? 'add';
+
+      if ($action === 'edit') {
+        // Handle edit user
+        $userId = trim($_POST['userId'] ?? '');
+        $username = trim($_POST['username'] ?? '');
+        $emailId = trim($_POST['emailId'] ?? '');
+        $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+        $userType = $_POST['userType'] ?? 'Student';
+        $gender = $_POST['gender'] ?? '';
+        $dob = $_POST['dob'] ?? '';
+        $address = $_POST['address'] ?? '';
+        $isVerified = isset($_POST['isVerified']) ? 1 : 0;
+        $newPassword = $_POST['new_password'] ?? '';
+
+        // Validate required fields
+        if (empty($userId) || empty($username) || empty($emailId) || empty($phoneNumber)) {
+          $_SESSION['error'] = 'Please fill all required fields.';
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+
+        // Check if username or email already exists for other users
+        $checkStmt = $conn->prepare("SELECT userId FROM users WHERE (username = ? OR emailId = ?) AND userId != ?");
+        $checkStmt->bind_param("sss", $username, $emailId, $userId);
+        $checkStmt->execute();
+        if ($checkStmt->get_result()->num_rows > 0) {
+          $_SESSION['error'] = 'Username or email already exists.';
+          $checkStmt->close();
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+        $checkStmt->close();
+
+        // Update user (without password if not provided)
+        if (!empty($newPassword)) {
+          $hashedPassword = $this->authHelper->hashPassword($newPassword);
+          $updateStmt = $conn->prepare("
+            UPDATE users 
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, password = ?, updatedAt = NOW()
+            WHERE userId = ?
+          ");
+          $updateStmt->bind_param("ssssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $hashedPassword, $userId);
+        } else {
+          $updateStmt = $conn->prepare("
+            UPDATE users 
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, updatedAt = NOW()
+            WHERE userId = ?
+          ");
+          $updateStmt->bind_param("sssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $userId);
+        }
+
+        if ($updateStmt->execute()) {
+          $_SESSION['success'] = "User '{$username}' updated successfully!";
+        } else {
+          $_SESSION['error'] = 'Failed to update user. Please try again.';
+        }
+        $updateStmt->close();
+
+        header('Location: ' . BASE_URL . 'admin/users');
+        exit();
+      } else {
+        // Handle add user (existing code)
+        $username = trim($_POST['username'] ?? '');
+        $emailId = trim($_POST['emailId'] ?? '');
+        $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+        $plainPassword = $_POST['password'] ?? '';
+        $userType = $_POST['userType'] ?? 'Student';
+        $gender = $_POST['gender'] ?? '';
+        $dob = $_POST['dob'] ?? '';
+        $address = $_POST['address'] ?? '';
+        $isVerified = isset($_POST['isVerified']) ? 1 : 0;
+
+        // Validate required fields
+        if (empty($username) || empty($emailId) || empty($phoneNumber) || empty($plainPassword)) {
+          $_SESSION['error'] = 'Please fill all required fields.';
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+
+        // Check if username or email already exists
+        $checkStmt = $conn->prepare("SELECT userId FROM users WHERE username = ? OR emailId = ?");
+        $checkStmt->bind_param("ss", $username, $emailId);
+        $checkStmt->execute();
+        if ($checkStmt->get_result()->num_rows > 0) {
+          $_SESSION['error'] = 'Username or email already exists.';
+          $checkStmt->close();
+          header('Location: ' . BASE_URL . 'admin/users');
+          exit();
+        }
+        $checkStmt->close();
+
+        // Hash password
+        $hashedPassword = $this->authHelper->hashPassword($plainPassword);
+
+        // Generate user ID based on type
+        $currentYear = date('Y');
+        $prefix = ($userType === 'Faculty') ? 'FAC' : 'STU';
+        
+        $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE userId LIKE ?");
+        $pattern = $prefix . $currentYear . '%';
+        $countStmt->bind_param("s", $pattern);
+        $countStmt->execute();
+        $count = $countStmt->get_result()->fetch_assoc()['count'];
+        $countStmt->close();
+        
+        $userId = $prefix . $currentYear . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+
+        // Insert new user
+        $insertStmt = $conn->prepare("
+          INSERT INTO users (userId, username, emailId, phoneNumber, password, userType, gender, dob, address, isVerified, createdAt) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $insertStmt->bind_param("sssssssssi", $userId, $username, $emailId, $phoneNumber, $hashedPassword, $userType, $gender, $dob, $address, $isVerified);
+
+        if ($insertStmt->execute()) {
+          // ADDED: Send email to Faculty user with credentials
+          if ($userType === 'Faculty') {
+            $emailSubject = "Your Library Account - Faculty Access";
+            $emailBody = "Dear {$username},\n\n";
+            $emailBody .= "Your faculty account has been created in the Library Management System.\n\n";
+            $emailBody .= "Login Credentials:\n";
+            $emailBody .= "User ID: {$userId}\n";
+            $emailBody .= "Username: {$username}\n";
+            $emailBody .= "Password: {$plainPassword}\n\n";
+            $emailBody .= "Please login at: " . BASE_URL . "\n\n";
+            $emailBody .= "IMPORTANT: Please change your password after your first login for security purposes.\n\n";
+            $emailBody .= "If you did not request this account, please contact the library administrator immediately.\n\n";
+            $emailBody .= "Best regards,\n";
+            $emailBody .= "Library Management System\n";
+            $emailBody .= "Automated Email - Please Do Not Reply";
+
+            // Send email using AuthService
+            $emailSent = $this->authService->sendEmail($emailId, $emailSubject, $emailBody);
+
+            if ($emailSent) {
+              $_SESSION['success'] = "Faculty user '{$username}' added successfully! Login credentials sent to {$emailId}. User ID: {$userId}";
+            } else {
+              $_SESSION['success'] = "Faculty user '{$username}' added successfully! User ID: {$userId}. Note: Email notification failed - please share credentials manually.";
+            }
+          } else {
+            $_SESSION['success'] = "User '{$username}' added successfully! User ID: {$userId}";
+          }
+        } else {
+          $_SESSION['error'] = 'Failed to add user. Please try again.';
+        }
+        $insertStmt->close();
+
+        header('Location: ' . BASE_URL . 'admin/users');
+        exit();
+      }
+    }
 
     // Fetch all users with username
     $sql = "SELECT userId, username, emailId, phoneNumber, userType, gender, dob, address, isVerified, createdAt
@@ -678,12 +837,12 @@ class AdminController
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $backupType = $_POST['backupType'] ?? 'manual';
 
-      $filename = $this->adminService->createDatabaseBackup($backupType);
+      $result = $this->adminService->createDatabaseBackup($backupType);
 
-      if ($filename) {
-        $_SESSION['success'] = "Backup created successfully: {$filename}";
+      if ($result['success']) {
+        $_SESSION['success'] = $result['message'];
       } else {
-        $_SESSION['error'] = 'Failed to create backup.';
+        $_SESSION['error'] = $result['message'];
       }
     }
 
@@ -704,13 +863,23 @@ class AdminController
         $results = $this->adminService->performMaintenance($tasks);
 
         $successCount = 0;
+        $messages = [];
+        
         foreach ($results as $task => $result) {
           if ($result > 0) {
             $successCount++;
+            $taskName = ucwords(str_replace('_', ' ', $task));
+            $messages[] = "{$taskName}: {$result} items processed";
           }
         }
 
-        $_SESSION['success'] = "Completed {$successCount} maintenance tasks.";
+        if ($successCount > 0) {
+          $_SESSION['success'] = "Completed {$successCount} maintenance task(s). " . implode(', ', $messages);
+        } else {
+          $_SESSION['error'] = 'No maintenance tasks were completed.';
+        }
+      } else {
+        $_SESSION['error'] = 'Please select at least one maintenance task.';
       }
     }
 
@@ -1319,6 +1488,19 @@ class AdminController
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      // Validate using ValidationHelper
+      $errors = ValidationHelper::validateProfileUpdate($_POST);
+      
+      if (!empty($errors)) {
+        $_SESSION['validation_errors'] = $errors;
+        ValidationHelper::setFormData($_POST);
+        $_SESSION['error'] = 'Please fix the validation errors below';
+        header('Location: ' . BASE_URL . 'admin/profile');
+        exit;
+      }
+      
+      ValidationHelper::clearValidation();
+      
       // Validate only fields that exist in the users table
       $data = [
         'emailId' => trim($_POST['emailId'] ?? ''),
@@ -1411,5 +1593,194 @@ class AdminController
     // Pass admin data to view
     $pageTitle = 'Admin Profile';
     include APP_ROOT . '/views/admin/admin-profile.php';
+  }
+
+  /**
+   * Mark All Notifications as Read
+   */
+  public function markAllNotificationsRead()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      $adminUserId = $_SESSION['userId'];
+      
+      // Mark all notifications for this admin as read
+      $stmt = $conn->prepare("UPDATE notifications SET isRead = 1 WHERE (userId = ? OR userId IS NULL) AND isRead = 0");
+      $stmt->bind_param("s", $adminUserId);
+      
+      if ($stmt->execute()) {
+        $affectedRows = $stmt->affected_rows;
+        $_SESSION['success'] = "Marked {$affectedRows} notification(s) as read.";
+      } else {
+        $_SESSION['error'] = 'Failed to mark notifications as read.';
+      }
+      $stmt->close();
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Check and Create Overdue Notifications
+   */
+  public function checkOverdueNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Get overdue books (borrowed more than 14 days ago, not returned)
+        $sql = "SELECT t.tid, t.userId, t.isbn, t.borrowDate, 
+                       u.username, u.emailId, b.bookName,
+                       DATEDIFF(CURDATE(), t.borrowDate) as daysOverdue
+                FROM transactions t
+                LEFT JOIN users u ON t.userId = u.userId
+                LEFT JOIN books b ON t.isbn = b.isbn
+                WHERE t.returnDate IS NULL 
+                AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+                AND NOT EXISTS (
+                  SELECT 1 FROM notifications n 
+                  WHERE n.userId = t.userId 
+                  AND n.type = 'overdue' 
+                  AND n.relatedId = t.tid
+                  AND DATE(n.createdAt) = CURDATE()
+                )";
+        
+        $result = $conn->query($sql);
+        $count = 0;
+        
+        if ($result) {
+          while ($row = $result->fetch_assoc()) {
+            $title = "Overdue Book Reminder";
+            $message = "Your borrowed book '{$row['bookName']}' is overdue by {$row['daysOverdue']} days. Please return it immediately to avoid additional fines.";
+            
+            $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, relatedId, createdAt) VALUES (?, ?, ?, 'overdue', 'high', ?, NOW())");
+            $stmt->bind_param("sssi", $row['userId'], $title, $message, $row['tid']);
+            
+            if ($stmt->execute()) {
+              $count++;
+            }
+            $stmt->close();
+          }
+        }
+        
+        if ($count > 0) {
+          $_SESSION['success'] = "Created {$count} overdue notification(s).";
+        } else {
+          $_SESSION['info'] = 'No new overdue notifications needed.';
+        }
+        
+      } catch (\Exception $e) {
+        error_log("Error checking overdue notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to check overdue notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Check and Create Out of Stock Notifications
+   */
+  public function checkOutOfStockNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Get books that are out of stock or low stock
+        $sql = "SELECT isbn, bookName, available, totalCopies
+                FROM books
+                WHERE available <= 2
+                AND NOT EXISTS (
+                  SELECT 1 FROM notifications n 
+                  WHERE n.type = 'out_of_stock' 
+                  AND n.message LIKE CONCAT('%', books.isbn, '%')
+                  AND DATE(n.createdAt) = CURDATE()
+                )";
+        
+        $result = $conn->query($sql);
+        $count = 0;
+        
+        if ($result) {
+          while ($row = $result->fetch_assoc()) {
+            $status = $row['available'] <= 0 ? 'out of stock' : 'low stock';
+            $title = "Book Stock Alert";
+            $message = "The book '{$row['bookName']}' (ISBN: {$row['isbn']}) is {$status}. Available: {$row['available']}, Total: {$row['totalCopies']}. Please consider restocking.";
+            
+            // Send to all admins (userId = NULL for system-wide)
+            $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (NULL, ?, ?, 'out_of_stock', 'medium', NOW())");
+            $stmt->bind_param("ss", $title, $message);
+            
+            if ($stmt->execute()) {
+              $count++;
+            }
+            $stmt->close();
+          }
+        }
+        
+        if ($count > 0) {
+          $_SESSION['success'] = "Created {$count} stock alert notification(s).";
+        } else {
+          $_SESSION['info'] = 'No stock alerts needed. All books are adequately stocked.';
+        }
+        
+      } catch (\Exception $e) {
+        error_log("Error checking stock notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to check stock notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
+  }
+
+  /**
+   * Clear Old Notifications (older than 30 days and read)
+   */
+  public function clearOldNotifications()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      global $conn;
+      
+      try {
+        // Delete notifications older than 30 days that are read
+        $stmt = $conn->prepare("DELETE FROM notifications WHERE isRead = 1 AND createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+        
+        if ($stmt->execute()) {
+          $deletedCount = $stmt->affected_rows;
+          
+          if ($deletedCount > 0) {
+            $_SESSION['success'] = "Deleted {$deletedCount} old notification(s).";
+            
+            // Log the maintenance activity
+            $this->adminService->logMaintenanceActivity(
+              'Clear Old Notifications',
+              "Deleted {$deletedCount} read notifications older than 30 days",
+              'success'
+            );
+          } else {
+            $_SESSION['info'] = 'No old notifications to delete.';
+          }
+        } else {
+          $_SESSION['error'] = 'Failed to delete old notifications.';
+        }
+        $stmt->close();
+        
+      } catch (\Exception $e) {
+        error_log("Error clearing old notifications: " . $e->getMessage());
+        $_SESSION['error'] = 'Failed to clear old notifications.';
+      }
+    }
+
+    $this->redirect('/admin/notifications');
   }
 }

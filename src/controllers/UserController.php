@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Book;
 use App\Models\BorrowRecord;
 use App\Models\Transaction;
+use App\Helpers\ValidationHelper;
 
 class UserController extends BaseController
 {
@@ -160,20 +161,85 @@ class UserController extends BaseController
     {
         $this->requireLogin();
         
-        $userId = $_SESSION['userId'];
-        $data = [
-            'email' => $_POST['email'] ?? '',
-            'phone' => $_POST['phone'] ?? '',
-            'address' => $_POST['address'] ?? ''
-        ];
-        
-        if ($this->userModel->updateProfile($userId, $data)) {
-            $_SESSION['success'] = 'Profile updated successfully';
-        } else {
-            $_SESSION['error'] = 'Failed to update profile';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validate using ValidationHelper
+            $errors = ValidationHelper::validateProfileUpdate($_POST);
+            
+            if (!empty($errors)) {
+                $_SESSION['validation_errors'] = $errors;
+                ValidationHelper::setFormData($_POST);
+                $_SESSION['error'] = 'Please fix the validation errors below';
+                header('Location: ' . BASE_URL . 'user/profile');
+                exit;
+            }
+            
+            ValidationHelper::clearValidation();
+            
+            $userId = $_SESSION['userId'];
+            $data = [
+                'emailId' => $_POST['emailId'] ?? '',
+                'phoneNumber' => $_POST['phoneNumber'] ?? '',
+                'address' => $_POST['address'] ?? '',
+                'gender' => $_POST['gender'] ?? '',
+                'dob' => $_POST['dob'] ?? ''
+            ];
+            
+            // Handle profile image upload
+            if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = APP_ROOT . '/public/assets/images/users/';
+                
+                // Create directory if it doesn't exist
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                
+                $fileInfo = pathinfo($_FILES['profileImage']['name']);
+                $extension = strtolower($fileInfo['extension']);
+                
+                // Validate file type
+                if (!in_array($extension, ['jpg', 'jpeg', 'png'])) {
+                    $_SESSION['error'] = 'Only JPG and PNG images are allowed';
+                    $this->redirect('user/profile');
+                    return;
+                }
+                
+                // Validate file size (2MB max)
+                if ($_FILES['profileImage']['size'] > 2 * 1024 * 1024) {
+                    $_SESSION['error'] = 'File size must be less than 2 MB';
+                    $this->redirect('user/profile');
+                    return;
+                }
+                
+                // Remove old profile images for this user
+                $oldFiles = glob($uploadDir . $userId . '.*');
+                foreach ($oldFiles as $oldFile) {
+                    if (file_exists($oldFile)) {
+                        unlink($oldFile);
+                    }
+                }
+                
+                // Save new image
+                $newFileName = $userId . '.' . $extension;
+                $targetPath = $uploadDir . $newFileName;
+                
+                if (move_uploaded_file($_FILES['profileImage']['tmp_name'], $targetPath)) {
+                    // Store relative path in database
+                    $data['profileImage'] = 'assets/images/users/' . $newFileName;
+                } else {
+                    $_SESSION['error'] = 'Failed to upload profile image';
+                    $this->redirect('user/profile');
+                    return;
+                }
+            }
+            
+            if ($this->userModel->updateProfile($userId, $data)) {
+                $_SESSION['success'] = 'Profile updated successfully';
+            } else {
+                $_SESSION['error'] = 'Failed to update profile';
+            }
+            
+            $this->redirect('user/profile');
         }
-        
-        $this->redirect('user/profile');
     }
 
     /**
@@ -656,12 +722,20 @@ class UserController extends BaseController
     /**
      * Display user notifications
      */
-    public function notifications()
+    public function notifications($params = [])
     {
+        error_log("=== NOTIFICATIONS METHOD CALLED ===");
+        error_log("Session data: " . print_r($_SESSION, true));
+        error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+        error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+        error_log("POST data: " . print_r($_POST, true));
+        error_log("Base URL: " . (defined('BASE_URL') ? BASE_URL : 'NOT DEFINED'));
+        
         $this->requireLogin();
         
         // Redirect Faculty users to their own notifications page
         if (isset($_SESSION['userType']) && $_SESSION['userType'] === 'Faculty') {
+            error_log("Redirecting Faculty user to faculty/notifications");
             $this->redirect('faculty/notifications');
             return;
         }
@@ -669,16 +743,63 @@ class UserController extends BaseController
         $userId = $_SESSION['userId'];
         $userType = $_SESSION['userType'] ?? 'Student';
         
-        // Handle mark as read
+        error_log("Processing notifications for user: $userId, type: $userType");
+        
+        // Handle mark as read BEFORE fetching notifications
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
-            $this->markNotificationRead($notificationId);
+            error_log("POST request to mark notification $notificationId as read");
+            
+            if ($notificationId) {
+                global $mysqli;
+                
+                error_log("Executing UPDATE query for notification $notificationId");
+                
+                $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
+                $stmt = $mysqli->prepare($sql);
+                
+                if (!$stmt) {
+                    error_log("ERROR: Failed to prepare statement: " . $mysqli->error);
+                    $_SESSION['error'] = 'Failed to mark notification as read';
+                } else {
+                    $stmt->bind_param('is', $notificationId, $userId);
+                    
+                    if ($stmt->execute()) {
+                        $affectedRows = $stmt->affected_rows;
+                        error_log("✓ UPDATE successful - Affected rows: $affectedRows");
+                        
+                        if ($affectedRows > 0) {
+                            $_SESSION['success'] = 'Notification marked as read';
+                            error_log("✓ Notification marked as read successfully");
+                        } else {
+                            error_log("WARNING: No rows affected - notification may not exist or already read");
+                            $_SESSION['info'] = 'Notification already marked as read';
+                        }
+                    } else {
+                        error_log("✗ Failed to execute UPDATE: " . $stmt->error);
+                        $_SESSION['error'] = 'Failed to mark notification as read';
+                    }
+                    $stmt->close();
+                }
+            } else {
+                error_log("ERROR: No notification ID provided in POST");
+                $_SESSION['error'] = 'Invalid notification';
+            }
+            
+            error_log("Redirecting back to notifications after marking as read");
             $this->redirect('user/notifications');
             return;
         }
         
         // Get notifications with proper user email and type based on userId
         global $mysqli;
+        
+        if (!$mysqli) {
+            error_log("ERROR: Database connection not available");
+            $_SESSION['error'] = 'Database connection error';
+            $this->redirect('user/dashboard');
+            return;
+        }
         
         // Simpler query - get all notifications for this user OR system-wide notifications
         $sql = "SELECT 
@@ -700,6 +821,13 @@ class UserController extends BaseController
                 ORDER BY n.isRead ASC, n.createdAt DESC";
         
         $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            error_log("ERROR: Failed to prepare statement: " . $mysqli->error);
+            $_SESSION['error'] = 'Failed to load notifications';
+            $this->redirect('user/dashboard');
+            return;
+        }
+        
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -708,32 +836,69 @@ class UserController extends BaseController
         while ($row = $result->fetch_assoc()) {
             $notifications[] = $row;
         }
+        $stmt->close();
+        
+        error_log("Found " . count($notifications) . " notifications for user $userId");
         
         $this->data['notifications'] = $notifications;
         $this->data['userType'] = $userType;
-        $this->view('users/notifications', $this->data);
+        
+        error_log("Loading view: users/notifications");
+        
+        try {
+            $this->view('users/notifications', $this->data);
+            error_log("View loaded successfully");
+        } catch (\Exception $e) {
+            error_log("ERROR loading view: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            throw $e;
+        }
     }
-
+    
     /**
-     * Mark notification as read
+     * Mark notification as read - STANDALONE METHOD (not used anymore but kept for compatibility)
      */
     public function markNotificationRead($notificationId = null)
     {
+        error_log("=== STANDALONE MARK NOTIFICATION READ CALLED (DEPRECATED) ===");
+        error_log("This method is deprecated - use POST to /user/notifications instead");
+        
         $this->requireLogin();
         
-        if (!$notificationId && isset($_POST['notification_id'])) {
-            $notificationId = $_POST['notification_id'];
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            error_log("ERROR: Not a POST request");
+            $this->redirect('user/notifications');
+            return;
         }
+        
+        $notificationId = $_POST['notification_id'] ?? null;
+        error_log("Notification ID: " . ($notificationId ?? 'NULL'));
         
         if ($notificationId) {
             global $mysqli;
+            $userId = $_SESSION['userId'];
+            
+            error_log("Marking notification $notificationId as read for user $userId");
+            
             $sql = "UPDATE notifications SET isRead = 1 WHERE id = ? AND userId = ?";
             $stmt = $mysqli->prepare($sql);
-            $stmt->bind_param('is', $notificationId, $_SESSION['userId']);
-            $stmt->execute();
+            $stmt->bind_param('is', $notificationId, $userId);
+            
+            if ($stmt->execute()) {
+                error_log("✓ Notification marked as read successfully");
+                $_SESSION['success'] = 'Notification marked as read';
+            } else {
+                error_log("✗ Failed to mark notification as read: " . $stmt->error);
+                $_SESSION['error'] = 'Failed to mark notification as read';
+            }
+            $stmt->close();
+        } else {
+            error_log("ERROR: No notification ID provided");
+            $_SESSION['error'] = 'Invalid notification';
         }
         
-        return true;
+        error_log("Redirecting back to notifications");
+        $this->redirect('user/notifications');
     }
     
     /**

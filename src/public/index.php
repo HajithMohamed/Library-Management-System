@@ -138,8 +138,7 @@ class Router
 
         $method = $_SERVER['REQUEST_METHOD'];
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $path = rtrim($path, '/');
-
+        
         // Remove base path if running in subdirectory
         $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
         if (strpos($path, $basePath) === 0) {
@@ -148,18 +147,28 @@ class Router
 
         // Remove /index.php if present
         $path = str_replace('/index.php', '', $path);
+        
+        // Normalize path - remove trailing slash except for root
+        if ($path !== '/' && substr($path, -1) === '/') {
+            $path = rtrim($path, '/');
+        }
 
         // Default route
-        if (empty($path) || $path === '/') {
+        if (empty($path) || $path === '') {
             $path = '/';
         }
 
-        error_log("Routing: {$method} {$path}");
+        error_log("=== ROUTING DEBUG ===");
+        error_log("Original URI: " . $_SERVER['REQUEST_URI']);
+        error_log("Normalized path: {$path}");
+        error_log("Method: {$method}");
+        error_log("Checking against " . count($this->routes) . " registered routes");
 
         // First try exact matches
         foreach ($this->routes as $route) {
+            error_log("  Comparing: {$route['method']} {$route['path']} === {$method} {$path}");
             if ($route['method'] === $method && $route['path'] === $path) {
-                error_log("Exact route matched: {$route['controller']}::{$route['action']}");
+                error_log("✓ EXACT MATCH FOUND: {$route['controller']}::{$route['action']}");
                 $this->callController($route['controller'], $route['action']);
                 
                 // Run after middleware
@@ -170,14 +179,18 @@ class Router
             }
         }
 
+        error_log("No exact match found, trying pattern matches...");
+
         // Then try pattern matches for dynamic routes
         foreach ($this->routes as $route) {
             // Convert route pattern to regex
             $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '([^/]+)', $route['path']);
             $pattern = '#^' . $pattern . '$#';
 
+            error_log("  Testing pattern: {$pattern} against {$path}");
+
             if ($route['method'] === $method && preg_match($pattern, $path, $matches)) {
-                error_log("Dynamic route matched: {$route['controller']}::{$route['action']}");
+                error_log("✓ PATTERN MATCH FOUND: {$route['controller']}::{$route['action']}");
 
                 // Extract parameter names
                 preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $route['path'], $paramNames);
@@ -187,6 +200,8 @@ class Router
                 for ($i = 0; $i < count($paramNames[1]); $i++) {
                     $params[$paramNames[1][$i]] = $matches[$i + 1];
                 }
+
+                error_log("  Parameters: " . print_r($params, true));
 
                 $this->callController($route['controller'], $route['action'], $params);
                 
@@ -199,7 +214,11 @@ class Router
         }
 
         // 404 Not Found
-        error_log("No route matched - 404");
+        error_log("✗ NO ROUTE MATCHED - Returning 404");
+        error_log("All registered routes:");
+        foreach ($this->routes as $route) {
+            error_log("  {$route['method']} {$route['path']}");
+        }
         $this->show404();
     }
 
@@ -586,6 +605,7 @@ $router->addRoute('POST', '/user/pay-all-fines', 'UserController', 'payAllFines'
 
 // User Notifications
 $router->addRoute('GET', '/user/notifications', 'UserController', 'notifications');
+$router->addRoute('POST', '/user/notifications', 'UserController', 'notifications');
 $router->addRoute('POST', '/user/notifications/mark-read', 'UserController', 'markNotificationRead');
 
 // ============================================================================
@@ -654,8 +674,7 @@ $router->addRoute('GET', '/admin', 'AdminController', 'dashboard');
 
 // Admin Users Management
 $router->addRoute('GET', '/admin/users', 'AdminController', 'users');
-$router->addRoute('POST', '/admin/users/add', 'AdminController', 'addUser');
-$router->addRoute('POST', '/admin/users/edit', 'AdminController', 'editUser');
+$router->addRoute('POST', '/admin/users', 'AdminController', 'users'); // FIXED: Handle POST for add/edit/delete
 $router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
 
 // Admin Books Management
@@ -675,13 +694,26 @@ $router->addRoute('POST', '/admin/borrow-requests-handle', 'AdminController', 'h
 $router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 $router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 
+// Admin Transactions (redirect to borrowed books)
+$router->addRoute('GET', '/admin/transactions', 'AdminController', 'booksBorrowed');
+$router->addRoute('POST', '/admin/transactions', 'AdminController', 'booksBorrowed');
+
 // Admin Fines
 $router->addRoute('GET', '/admin/fines', 'AdminController', 'fines');
 $router->addRoute('POST', '/admin/fines', 'AdminController', 'updateFines');
 
 // Admin Notifications
 $router->addRoute('GET', '/admin/notifications', 'AdminController', 'notifications');
+$router->addRoute('POST', '/admin/notifications', 'AdminController', 'notifications');
 $router->addRoute('POST', '/admin/notifications/mark-read', 'AdminController', 'markNotificationRead');
+$router->addRoute('GET', '/admin/notifications/mark-all-read', 'AdminController', 'markAllNotificationsRead');
+$router->addRoute('POST', '/admin/notifications/mark-all-read', 'AdminController', 'markAllNotificationsRead');
+$router->addRoute('GET', '/admin/notifications/check-overdue', 'AdminController', 'checkOverdueNotifications');
+$router->addRoute('POST', '/admin/notifications/check-overdue', 'AdminController', 'checkOverdueNotifications');
+$router->addRoute('GET', '/admin/notifications/check-stock', 'AdminController', 'checkOutOfStockNotifications');
+$router->addRoute('POST', '/admin/notifications/check-stock', 'AdminController', 'checkOutOfStockNotifications');
+$router->addRoute('GET', '/admin/notifications/clear-old', 'AdminController', 'clearOldNotifications');
+$router->addRoute('POST', '/admin/notifications/clear-old', 'AdminController', 'clearOldNotifications');
 
 // Admin Reports & Analytics
 $router->addRoute('GET', '/admin/reports', 'AdminController', 'reports');
@@ -696,6 +728,7 @@ $router->addRoute('POST', '/admin/settings', 'AdminController', 'updateSettings'
 $router->addRoute('GET', '/admin/maintenance', 'AdminController', 'maintenance');
 $router->addRoute('POST', '/admin/maintenance', 'AdminController', 'performMaintenance');
 $router->addRoute('POST', '/admin/maintenance/perform', 'AdminController', 'performMaintenance');
+$router->addRoute('POST', '/admin/maintenance/run', 'AdminController', 'performMaintenance'); // ADD THIS LINE
 $router->addRoute('POST', '/admin/backup', 'AdminController', 'createBackup');
 $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'createBackup');
 
@@ -746,12 +779,28 @@ $router->addRoute('GET', '/status', 'AuthController', 'systemStatus');
 // ============================================================================
 
 // TEMPORARY DEBUG - Remove after fixing
-error_log("All registered routes:");
-foreach ($router->getRoutes() as $route) {
-    error_log("  {$route['method']} {$route['path']} -> {$route['controller']}::{$route['action']}");
+error_log("=== REGISTERED ROUTES ===");
+$allRoutes = $router->getRoutes();
+error_log("Total routes registered: " . count($allRoutes));
+
+// Group routes by controller for better debugging
+$routesByController = [];
+foreach ($allRoutes as $route) {
+    $controller = $route['controller'];
+    if (!isset($routesByController[$controller])) {
+        $routesByController[$controller] = [];
+    }
+    $routesByController[$controller][] = "{$route['method']} {$route['path']} -> {$route['action']}";
 }
 
-error_log("Routes registered (" . count($router->getRoutes()) . " total), dispatching...");
+foreach ($routesByController as $controller => $routes) {
+    error_log("$controller:");
+    foreach ($routes as $routeInfo) {
+        error_log("  $routeInfo");
+    }
+}
+
+error_log("=== STARTING DISPATCH ===");
 
 try {
     $router->dispatch();

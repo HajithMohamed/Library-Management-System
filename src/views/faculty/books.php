@@ -818,8 +818,9 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
+<script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
-// Autocomplete functionality
+// Autocomplete functionality - SAME AS USERS BOOKS
 const searchInput = document.getElementById('searchInput');
 const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 let debounceTimer;
