@@ -184,6 +184,54 @@ class UserController extends BaseController
                 'dob' => $_POST['dob'] ?? ''
             ];
             
+            // Handle profile image upload
+            if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = APP_ROOT . '/public/assets/images/users/';
+                
+                // Create directory if it doesn't exist
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                
+                $fileInfo = pathinfo($_FILES['profileImage']['name']);
+                $extension = strtolower($fileInfo['extension']);
+                
+                // Validate file type
+                if (!in_array($extension, ['jpg', 'jpeg', 'png'])) {
+                    $_SESSION['error'] = 'Only JPG and PNG images are allowed';
+                    $this->redirect('user/profile');
+                    return;
+                }
+                
+                // Validate file size (2MB max)
+                if ($_FILES['profileImage']['size'] > 2 * 1024 * 1024) {
+                    $_SESSION['error'] = 'File size must be less than 2 MB';
+                    $this->redirect('user/profile');
+                    return;
+                }
+                
+                // Remove old profile images for this user
+                $oldFiles = glob($uploadDir . $userId . '.*');
+                foreach ($oldFiles as $oldFile) {
+                    if (file_exists($oldFile)) {
+                        unlink($oldFile);
+                    }
+                }
+                
+                // Save new image
+                $newFileName = $userId . '.' . $extension;
+                $targetPath = $uploadDir . $newFileName;
+                
+                if (move_uploaded_file($_FILES['profileImage']['tmp_name'], $targetPath)) {
+                    // Store relative path in database
+                    $data['profileImage'] = 'assets/images/users/' . $newFileName;
+                } else {
+                    $_SESSION['error'] = 'Failed to upload profile image';
+                    $this->redirect('user/profile');
+                    return;
+                }
+            }
+            
             if ($this->userModel->updateProfile($userId, $data)) {
                 $_SESSION['success'] = 'Profile updated successfully';
             } else {
