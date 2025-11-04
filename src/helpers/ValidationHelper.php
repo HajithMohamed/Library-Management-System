@@ -269,9 +269,10 @@ class ValidationHelper
     {
         $errors = [];
         
-        // Email
-        if (!self::validateEmail($data['emailId'] ?? '')) {
-            $errors['emailId'] = 'Please enter a valid email address';
+        // Email - check both 'email' and 'emailId' for compatibility
+        $email = $data['email'] ?? $data['emailId'] ?? '';
+        if (!self::validateEmail($email)) {
+            $errors['email'] = 'Please enter a valid email address';
         }
         
         // Phone
@@ -292,6 +293,13 @@ class ValidationHelper
         // Gender
         if (!self::validateNotEmpty($data['gender'] ?? '')) {
             $errors['gender'] = 'Please select your gender';
+        }
+        
+        // Name - add validation for name field
+        if (!self::validateNotEmpty($data['name'] ?? '')) {
+            $errors['name'] = 'Name is required';
+        } elseif (strlen(trim($data['name'])) < 3) {
+            $errors['name'] = 'Name must be at least 3 characters';
         }
         
         return $errors;

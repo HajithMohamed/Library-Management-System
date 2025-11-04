@@ -500,13 +500,15 @@ include APP_ROOT . '/views/layouts/header.php';
                             </div>
                         </div>
 
-                        <form method="POST" action="<?= BASE_URL ?>user/profile" enctype="multipart/form-data">
+                        <form method="POST" action="<?= BASE_URL ?>faculty/profile" enctype="multipart/form-data">
+                            <input type="hidden" name="update_profile" value="1">
+                            
                             <!-- Basic Info Grid -->
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-id-card"></i>
-                                        Student ID
+                                        Faculty ID
                                     </label>
                                     <input type="text" 
                                            class="form-input" 
@@ -521,16 +523,15 @@ include APP_ROOT . '/views/layouts/header.php';
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-user"></i>
-                                        Username
+                                        Name <span class="required-star">*</span>
                                     </label>
-                                    <input type="text" 
-                                           class="form-input" 
-                                           value="<?= htmlspecialchars($user['username'] ?? '') ?>" 
-                                           disabled>
-                                    <span class="disabled-badge">
-                                        <i class="fas fa-lock"></i>
-                                        Cannot be changed
-                                    </span>
+                                    <input id="name"
+                                           name="name" 
+                                           type="text" 
+                                           class="form-input"
+                                           placeholder="Enter your full name"
+                                           required 
+                                           value="<?= htmlspecialchars($user['username'] ?? '') ?>">
                                 </div>
                             </div>
 
@@ -545,7 +546,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                            name="profileImage" 
                                            type="file" 
                                            class="form-file"
-                                           accept="image/jpeg,image/png">
+                                           accept="image/jpeg,image/png,image/jpg">
                                 </div>
                             </div>
 
@@ -557,7 +558,7 @@ include APP_ROOT . '/views/layouts/header.php';
                                         Email Address <span class="required-star">*</span>
                                     </label>
                                     <input id="emailId" 
-                                           name="emailId" 
+                                           name="email" 
                                            type="email" 
                                            class="form-input"
                                            placeholder="your.email@example.com"

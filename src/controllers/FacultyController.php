@@ -450,6 +450,56 @@ class FacultyController extends BaseController
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['update_profile'])) {
+                // Handle profile image upload
+                $profileImagePath = null;
+                if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = APP_ROOT . '/public/assets/images/users/';
+                    
+                    // Create directory if it doesn't exist
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $fileInfo = pathinfo($_FILES['profileImage']['name']);
+                    $extension = strtolower($fileInfo['extension']);
+                    
+                    // Validate file type
+                    $allowedTypes = ['jpg', 'jpeg', 'png'];
+                    if (!in_array($extension, $allowedTypes)) {
+                        $_SESSION['error'] = 'Only JPG and PNG images are allowed';
+                        $this->redirect('faculty/profile');
+                        return;
+                    }
+                    
+                    // Validate file size (2MB max)
+                    if ($_FILES['profileImage']['size'] > 2 * 1024 * 1024) {
+                        $_SESSION['error'] = 'File size must be less than 2 MB';
+                        $this->redirect('faculty/profile');
+                        return;
+                    }
+                    
+                    // Delete old profile images for this user
+                    $patterns = [$userId . '.jpg', $userId . '.jpeg', $userId . '.png'];
+                    foreach ($patterns as $pattern) {
+                        $oldFile = $uploadDir . $pattern;
+                        if (file_exists($oldFile)) {
+                            unlink($oldFile);
+                        }
+                    }
+                    
+                    // Save new image
+                    $newFileName = $userId . '.' . $extension;
+                    $targetPath = $uploadDir . $newFileName;
+                    
+                    if (move_uploaded_file($_FILES['profileImage']['tmp_name'], $targetPath)) {
+                        $profileImagePath = 'assets/images/users/' . $newFileName;
+                    } else {
+                        $_SESSION['error'] = 'Failed to upload profile image';
+                        $this->redirect('faculty/profile');
+                        return;
+                    }
+                }
+                
                 // Validate using ValidationHelper
                 $errors = ValidationHelper::validateProfileUpdate($_POST);
                 
@@ -471,6 +521,11 @@ class FacultyController extends BaseController
                     'phoneNumber' => $_POST['phoneNumber'] ?? '',
                     'address' => $_POST['address'] ?? '',
                 ];
+                
+                // Add profile image path if uploaded
+                if ($profileImagePath) {
+                    $data['profileImage'] = $profileImagePath;
+                }
                 
                 if ($this->userModel->updateProfile($userId, $data)) {
                     $_SESSION['success'] = 'Profile updated successfully';
