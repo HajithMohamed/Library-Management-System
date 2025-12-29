@@ -5,15 +5,16 @@
     "require": {
         "phpmailer/phpmailer": "^7.0",
         "vlucas/phpdotenv": "^5.5",
-        "picqer/php-barcode-generator": "^3.2"
+        "picqer/php-barcode-generator": "^3.2",
+        "cloudinary/cloudinary_php": "^3.1"
     },
     "autoload": {
     "psr-4": {
-        "App\\Controllers\\": "controllers/",
-        "App\\Models\\": "models/",
-        "App\\Services\\": "services/",
-        "App\\Helpers\\": "helpers/",
-        "App\\Router\\": "router/"
+        "App\\Controllers\\": "src/controllers/",
+        "App\\Models\\": "src/models/",
+        "App\\Services\\": "src/services/",
+        "App\\Helpers\\": "src/helpers/",
+        "App\\Router\\": "src/public/"
     }
 },
     "config": {

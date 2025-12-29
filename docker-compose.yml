@@ -20,6 +20,8 @@ services:
     container_name: ils_php
     volumes:
       - ./src:/var/www/html
+      - ./vendor:/var/www/vendor
+      - ./src:/var/www/src
     env_file: .env
     environment:
       TZ: ${TZ:-Asia/Kolkata}
