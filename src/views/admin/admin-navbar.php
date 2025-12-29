@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +21,7 @@
         /* ========================================
            SIDEBAR STYLES
         ======================================== */
-        
+
         /* Left Sidebar */
         .sidebar {
             width: 280px;
@@ -117,7 +118,8 @@
         /* Sidebar Navigation */
         .sidebar-nav {
             padding: 1rem 0;
-            padding-bottom: 180px; /* Add space for the footer */
+            padding-bottom: 180px;
+            /* Add space for the footer */
         }
 
         .nav-section {
@@ -350,7 +352,7 @@
         /* ========================================
            RESPONSIVE STYLES
         ======================================== */
-        
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -406,6 +408,7 @@
         }
     </style>
 </head>
+
 <body>
     <?php
     // Get current admin info
@@ -438,16 +441,18 @@
             <!-- Main Section -->
             <div class="nav-section">
                 <div class="nav-section-title">Main</div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/dashboard" class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" data-title="Dashboard">
+                    <a href="<?= BASE_URL ?>admin/dashboard"
+                        class="nav-link <?= $currentPage === 'dashboard' ? 'active' : '' ?>" data-title="Dashboard">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>Dashboard</span>
                     </a>
                 </div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/analytics" class="nav-link <?= $currentPage === 'analytics' ? 'active' : '' ?>" data-title="Analytics">
+                    <a href="<?= BASE_URL ?>admin/analytics"
+                        class="nav-link <?= $currentPage === 'analytics' ? 'active' : '' ?>" data-title="Analytics">
                         <i class="fas fa-chart-line"></i>
                         <span>Analytics</span>
                     </a>
@@ -457,23 +462,36 @@
             <!-- Library Management Section -->
             <div class="nav-section">
                 <div class="nav-section-title">Library Management</div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/books" class="nav-link <?= $currentPage === 'books' ? 'active' : '' ?>" data-title="Books">
+                    <a href="<?= BASE_URL ?>admin/books"
+                        class="nav-link <?= $currentPage === 'books' ? 'active' : '' ?>" data-title="Books">
                         <i class="fas fa-book"></i>
                         <span>Books</span>
                     </a>
                 </div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/borrowed-books" class="nav-link <?= $currentPage === 'borrowed-books' ? 'active' : '' ?>" data-title="Borrowed Books">
+                    <a href="<?= BASE_URL ?>e-resources"
+                        class="nav-link <?= $currentPage === 'e-resources' ? 'active' : '' ?>" data-title="E-Resources">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>E-Resources</span>
+                    </a>
+                </div>
+
+                <div class="nav-item">
+                    <a href="<?= BASE_URL ?>admin/borrowed-books"
+                        class="nav-link <?= $currentPage === 'borrowed-books' ? 'active' : '' ?>"
+                        data-title="Borrowed Books">
                         <i class="fas fa-book-reader"></i>
                         <span>Borrowed Books</span>
                     </a>
                 </div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/borrow-requests" class="nav-link <?= $currentPage === 'borrow-requests' ? 'active' : '' ?>" data-title="Borrow Requests">
+                    <a href="<?= BASE_URL ?>admin/borrow-requests"
+                        class="nav-link <?= $currentPage === 'borrow-requests' ? 'active' : '' ?>"
+                        data-title="Borrow Requests">
                         <i class="fas fa-hand-paper"></i>
                         <span>Borrow Requests</span>
                         <?php
@@ -487,7 +505,7 @@
                             }
                         }
                         if ($pendingCount > 0):
-                        ?>
+                            ?>
                             <span class="nav-badge"><?= $pendingCount ?></span>
                         <?php endif; ?>
                     </a>
@@ -497,9 +515,10 @@
             <!-- User Management Section -->
             <div class="nav-section">
                 <div class="nav-section-title">User Management</div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/users" class="nav-link <?= $currentPage === 'users' ? 'active' : '' ?>" data-title="Users">
+                    <a href="<?= BASE_URL ?>admin/users"
+                        class="nav-link <?= $currentPage === 'users' ? 'active' : '' ?>" data-title="Users">
                         <i class="fas fa-users"></i>
                         <span>Users</span>
                     </a>
@@ -509,9 +528,10 @@
             <!-- Financial Section -->
             <div class="nav-section">
                 <div class="nav-section-title">Financial</div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/fines" class="nav-link <?= $currentPage === 'fines' ? 'active' : '' ?>" data-title="Fines">
+                    <a href="<?= BASE_URL ?>admin/fines"
+                        class="nav-link <?= $currentPage === 'fines' ? 'active' : '' ?>" data-title="Fines">
                         <i class="fas fa-dollar-sign"></i>
                         <span>Fines</span>
                         <?php
@@ -524,7 +544,7 @@
                             }
                         }
                         if ($pendingFines > 0):
-                        ?>
+                            ?>
                             <span class="nav-badge"><?= $pendingFines ?></span>
                         <?php endif; ?>
                     </a>
@@ -534,16 +554,19 @@
             <!-- Reports & Settings Section -->
             <div class="nav-section">
                 <div class="nav-section-title">System</div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/reports" class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>" data-title="Reports">
+                    <a href="<?= BASE_URL ?>admin/reports"
+                        class="nav-link <?= $currentPage === 'reports' ? 'active' : '' ?>" data-title="Reports">
                         <i class="fas fa-chart-bar"></i>
                         <span>Reports</span>
                     </a>
                 </div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/notifications" class="nav-link <?= $currentPage === 'notifications' ? 'active' : '' ?>" data-title="Notifications">
+                    <a href="<?= BASE_URL ?>admin/notifications"
+                        class="nav-link <?= $currentPage === 'notifications' ? 'active' : '' ?>"
+                        data-title="Notifications">
                         <i class="fas fa-bell"></i>
                         <span>Notifications</span>
                         <?php
@@ -557,14 +580,15 @@
                             }
                         }
                         if ($unreadCount > 0):
-                        ?>
+                            ?>
                             <span class="nav-badge"><?= $unreadCount ?></span>
                         <?php endif; ?>
                     </a>
                 </div>
-                
+
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>admin/maintenance" class="nav-link <?= $currentPage === 'maintenance' ? 'active' : '' ?>" data-title="Maintenance">
+                    <a href="<?= BASE_URL ?>admin/maintenance"
+                        class="nav-link <?= $currentPage === 'maintenance' ? 'active' : '' ?>" data-title="Maintenance">
                         <i class="fas fa-tools"></i>
                         <span>Maintenance</span>
                     </a>
@@ -595,7 +619,7 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
-            
+
             // Save state to localStorage
             const isCollapsed = sidebar.classList.contains('collapsed');
             localStorage.setItem('sidebarCollapsed', isCollapsed);
@@ -605,7 +629,7 @@
         function toggleMobileSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
-            
+
             sidebar.classList.toggle('mobile-open');
             overlay.classList.toggle('show');
         }
@@ -614,16 +638,16 @@
         function closeSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
-            
+
             sidebar.classList.remove('mobile-open');
             overlay.classList.remove('show');
         }
 
         // Load saved sidebar state on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
             const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            
+
             if (sidebarCollapsed) {
                 sidebar.classList.add('collapsed');
             }
@@ -631,7 +655,7 @@
             // Set active link based on current URL
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll('.nav-link');
-            
+
             navLinks.forEach(link => {
                 link.classList.remove('active');
                 if (link.getAttribute('href') && currentPath.includes(link.getAttribute('href'))) {
@@ -641,7 +665,7 @@
 
             // Close mobile sidebar when clicking on a link
             navLinks.forEach(link => {
-                link.addEventListener('click', function() {
+                link.addEventListener('click', function () {
                     if (window.innerWidth <= 768) {
                         closeSidebar();
                     }
@@ -650,15 +674,16 @@
         });
 
         // Handle window resize
-        window.addEventListener('resize', function() {
+        window.addEventListener('resize', function () {
             if (window.innerWidth > 768) {
                 const overlay = document.getElementById('mobileOverlay');
                 const sidebar = document.getElementById('sidebar');
-                
+
                 overlay.classList.remove('show');
                 sidebar.classList.remove('mobile-open');
             }
         });
     </script>
 </body>
+
 </html>

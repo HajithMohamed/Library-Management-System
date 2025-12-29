@@ -98,12 +98,12 @@ class Router
     {
         $originalRoutes = $this->routes;
         $this->routes = [];
-        
+
         $callback($this);
-        
+
         $groupRoutes = $this->routes;
         $this->routes = $originalRoutes;
-        
+
         foreach ($groupRoutes as $route) {
             $route['path'] = rtrim($prefix, '/') . $route['path'];
             $this->routes[] = $route;
@@ -138,7 +138,7 @@ class Router
 
         $method = $_SERVER['REQUEST_METHOD'];
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        
+
         // Remove base path if running in subdirectory
         $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
         if (strpos($path, $basePath) === 0) {
@@ -147,7 +147,7 @@ class Router
 
         // Remove /index.php if present
         $path = str_replace('/index.php', '', $path);
-        
+
         // Normalize path - remove trailing slash except for root
         if ($path !== '/' && substr($path, -1) === '/') {
             $path = rtrim($path, '/');
@@ -170,7 +170,7 @@ class Router
             if ($route['method'] === $method && $route['path'] === $path) {
                 error_log("✓ EXACT MATCH FOUND: {$route['controller']}::{$route['action']}");
                 $this->callController($route['controller'], $route['action']);
-                
+
                 // Run after middleware
                 foreach ($this->afterMiddleware as $middleware) {
                     $middleware();
@@ -204,7 +204,7 @@ class Router
                 error_log("  Parameters: " . print_r($params, true));
 
                 $this->callController($route['controller'], $route['action'], $params);
-                
+
                 // Run after middleware
                 foreach ($this->afterMiddleware as $middleware) {
                     $middleware();
@@ -234,13 +234,13 @@ class Router
         // Check if controller class exists
         if (!class_exists($controllerClass)) {
             error_log("ERROR: Controller class not found: {$controllerClass}");
-            
+
             // Try to require the controller file
-            $controllerFile = APP_ROOT . '/Controllers/' . $controller . '.php';
+            $controllerFile = APP_ROOT . '/controllers/' . $controller . '.php';
             if (file_exists($controllerFile)) {
                 require_once $controllerFile;
                 error_log("Controller file loaded: {$controllerFile}");
-                
+
                 // Check again after requiring
                 if (!class_exists($controllerClass)) {
                     error_log("ERROR: Controller class still not found after requiring file");
@@ -311,13 +311,14 @@ class Router
     private function showDetailedError($exception, $context)
     {
         http_response_code(500);
-        
+
         // Check if we should display errors
         $displayErrors = ini_get('display_errors');
-        
+
         ?>
         <!DOCTYPE html>
         <html lang="en">
+
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -332,28 +333,33 @@ class Router
                     padding: 20px;
                     background: #f5f5f5;
                 }
+
                 .error-container {
                     background: white;
                     border-radius: 8px;
                     padding: 30px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
                 }
+
                 h1 {
                     color: #d32f2f;
                     margin-top: 0;
                 }
+
                 .context {
                     background: #fff3cd;
                     border-left: 4px solid #ffc107;
                     padding: 15px;
                     margin: 20px 0;
                 }
+
                 .message {
                     background: #f8d7da;
                     border-left: 4px solid #dc3545;
                     padding: 15px;
                     margin: 20px 0;
                 }
+
                 .trace {
                     background: #f8f9fa;
                     border: 1px solid #dee2e6;
@@ -361,15 +367,18 @@ class Router
                     overflow-x: auto;
                     margin: 20px 0;
                 }
+
                 pre {
                     margin: 0;
                     white-space: pre-wrap;
                     word-wrap: break-word;
                 }
+
                 .file-line {
                     color: #6c757d;
                     font-size: 0.9em;
                 }
+
                 .btn {
                     display: inline-block;
                     padding: 10px 20px;
@@ -379,41 +388,44 @@ class Router
                     border-radius: 4px;
                     margin-top: 20px;
                 }
+
                 .btn:hover {
                     background: #0056b3;
                 }
             </style>
         </head>
+
         <body>
             <div class="error-container">
                 <h1>⚠️ Application Error</h1>
-                
+
                 <div class="context">
                     <strong>Context:</strong> <?php echo htmlspecialchars($context); ?>
                 </div>
-                
+
                 <div class="message">
                     <strong>Error Message:</strong><br>
                     <?php echo htmlspecialchars($exception->getMessage()); ?>
                 </div>
-                
+
                 <?php if ($displayErrors): ?>
-                <div class="file-line">
-                    <strong>File:</strong> <?php echo htmlspecialchars($exception->getFile()); ?><br>
-                    <strong>Line:</strong> <?php echo $exception->getLine(); ?>
-                </div>
-                
-                <div class="trace">
-                    <strong>Stack Trace:</strong>
-                    <pre><?php echo htmlspecialchars($exception->getTraceAsString()); ?></pre>
-                </div>
+                    <div class="file-line">
+                        <strong>File:</strong> <?php echo htmlspecialchars($exception->getFile()); ?><br>
+                        <strong>Line:</strong> <?php echo $exception->getLine(); ?>
+                    </div>
+
+                    <div class="trace">
+                        <strong>Stack Trace:</strong>
+                        <pre><?php echo htmlspecialchars($exception->getTraceAsString()); ?></pre>
+                    </div>
                 <?php else: ?>
-                <p>Error details have been logged. Please contact the system administrator.</p>
+                    <p>Error details have been logged. Please contact the system administrator.</p>
                 <?php endif; ?>
-                
+
                 <a href="<?php echo BASE_URL; ?>" class="btn">Return to Home</a>
             </div>
         </body>
+
         </html>
         <?php
         exit;
@@ -431,6 +443,7 @@ class Router
             ?>
             <!DOCTYPE html>
             <html lang="en">
+
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -446,16 +459,20 @@ class Router
                         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                         color: white;
                     }
+
                     .container {
                         text-align: center;
                     }
+
                     h1 {
                         font-size: 120px;
                         margin: 0;
                     }
+
                     p {
                         font-size: 24px;
                     }
+
                     a {
                         color: white;
                         text-decoration: none;
@@ -466,12 +483,14 @@ class Router
                         margin-top: 20px;
                         transition: all 0.3s;
                     }
+
                     a:hover {
                         background: white;
                         color: #667eea;
                     }
                 </style>
             </head>
+
             <body>
                 <div class="container">
                     <h1>404</h1>
@@ -479,6 +498,7 @@ class Router
                     <a href="<?php echo BASE_URL; ?>">Go Home</a>
                 </div>
             </body>
+
             </html>
             <?php
         }
@@ -737,6 +757,20 @@ $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
 $router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
 
 // ============================================================================
+// E-RESOURCES ROUTES
+// ============================================================================
+
+$router->addRoute('GET', '/e-resources', 'EResourceController', 'index');
+$router->addRoute('GET', '/e-resources/index', 'EResourceController', 'index');
+$router->addRoute('GET', '/e-resources/upload', 'EResourceController', 'showUpload');
+$router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload');
+
+// Admin/Faculty Actions
+$router->addRoute('GET', '/e-resources/approve/{id}', 'EResourceController', 'approve');
+$router->addRoute('GET', '/e-resources/reject/{id}', 'EResourceController', 'reject');
+$router->addRoute('GET', '/e-resources/delete/{id}', 'EResourceController', 'delete');
+
+// ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)
 // ============================================================================
 
@@ -813,6 +847,7 @@ try {
     ?>
     <!DOCTYPE html>
     <html lang="en">
+
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -827,23 +862,27 @@ try {
                 padding: 20px;
                 background: #f5f5f5;
             }
+
             .error-box {
                 background: white;
                 border-radius: 8px;
                 padding: 30px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             }
+
             h1 {
                 color: #d32f2f;
                 border-bottom: 2px solid #d32f2f;
                 padding-bottom: 10px;
             }
+
             .details {
                 background: #f8f9fa;
                 border-left: 4px solid #d32f2f;
                 padding: 15px;
                 margin: 20px 0;
             }
+
             pre {
                 background: #263238;
                 color: #aed581;
@@ -851,6 +890,7 @@ try {
                 border-radius: 4px;
                 overflow-x: auto;
             }
+
             .btn {
                 display: inline-block;
                 padding: 10px 20px;
@@ -860,11 +900,13 @@ try {
                 border-radius: 4px;
                 margin-top: 20px;
             }
+
             .btn:hover {
                 background: #0056b3;
             }
         </style>
     </head>
+
     <body>
         <div class="error-box">
             <h1>🔴 Fatal Application Error</h1>
@@ -873,15 +915,16 @@ try {
                 <p><strong>File:</strong> <?php echo htmlspecialchars($e->getFile()); ?></p>
                 <p><strong>Line:</strong> <?php echo $e->getLine(); ?></p>
             </div>
-            
+
             <?php if (ini_get('display_errors')): ?>
-            <h3>Stack Trace:</h3>
-            <pre><?php echo htmlspecialchars($e->getTraceAsString()); ?></pre>
+                <h3>Stack Trace:</h3>
+                <pre><?php echo htmlspecialchars($e->getTraceAsString()); ?></pre>
             <?php endif; ?>
-            
+
             <a href="<?php echo BASE_URL; ?>" class="btn">← Return to Home</a>
         </div>
     </body>
+
     </html>
     <?php
 }

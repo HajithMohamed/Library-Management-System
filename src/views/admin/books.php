@@ -268,7 +268,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         min-height: 100vh;
     }
 
-    .sidebar.collapsed ~ .main-content {
+    .sidebar.collapsed~.main-content {
         margin-left: 80px;
     }
 
@@ -548,7 +548,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     .modal {
         display: none;
         position: fixed;
-        z-index: 9999 !important; /* FIXED: Modal appears above all content */
+        z-index: 9999 !important;
+        /* FIXED: Modal appears above all content */
         left: 0;
         top: 0;
         width: 100%;
@@ -560,8 +561,13 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
     .modal.show {
@@ -576,7 +582,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         max-width: 900px;
         margin: 2rem auto;
         animation: slideUp 0.3s ease-out;
-        z-index: 10000 !important; /* FIXED: Dialog layer */
+        z-index: 10000 !important;
+        /* FIXED: Dialog layer */
     }
 
     @keyframes slideUp {
@@ -584,6 +591,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             transform: translateY(20px);
             opacity: 0;
         }
+
         to {
             transform: translateY(0);
             opacity: 1;
@@ -600,7 +608,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         max-height: 90vh;
         overflow: hidden;
-        z-index: 10001 !important; /* FIXED: Content layer */
+        z-index: 10001 !important;
+        /* FIXED: Content layer */
     }
 
     .modal-header {
@@ -653,7 +662,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         padding: 2rem;
         overflow-y: auto;
         overflow-x: hidden;
-        max-height: calc(90vh - 200px); /* Ensure footer is always visible */
+        max-height: calc(90vh - 200px);
+        /* Ensure footer is always visible */
     }
 
     .modal-footer {
@@ -664,7 +674,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         border-top: 1px solid var(--gray-200);
         background: var(--gray-50);
         gap: 1rem;
-        flex-shrink: 0; /* Prevent footer from being hidden */
+        flex-shrink: 0;
+        /* Prevent footer from being hidden */
     }
 
     /* Modern Scrollbar */
@@ -684,22 +695,23 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
     .modal-body::-webkit-scrollbar-thumb:hover {
 
-    /* FIXED: Blur background when modal is open */
-    body.modal-open {
-        overflow: hidden;
-    }
+        /* FIXED: Blur background when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
 
-    body.modal-open .main-content {
-        filter: blur(3px);
-        pointer-events: none;
-        transition: filter 0.2s ease;
-    }
+        body.modal-open .main-content {
+            filter: blur(3px);
+            pointer-events: none;
+            transition: filter 0.2s ease;
+        }
 
-    body.modal-open .sidebar {
-        filter: blur(2px);
-        pointer-events: none;
-        transition: filter 0.2s ease;
-    }
+        body.modal-open .sidebar {
+            filter: blur(2px);
+            pointer-events: none;
+            transition: filter 0.2s ease;
+        }
+
         background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
     }
 
@@ -872,7 +884,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     }
 
     @keyframes spinner {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     /* Mobile Responsive */
@@ -895,7 +909,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             margin-left: 0;
         }
 
-        .sidebar.collapsed ~ .main-content {
+        .sidebar.collapsed~.main-content {
             margin-left: 0;
         }
 
@@ -1105,6 +1119,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
     }
 
     @media (max-width: 768px) {
+
         .col-md-4,
         .col-md-6 {
             flex: 0 0 100%;
@@ -1171,7 +1186,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     <i class="fas fa-search"></i>
                     <input type="text" id="searchInput" placeholder="Search books by ISBN, title, or author...">
                 </div>
-                
+
                 <div class="filter-group">
                     <select id="publisherFilter" class="filter-select">
                         <option value="">All Publishers</option>
@@ -1183,7 +1198,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </select>
-                    
+
                     <select id="statusFilter" class="filter-select">
                         <option value="">All Status</option>
                         <option value="available">Available</option>
@@ -1222,10 +1237,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     <tr>
                                         <td>
                                             <?php if (!empty($book['bookImage'])): ?>
-                                                <img src="<?= BASE_URL ?>uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
-                                                     alt="<?= htmlspecialchars($book['bookName']) ?>" 
-                                                     class="book-cover"
-                                                     onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                <?php
+                                                $imgSrc = $book['bookImage'];
+                                                if (strpos($imgSrc, 'uploads/') === false) {
+                                                    $imgSrc = 'uploads/books/' . $imgSrc;
+                                                }
+                                                ?>
+                                                <img src="<?= BASE_URL . htmlspecialchars($imgSrc) ?>"
+                                                    alt="<?= htmlspecialchars($book['bookName']) ?>" class="book-cover"
+                                                    onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <div class="no-image" style="display:none;">
                                                     <i class="fas fa-book"></i>
                                                 </div>
@@ -1239,8 +1259,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         <td>
                                             <?php if (!empty($book['barcode'])): ?>
                                                 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">
-                                                    <?= htmlspecialchars($book['barcode']) ?>
-                                                </code>
+                                                                <?= htmlspecialchars($book['barcode']) ?>
+                                                            </code>
                                             <?php else: ?>
                                                 <span class="text-muted">-</span>
                                             <?php endif; ?>
@@ -1248,7 +1268,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         <td class="book-title">
                                             <?= htmlspecialchars($book['bookName']) ?>
                                             <?php if ($book['isTrending']): ?>
-                                                <span class="badge" style="background: #fbbf24; color: #92400e; margin-left: 0.5rem;">
+                                                <span class="badge"
+                                                    style="background: #fbbf24; color: #92400e; margin-left: 0.5rem;">
                                                     <i class="fas fa-fire"></i> Trending
                                                 </span>
                                             <?php endif; ?>
@@ -1265,7 +1286,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         </td>
                                         <td>
                                             <?php if ($book['borrowed'] > 0): ?>
-                                                <span class="badge" style="background: #fbbf24; color: #92400e;"><?= $book['borrowed'] ?></span>
+                                                <span class="badge"
+                                                    style="background: #fbbf24; color: #92400e;"><?= $book['borrowed'] ?></span>
                                             <?php else: ?>
                                                 <span class="text-muted">0</span>
                                             <?php endif; ?>
@@ -1288,20 +1310,20 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                         <td>
                                             <div class="action-buttons">
                                                 <?php if (!empty($book['barcode'])): ?>
-                                                <button class="btn-action" style="background: #dbeafe; color: #1e40af;" 
+                                                    <button class="btn-action" style="background: #dbeafe; color: #1e40af;"
                                                         onclick="viewBarcode('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars($book['barcode']) ?>', '<?= htmlspecialchars(addslashes($book['bookName'])) ?>')"
                                                         title="View Barcode">
-                                                    <i class="fas fa-barcode"></i>
-                                                </button>
+                                                        <i class="fas fa-barcode"></i>
+                                                    </button>
                                                 <?php endif; ?>
-                                                <button class="btn-action btn-edit" 
-                                                        onclick='openEditModal(<?= json_encode($book, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
-                                                        title="Edit">
+                                                <button class="btn-action btn-edit"
+                                                    onclick='openEditModal(<?= json_encode($book, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
+                                                    title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
-                                                <button class="btn-action btn-delete" 
-                                                        onclick="deleteBook('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars(addslashes($book['bookName'])) ?>')"
-                                                        title="Delete">
+                                                <button class="btn-action btn-delete"
+                                                    onclick="deleteBook('<?= htmlspecialchars($book['isbn']) ?>', '<?= htmlspecialchars(addslashes($book['bookName'])) ?>')"
+                                                    title="Delete">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -1323,9 +1345,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                     </table>
                 </div>
             </div>
-             
+
         </div>
-       <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
+        <?php include APP_ROOT . '/views/layouts/admin-footer.php'; ?>
     </main>
 </div>
 
@@ -1361,7 +1383,8 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     </div>
                                 </div>
                                 <div style="flex: 1;">
-                                    <input type="file" class="form-control" name="image" id="add_coverImage" accept="image/*">
+                                    <input type="file" class="form-control" name="image" id="add_coverImage"
+                                        accept="image/*">
                                     <small class="text-muted">Accepted formats: JPG, PNG, GIF, WebP (Max 2MB)</small>
                                 </div>
                             </div>
@@ -1372,128 +1395,127 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <i class="fas fa-barcode"></i>
                                 ISBN <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" name="isbn" required 
-                                   placeholder="Enter ISBN (e.g., 9780134685991)">
+                            <input type="text" class="form-control" name="isbn" required
+                                placeholder="Enter ISBN (e.g., 9780134685991)">
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="add_barcode" class="form-label">
                                 <i class="fas fa-qrcode"></i>
                                 Barcode
                             </label>
-                            <input type="text" class="form-control" name="barcode" 
-                                   placeholder="Leave empty for auto-generation">
+                            <input type="text" class="form-control" name="barcode"
+                                placeholder="Leave empty for auto-generation">
                             <small class="text-muted">Auto-generated if left empty</small>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <label for="add_bookName" class="form-label">
                                 <i class="fas fa-book"></i>
                                 Book Title <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="bookName" required
-                                   placeholder="Enter book title">
+                                placeholder="Enter book title">
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="add_author" class="form-label">
                                 <i class="fas fa-user"></i>
                                 Author Name <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="authorName" required
-                                   placeholder="Enter author name">
+                                placeholder="Enter author name">
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="add_publisher" class="form-label">
                                 <i class="fas fa-building"></i>
                                 Publisher <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="publisherName" required
-                                   placeholder="Enter publisher name">
+                                placeholder="Enter publisher name">
                         </div>
-                        
+
                         <div class="col-md-12">
                             <label for="add_description" class="form-label">
                                 <i class="fas fa-align-left"></i>
                                 Description
                             </label>
-                            <textarea class="form-control" name="description" rows="3" 
-                                      placeholder="Enter book description"></textarea>
+                            <textarea class="form-control" name="description" rows="3"
+                                placeholder="Enter book description"></textarea>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="add_category" class="form-label">
                                 <i class="fas fa-tag"></i>
                                 Category
                             </label>
-                            <input type="text" class="form-control" name="category" 
-                                   placeholder="e.g., Computer Science, Literature">
+                            <input type="text" class="form-control" name="category"
+                                placeholder="e.g., Computer Science, Literature">
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="add_publicationYear" class="form-label">
                                 <i class="fas fa-calendar"></i>
                                 Publication Year
                             </label>
-                            <input type="number" class="form-control" name="publicationYear" 
-                                   min="1800" max="<?= date('Y') ?>" placeholder="e.g., <?= date('Y') ?>">
+                            <input type="number" class="form-control" name="publicationYear" min="1800"
+                                max="<?= date('Y') ?>" placeholder="e.g., <?= date('Y') ?>">
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="add_totalCopies" class="form-label">
                                 <i class="fas fa-copy"></i>
                                 Total Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" name="totalCopies" 
-                                   min="1" value="1" required>
+                            <input type="number" class="form-control" name="totalCopies" min="1" value="1" required>
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="add_available" class="form-label">
                                 <i class="fas fa-check-circle"></i>
                                 Available Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" name="available" 
-                                   min="0" value="1" required>
+                            <input type="number" class="form-control" name="available" min="0" value="1" required>
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="add_borrowed" class="form-label">
                                 <i class="fas fa-book-reader"></i>
                                 Borrowed Copies
                             </label>
-                            <input type="number" class="form-control" name="borrowed" 
-                                   min="0" value="0">
+                            <input type="number" class="form-control" name="borrowed" min="0" value="0">
                         </div>
 
                         <div class="col-md-12">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="isTrending" value="1" id="add_isTrending">
+                                <input class="form-check-input" type="checkbox" name="isTrending" value="1"
+                                    id="add_isTrending">
                                 <label class="form-check-label" for="add_isTrending">
                                     <i class="fas fa-fire"></i>
                                     Mark as Trending Book
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1" id="add_isSpecial">
+                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1"
+                                    id="add_isSpecial">
                                 <label class="form-check-label" for="add_isSpecial">
                                     <i class="fas fa-star"></i>
                                     Mark as Special Book
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-12" id="add_specialBadgeContainer" style="display: none;">
                             <label for="add_specialBadge" class="form-label">
                                 <i class="fas fa-award"></i>
                                 Special Badge
                             </label>
                             <input type="text" class="form-control" name="specialBadge" id="add_specialBadge"
-                                   placeholder="e.g., Bestseller, Classic, Award Winner">
+                                placeholder="e.g., Bestseller, Classic, Award Winner">
                             <small class="text-muted">Only shown if 'Mark as Special' is checked</small>
                         </div>
                     </div>
@@ -1527,7 +1549,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
             <form method="POST" action="<?= BASE_URL ?>admin/books/edit" enctype="multipart/form-data">
                 <div class="modal-body">
                     <input type="hidden" name="isbn" id="edit_isbn">
-                    
+
                     <div class="row">
                         <div class="col-md-12">
                             <label class="form-label">
@@ -1541,8 +1563,10 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                     </div>
                                 </div>
                                 <div style="flex: 1;">
-                                    <input type="file" class="form-control" name="image" id="edit_coverImage" accept="image/*">
-                                    <small class="text-muted">Leave empty to keep current image. Accepted formats: JPG, PNG, GIF, WebP</small>
+                                    <input type="file" class="form-control" name="image" id="edit_coverImage"
+                                        accept="image/*">
+                                    <small class="text-muted">Leave empty to keep current image. Accepted formats: JPG,
+                                        PNG, GIF, WebP</small>
                                 </div>
                             </div>
                         </div>
@@ -1552,34 +1576,34 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             <input type="text" class="form-control" id="edit_isbn_display" disabled>
                             <small class="text-muted">ISBN cannot be changed</small>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label class="form-label">Barcode</label>
                             <input type="text" class="form-control" id="edit_barcode_display" disabled>
                             <small class="text-muted">Auto-generated</small>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <label for="edit_bookName" class="form-label">
                                 Book Title <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="bookName" id="edit_bookName" required>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="edit_author" class="form-label">
                                 Author <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="authorName" id="edit_author" required>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="edit_publisher" class="form-label">
                                 Publisher <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" name="publisherName" id="edit_publisher" required>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <label for="edit_description" class="form-label">
                                 <i class="fas fa-align-left"></i>
@@ -1587,7 +1611,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             </label>
                             <textarea class="form-control" name="description" id="edit_description" rows="3"></textarea>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="edit_category" class="form-label">
                                 <i class="fas fa-tag"></i>
@@ -1595,57 +1619,62 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                             </label>
                             <input type="text" class="form-control" name="category" id="edit_category">
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="edit_publicationYear" class="form-label">
                                 <i class="fas fa-calendar"></i>
                                 Publication Year
                             </label>
-                            <input type="number" class="form-control" name="publicationYear" id="edit_publicationYear" 
-                                   min="1800" max="<?= date('Y') ?>">
+                            <input type="number" class="form-control" name="publicationYear" id="edit_publicationYear"
+                                min="1800" max="<?= date('Y') ?>">
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="edit_totalCopies" class="form-label">
                                 Total Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" name="totalCopies" id="edit_totalCopies" required min="1">
+                            <input type="number" class="form-control" name="totalCopies" id="edit_totalCopies" required
+                                min="1">
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="edit_available" class="form-label">
                                 Available Copies <span class="text-danger">*</span>
                             </label>
-                            <input type="number" class="form-control" name="available" id="edit_available" required min="0">
+                            <input type="number" class="form-control" name="available" id="edit_available" required
+                                min="0">
                         </div>
-                        
+
                         <div class="col-md-4">
                             <label for="edit_borrowed" class="form-label">
                                 Borrowed Copies
                             </label>
-                            <input type="number" class="form-control" name="borrowed" id="edit_borrowed" min="0" value="0">
+                            <input type="number" class="form-control" name="borrowed" id="edit_borrowed" min="0"
+                                value="0">
                         </div>
 
                         <div class="col-md-12">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="isTrending" value="1" id="edit_isTrending">
+                                <input class="form-check-input" type="checkbox" name="isTrending" value="1"
+                                    id="edit_isTrending">
                                 <label class="form-check-label" for="edit_isTrending">
                                     <i class="fas fa-fire"></i>
                                     Mark as Trending Book
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-12">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1" id="edit_isSpecial">
+                                <input class="form-check-input" type="checkbox" name="isSpecial" value="1"
+                                    id="edit_isSpecial">
                                 <label class="form-check-label" for="edit_isSpecial">
                                     <i class="fas fa-star"></i>
                                     Mark as Special Book
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="col-md-12" id="edit_specialBadgeContainer" style="display: none;">
                             <label for="edit_specialBadge" class="form-label">
                                 <i class="fas fa-award"></i>
@@ -1699,313 +1728,317 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
 <script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
-// Sidebar toggle functions (same as dashboard)
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-}
-
-function toggleMobileSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-    sidebar.classList.toggle('mobile-open');
-    overlay.classList.toggle('show');
-}
-
-// Load sidebar state
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    
-    if (isCollapsed) {
-        sidebar.classList.add('collapsed');
+    // Sidebar toggle functions (same as dashboard)
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
     }
-});
 
-// Bootstrap Modal Polyfill
-const bootstrap = {
-    Modal: class {
-        constructor(element) {
-            this.element = element;
-        }
-        
-        show() {
-            this.element.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-        
-        hide() {
-            this.element.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-        
-        static getInstance(element) {
-            return new bootstrap.Modal(element);
-        }
+    function toggleMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('show');
     }
-};
 
-// Modal close button functionality
-document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const modal = this.closest('.modal');
-        bootstrap.Modal.getInstance(modal).hide();
-    });
-});
+    // Load sidebar state
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.getElementById('sidebar');
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
 
-// Modal toggle button functionality
-document.querySelectorAll('[data-bs-toggle="modal"]').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const targetId = this.getAttribute('data-bs-target');
-        const modal = document.querySelector(targetId);
-        new bootstrap.Modal(modal).show();
-    });
-});
-
-// Close modal on outside click
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
-            bootstrap.Modal.getInstance(this).hide();
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
         }
     });
-});
 
-// Compress image before upload
-function compressImage(file, maxWidth = 800, quality = 0.7) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > maxWidth) {
-                    height = (height * maxWidth) / width;
-                    width = maxWidth;
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                canvas.toBlob((blob) => {
-                    resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-                }, 'image/jpeg', quality);
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    // Bootstrap Modal Polyfill
+    const bootstrap = {
+        Modal: class {
+            constructor(element) {
+                this.element = element;
+            }
+
+            show() {
+                this.element.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+
+            hide() {
+                this.element.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            static getInstance(element) {
+                return new bootstrap.Modal(element);
+            }
+        }
+    };
+
+    // Modal close button functionality
+    document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const modal = this.closest('.modal');
+            bootstrap.Modal.getInstance(modal).hide();
+        });
     });
-}
 
-// Set even more aggressive client-side upload limit (500KB instead of 2MB)
-const MAX_UPLOAD_SIZE = 500 * 1024; // 500KB
+    // Modal toggle button functionality
+    document.querySelectorAll('[data-bs-toggle="modal"]').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const targetId = this.getAttribute('data-bs-target');
+            const modal = document.querySelector(targetId);
+            new bootstrap.Modal(modal).show();
+        });
+    });
 
-// ULTRA-AGGRESSIVE image optimizer
-async function optimizeImage(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = async function() {
-                let quality = 0.7;
-                let maxWidth = 1200;
-                let result = file;
-                
-                // Try up to 8 compression passes
-                for (let attempt = 0; attempt < 8; attempt++) {
+    // Close modal on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function (e) {
+            if (e.target === this) {
+                bootstrap.Modal.getInstance(this).hide();
+            }
+        });
+    });
+
+    // Compress image before upload
+    function compressImage(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
                     const canvas = document.createElement('canvas');
                     let width = img.width;
                     let height = img.height;
-                    
+
                     if (width > maxWidth) {
                         height = (height * maxWidth) / width;
                         width = maxWidth;
                     }
-                    
+
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    const blob = await new Promise(res => {
-                        canvas.toBlob(res, 'image/jpeg', quality);
-                    });
-                    
-                    result = new File([blob], file.name, { type: 'image/jpeg' });
-                    
-                    console.log(`Attempt ${attempt + 1}: ${(result.size / 1024).toFixed(1)}KB (quality: ${quality}, size: ${width}x${height})`);
-                    
-                    if (result.size <= MAX_UPLOAD_SIZE) {
-                        resolve(result);
-                        return;
+
+                    canvas.toBlob((blob) => {
+                        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                    }, 'image/jpeg', quality);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Set even more aggressive client-side upload limit (500KB instead of 2MB)
+    const MAX_UPLOAD_SIZE = 500 * 1024; // 500KB
+
+    // ULTRA-AGGRESSIVE image optimizer
+    async function optimizeImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = async function () {
+                    let quality = 0.7;
+                    let maxWidth = 1200;
+                    let result = file;
+
+                    // Try up to 8 compression passes
+                    for (let attempt = 0; attempt < 8; attempt++) {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const blob = await new Promise(res => {
+                            canvas.toBlob(res, 'image/jpeg', quality);
+                        });
+
+                        result = new File([blob], file.name, { type: 'image/jpeg' });
+
+                        console.log(`Attempt ${attempt + 1}: ${(result.size / 1024).toFixed(1)}KB (quality: ${quality}, size: ${width}x${height})`);
+
+                        if (result.size <= MAX_UPLOAD_SIZE) {
+                            resolve(result);
+                            return;
+                        }
+
+                        // Reduce quality and size for next attempt
+
+                        maxWidth = Math.max(600, Math.floor(maxWidth * 0.8));
                     }
-                    
-                    // Reduce quality and size for next attempt
-                   
-                    maxWidth = Math.max(600, Math.floor(maxWidth * 0.8));
-                }
-                
-                reject(new Error(`Could not compress to ${(MAX_UPLOAD_SIZE / 1024).toFixed(0)}KB. Try a smaller image.`));
+
+                    reject(new Error(`Could not compress to ${(MAX_UPLOAD_SIZE / 1024).toFixed(0)}KB. Try a smaller image.`));
+                };
+                img.src = e.target.result;
             };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Modified Image Preview for Add Book with ULTRA-aggressive optimization
+    document.getElementById('add_coverImage').addEventListener('change', async function () {
+        if (this.files && this.files[0]) {
+            let file = this.files[0];
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+            if (!allowedTypes.includes(file.type)) {
+                alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
+                this.value = '';
+                document.getElementById('add_imagePreview').style.display = 'none';
+                document.getElementById('add_imagePlaceholder').style.display = 'flex';
+                return;
+            }
+
+            // Always optimize images to ensure they're under limit
+            try {
+                const originalSize = file.size;
+                file = await optimizeImage(file);
+
+                console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
+
+                // Update the file input with optimized file
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                this.files = dataTransfer.files;
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    document.getElementById('add_previewImage').src = event.target.result;
+                    document.getElementById('add_imagePreview').style.display = 'block';
+                    document.getElementById('add_imagePlaceholder').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                alert(`Image optimization failed: ${error.message}`);
+                this.value = '';
+                document.getElementById('add_imagePreview').style.display = 'none';
+                document.getElementById('add_imagePlaceholder').style.display = 'flex';
+            }
+        }
     });
-}
 
-// Modified Image Preview for Add Book with ULTRA-aggressive optimization
-document.getElementById('add_coverImage').addEventListener('change', async function() {
-    if (this.files && this.files[0]) {
-        let file = this.files[0];
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        
-        if (!allowedTypes.includes(file.type)) {
-            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
-            this.value = '';
-            document.getElementById('add_imagePreview').style.display = 'none';
-            document.getElementById('add_imagePlaceholder').style.display = 'flex';
+    // Same for edit modal
+    document.getElementById('edit_coverImage').addEventListener('change', async function () {
+        if (this.files && this.files[0]) {
+            let file = this.files[0];
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+            if (!allowedTypes.includes(file.type)) {
+                alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
+                this.value = '';
+                return;
+            }
+
+            try {
+                const originalSize = file.size;
+                file = await optimizeImage(file);
+
+                console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
+
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                this.files = dataTransfer.files;
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    document.getElementById('edit_previewImage').src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                alert(`Image optimization failed: ${error.message}`);
+                this.value = '';
+            }
+        }
+    });
+
+    // Show/hide special badge field in Add form
+    document.getElementById('add_isSpecial').addEventListener('change', function () {
+        document.getElementById('add_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Show/hide special badge field in Edit form
+    document.getElementById('edit_isSpecial').addEventListener('change', function () {
+        document.getElementById('edit_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Open Edit Modal with book data - UPDATED
+    function openEditModal(book) {
+        document.getElementById('edit_isbn').value = book.isbn;
+        document.getElementById('edit_isbn_display').value = book.isbn;
+        document.getElementById('edit_barcode_display').value = book.barcode || 'Auto-generated';
+        document.getElementById('edit_bookName').value = book.bookName;
+        document.getElementById('edit_author').value = book.authorName;
+        document.getElementById('edit_publisher').value = book.publisherName;
+        document.getElementById('edit_description').value = book.description || '';
+        document.getElementById('edit_category').value = book.category || '';
+        document.getElementById('edit_publicationYear').value = book.publicationYear || '';
+        document.getElementById('edit_totalCopies').value = book.totalCopies;
+        document.getElementById('edit_available').value = book.available;
+        document.getElementById('edit_borrowed').value = book.borrowed || 0;
+        document.getElementById('edit_isTrending').checked = book.isTrending == 1;
+        document.getElementById('edit_isSpecial').checked = book.isSpecial == 1;
+        document.getElementById('edit_specialBadge').value = book.specialBadge || '';
+
+        // Show/hide special badge container
+        document.getElementById('edit_specialBadgeContainer').style.display = book.isSpecial == 1 ? 'block' : 'none';
+
+        // Set image preview
+        if (book.bookImage) {
+            let imgSrc = book.bookImage;
+            if (imgSrc.indexOf('uploads/') === -1) {
+                imgSrc = 'uploads/books/' + imgSrc;
+            }
+            document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>' + imgSrc;
+        } else {
+            document.getElementById('edit_previewImage').src = '';
+        }
+
+        new bootstrap.Modal(document.getElementById('editBookModal')).show();
+    }
+
+    // Delete Book - UPDATED (simpler confirmation)
+    function deleteBook(isbn, bookName) {
+        if (!confirm(`Are you sure you want to delete "${bookName}"?\n\nThis action cannot be undone.`)) {
             return;
         }
-        
-        // Always optimize images to ensure they're under limit
-        try {
-            const originalSize = file.size;
-            file = await optimizeImage(file);
-            
-            console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
-            
-            // Update the file input with optimized file
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            this.files = dataTransfer.files;
-            
-            // Show preview
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                document.getElementById('add_previewImage').src = event.target.result;
-                document.getElementById('add_imagePreview').style.display = 'block';
-                document.getElementById('add_imagePlaceholder').style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-            
-        } catch (error) {
-            alert(`Image optimization failed: ${error.message}`);
-            this.value = '';
-            document.getElementById('add_imagePreview').style.display = 'none';
-            document.getElementById('add_imagePlaceholder').style.display = 'flex';
-        }
+
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '<?= BASE_URL ?>admin/books/delete';
+
+        const isbnInput = document.createElement('input');
+        isbnInput.type = 'hidden';
+        isbnInput.name = 'isbn';
+        isbnInput.value = isbn;
+
+        form.appendChild(isbnInput);
+        document.body.appendChild(form);
+        form.submit();
     }
-});
 
-// Same for edit modal
-document.getElementById('edit_coverImage').addEventListener('change', async function() {
-    if (this.files && this.files[0]) {
-        let file = this.files[0];
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        
-        if (!allowedTypes.includes(file.type)) {
-            alert('Invalid file type. Please upload JPG, PNG, GIF, or WebP image.');
-            this.value = '';
-            return;
-        }
-        
-        try {
-            const originalSize = file.size;
-            file = await optimizeImage(file);
-            
-            console.log(`✓ Compression complete: ${(originalSize / 1024).toFixed(1)}KB → ${(file.size / 1024).toFixed(1)}KB`);
-            
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            this.files = dataTransfer.files;
-            
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                document.getElementById('edit_previewImage').src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-            
-        } catch (error) {
-            alert(`Image optimization failed: ${error.message}`);
-            this.value = '';
-        }
-    }
-});
+    // View Barcode
+    function viewBarcode(isbn, barcodeValue, bookName) {
+        const cleanIsbn = isbn.replace(/-/g, '');
+        const labelPath = '<?= BASE_URL ?>public/uploads/barcodes/' + cleanIsbn + '_label.png';
 
-// Show/hide special badge field in Add form
-document.getElementById('add_isSpecial').addEventListener('change', function() {
-    document.getElementById('add_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
-});
-
-// Show/hide special badge field in Edit form
-document.getElementById('edit_isSpecial').addEventListener('change', function() {
-    document.getElementById('edit_specialBadgeContainer').style.display = this.checked ? 'block' : 'none';
-});
-
-// Open Edit Modal with book data - UPDATED
-function openEditModal(book) {
-    document.getElementById('edit_isbn').value = book.isbn;
-    document.getElementById('edit_isbn_display').value = book.isbn;
-    document.getElementById('edit_barcode_display').value = book.barcode || 'Auto-generated';
-    document.getElementById('edit_bookName').value = book.bookName;
-    document.getElementById('edit_author').value = book.authorName;
-    document.getElementById('edit_publisher').value = book.publisherName;
-    document.getElementById('edit_description').value = book.description || '';
-    document.getElementById('edit_category').value = book.category || '';
-    document.getElementById('edit_publicationYear').value = book.publicationYear || '';
-    document.getElementById('edit_totalCopies').value = book.totalCopies;
-    document.getElementById('edit_available').value = book.available;
-    document.getElementById('edit_borrowed').value = book.borrowed || 0;
-    document.getElementById('edit_isTrending').checked = book.isTrending == 1;
-    document.getElementById('edit_isSpecial').checked = book.isSpecial == 1;
-    document.getElementById('edit_specialBadge').value = book.specialBadge || '';
-    
-    // Show/hide special badge container
-    document.getElementById('edit_specialBadgeContainer').style.display = book.isSpecial == 1 ? 'block' : 'none';
-    
-    // Set image preview
-    if (book.bookImage) {
-        document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>uploads/books/' + book.bookImage;
-    } else {
-        document.getElementById('edit_previewImage').src = '';
-    }
-    
-    new bootstrap.Modal(document.getElementById('editBookModal')).show();
-}
-
-// Delete Book - UPDATED (simpler confirmation)
-function deleteBook(isbn, bookName) {
-    if (!confirm(`Are you sure you want to delete "${bookName}"?\n\nThis action cannot be undone.`)) {
-        return;
-    }
-    
-    // Create a form and submit it
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '<?= BASE_URL ?>admin/books/delete';
-    
-    const isbnInput = document.createElement('input');
-    isbnInput.type = 'hidden';
-    isbnInput.name = 'isbn';
-    isbnInput.value = isbn;
-    
-    form.appendChild(isbnInput);
-    document.body.appendChild(form);
-    form.submit();
-}
-
-// View Barcode
-function viewBarcode(isbn, barcodeValue, bookName) {
-    const cleanIsbn = isbn.replace(/-/g, '');
-    const labelPath = '<?= BASE_URL ?>public/uploads/barcodes/' + cleanIsbn + '_label.png';
-    
-    const content = `
+        const content = `
         <div class="barcode-display">
             <h4 class="mb-4">${bookName}</h4>
             <div class="mb-4">
@@ -2023,211 +2056,211 @@ function viewBarcode(isbn, barcodeValue, bookName) {
             </div>
         </div>
     `;
-    
-    document.getElementById('barcodeContent').innerHTML = content;
-    window.currentBarcodeLabel = labelPath;
-    new bootstrap.Modal(document.getElementById('barcodeModal')).show();
-}
 
-function printBarcode() {
-    const printContent = document.getElementById('barcodeContent').innerHTML;
-    const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>Print Barcode</title>');
-    printWindow.document.write('<style>body{text-align:center;font-family:Arial;padding:20px;}</style>');
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(printContent);
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    printWindow.print();
-}
-
-function downloadBarcode() {
-    if (window.currentBarcodeLabel) {
-        const link = document.createElement('a');
-        link.href = window.currentBarcodeLabel;
-        link.download = 'barcode_label.png';
-        link.click();
+        document.getElementById('barcodeContent').innerHTML = content;
+        window.currentBarcodeLabel = labelPath;
+        new bootstrap.Modal(document.getElementById('barcodeModal')).show();
     }
-}
 
-// Search and Filter Functionality
-function applyFilters() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const publisherFilter = document.getElementById('publisherFilter').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    
-    const rows = document.querySelectorAll('.table tbody tr');
-    
-    rows.forEach(row => {
-        if (row.cells.length === 1) return;
-        
-        const isbn = row.cells[1].textContent.toLowerCase();
-        const bookName = row.cells[3].textContent.toLowerCase();
-        const author = row.cells[4].textContent.toLowerCase();
-        const publisher = row.cells[5].textContent.toLowerCase();
-        const availableText = row.cells[7].textContent.trim();
-        const available = parseInt(availableText);
-        
-        const matchesSearch = searchTerm === '' || 
-            isbn.includes(searchTerm) || 
-            bookName.includes(searchTerm) || 
-            author.includes(searchTerm);
-        
-        const matchesPublisher = publisherFilter === '' || publisher.includes(publisherFilter);
-        
-        let matchesStatus = true;
-        if (statusFilter === 'available') {
-            matchesStatus = available > 0;
-        } else if (statusFilter === 'unavailable') {
-            matchesStatus = available === 0;
+    function printBarcode() {
+        const printContent = document.getElementById('barcodeContent').innerHTML;
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Print Barcode</title>');
+        printWindow.document.write('<style>body{text-align:center;font-family:Arial;padding:20px;}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(printContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    function downloadBarcode() {
+        if (window.currentBarcodeLabel) {
+            const link = document.createElement('a');
+            link.href = window.currentBarcodeLabel;
+            link.download = 'barcode_label.png';
+            link.click();
         }
-        
-        if (matchesSearch && matchesPublisher && matchesStatus) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+    }
+
+    // Search and Filter Functionality
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const publisherFilter = document.getElementById('publisherFilter').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        const rows = document.querySelectorAll('.table tbody tr');
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+
+            const isbn = row.cells[1].textContent.toLowerCase();
+            const bookName = row.cells[3].textContent.toLowerCase();
+            const author = row.cells[4].textContent.toLowerCase();
+            const publisher = row.cells[5].textContent.toLowerCase();
+            const availableText = row.cells[7].textContent.trim();
+            const available = parseInt(availableText);
+
+            const matchesSearch = searchTerm === '' ||
+                isbn.includes(searchTerm) ||
+                bookName.includes(searchTerm) ||
+                author.includes(searchTerm);
+
+            const matchesPublisher = publisherFilter === '' || publisher.includes(publisherFilter);
+
+            let matchesStatus = true;
+            if (statusFilter === 'available') {
+                matchesStatus = available > 0;
+            } else if (statusFilter === 'unavailable') {
+                matchesStatus = available === 0;
+            }
+
+            if (matchesSearch && matchesPublisher && matchesStatus) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('publisherFilter').addEventListener('change', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    // Add form validation to Add Book Modal
+    document.querySelector('#addBookModal form').addEventListener('submit', function (e) {
+        let isValid = true;
+
+        // Clear errors
+        this.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+            el.style.borderColor = '';
+        });
+        this.querySelectorAll('.error-message').forEach(el => el.remove());
+
+        const isbn = this.querySelector('[name="isbn"]');
+        const bookName = this.querySelector('[name="bookName"]');
+        const authorName = this.querySelector('[name="authorName"]');
+        const publisherName = this.querySelector('[name="publisherName"]');
+        const totalCopies = this.querySelector('[name="totalCopies"]');
+        const available = this.querySelector('[name="available"]');
+
+        // Validate ISBN
+        if (!isbn.value.trim() || isbn.value.length < 10) {
+            showError(isbn, 'ISBN must be at least 10 characters');
+            isValid = false;
+        }
+
+        // Validate book name
+        if (!bookName.value.trim() || bookName.value.length < 2) {
+            showError(bookName, 'Book title must be at least 2 characters');
+            isValid = false;
+        }
+
+        // Validate author name
+        if (!authorName.value.trim() || authorName.value.length < 2) {
+            showError(authorName, 'Author name must be at least 2 characters');
+            isValid = false;
+        }
+
+        // Validate publisher name
+        if (!publisherName.value.trim() || publisherName.value.length < 2) {
+            showError(publisherName, 'Publisher name must be at least 2 characters');
+            isValid = false;
+        }
+
+        // Validate copies
+        if (parseInt(totalCopies.value) < 1) {
+            showError(totalCopies, 'Total copies must be at least 1');
+            isValid = false;
+        }
+
+        if (parseInt(available.value) < 0) {
+            showError(available, 'Available copies cannot be negative');
+            isValid = false;
+        }
+
+        if (parseInt(available.value) > parseInt(totalCopies.value)) {
+            showError(available, 'Available copies cannot exceed total copies');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            const firstError = this.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
         }
     });
-}
 
-document.getElementById('searchInput').addEventListener('input', applyFilters);
-document.getElementById('publisherFilter').addEventListener('change', applyFilters);
-document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    // Add form validation to Edit Book Modal
+    document.querySelector('#editBookModal form').addEventListener('submit', function (e) {
+        // Same validation as Add Book Modal
+        let isValid = true;
 
-// Add form validation to Add Book Modal
-document.querySelector('#addBookModal form').addEventListener('submit', function(e) {
-    let isValid = true;
-    
-    // Clear errors
-    this.querySelectorAll('.is-invalid').forEach(el => {
-        el.classList.remove('is-invalid');
-        el.style.borderColor = '';
-    });
-    this.querySelectorAll('.error-message').forEach(el => el.remove());
-    
-    const isbn = this.querySelector('[name="isbn"]');
-    const bookName = this.querySelector('[name="bookName"]');
-    const authorName = this.querySelector('[name="authorName"]');
-    const publisherName = this.querySelector('[name="publisherName"]');
-    const totalCopies = this.querySelector('[name="totalCopies"]');
-    const available = this.querySelector('[name="available"]');
-    
-    // Validate ISBN
-    if (!isbn.value.trim() || isbn.value.length < 10) {
-        showError(isbn, 'ISBN must be at least 10 characters');
-        isValid = false;
-    }
-    
-    // Validate book name
-    if (!bookName.value.trim() || bookName.value.length < 2) {
-        showError(bookName, 'Book title must be at least 2 characters');
-        isValid = false;
-    }
-    
-    // Validate author name
-    if (!authorName.value.trim() || authorName.value.length < 2) {
-        showError(authorName, 'Author name must be at least 2 characters');
-        isValid = false;
-    }
-    
-    // Validate publisher name
-    if (!publisherName.value.trim() || publisherName.value.length < 2) {
-        showError(publisherName, 'Publisher name must be at least 2 characters');
-        isValid = false;
-    }
-    
-    // Validate copies
-    if (parseInt(totalCopies.value) < 1) {
-        showError(totalCopies, 'Total copies must be at least 1');
-        isValid = false;
-    }
-    
-    if (parseInt(available.value) < 0) {
-        showError(available, 'Available copies cannot be negative');
-        isValid = false;
-    }
-    
-    if (parseInt(available.value) > parseInt(totalCopies.value)) {
-        showError(available, 'Available copies cannot exceed total copies');
-        isValid = false;
-    }
-    
-    if (!isValid) {
-        e.preventDefault();
-        const firstError = this.querySelector('.is-invalid');
-        if (firstError) {
-            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            firstError.focus();
+        this.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+            el.style.borderColor = '';
+        });
+        this.querySelectorAll('.error-message').forEach(el => el.remove());
+
+        const bookName = this.querySelector('[name="bookName"]');
+        const authorName = this.querySelector('[name="authorName"]');
+        const publisherName = this.querySelector('[name="publisherName"]');
+        const totalCopies = this.querySelector('[name="totalCopies"]');
+        const available = this.querySelector('[name="available"]');
+
+        if (!bookName.value.trim() || bookName.value.length < 2) {
+            showError(bookName, 'Book title must be at least 2 characters');
+            isValid = false;
         }
-    }
-});
 
-// Add form validation to Edit Book Modal
-document.querySelector('#editBookModal form').addEventListener('submit', function(e) {
-    // Same validation as Add Book Modal
-    let isValid = true;
-    
-    this.querySelectorAll('.is-invalid').forEach(el => {
-        el.classList.remove('is-invalid');
-        el.style.borderColor = '';
-    });
-    this.querySelectorAll('.error-message').forEach(el => el.remove());
-    
-    const bookName = this.querySelector('[name="bookName"]');
-    const authorName = this.querySelector('[name="authorName"]');
-    const publisherName = this.querySelector('[name="publisherName"]');
-    const totalCopies = this.querySelector('[name="totalCopies"]');
-    const available = this.querySelector('[name="available"]');
-    
-    if (!bookName.value.trim() || bookName.value.length < 2) {
-        showError(bookName, 'Book title must be at least 2 characters');
-        isValid = false;
-    }
-    
-    if (!authorName.value.trim() || authorName.value.length < 2) {
-        showError(authorName, 'Author name must be at least 2 characters');
-        isValid = false;
-    }
-    
-    if (!publisherName.value.trim() || publisherName.value.length < 2) {
-        showError(publisherName, 'Publisher name must be at least 2 characters');
-        isValid = false;
-    }
-    
-    if (parseInt(totalCopies.value) < 1) {
-        showError(totalCopies, 'Total copies must be at least 1');
-        isValid = false;
-    }
-    
-    if (parseInt(available.value) < 0) {
-        showError(available, 'Available copies cannot be negative');
-        isValid = false;
-    }
-    
-    if (parseInt(available.value) > parseInt(totalCopies.value)) {
-        showError(available, 'Available copies cannot exceed total copies');
-        isValid = false;
-    }
-    
-    if (!isValid) {
-        e.preventDefault();
-        const firstError = this.querySelector('.is-invalid');
-        if (firstError) {
-            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            firstError.focus();
+        if (!authorName.value.trim() || authorName.value.length < 2) {
+            showError(authorName, 'Author name must be at least 2 characters');
+            isValid = false;
         }
-    }
-});
 
-// Error display function
-function showError(input, message) {
-    input.classList.add('is-invalid');
-    const errorMessage = document.createElement('div');
-    errorMessage.className = 'error-message';
-    errorMessage.style.color = '#dc3545';
-    errorMessage.style.fontSize = '0.875rem';
-    errorMessage.style.marginTop = '0.25rem';
-    errorMessage.textContent = message;
-    input.parentElement.appendChild(errorMessage);
-}
+        if (!publisherName.value.trim() || publisherName.value.length < 2) {
+            showError(publisherName, 'Publisher name must be at least 2 characters');
+            isValid = false;
+        }
+
+        if (parseInt(totalCopies.value) < 1) {
+            showError(totalCopies, 'Total copies must be at least 1');
+            isValid = false;
+        }
+
+        if (parseInt(available.value) < 0) {
+            showError(available, 'Available copies cannot be negative');
+            isValid = false;
+        }
+
+        if (parseInt(available.value) > parseInt(totalCopies.value)) {
+            showError(available, 'Available copies cannot exceed total copies');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            const firstError = this.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+
+    // Error display function
+    function showError(input, message) {
+        input.classList.add('is-invalid');
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.style.color = '#dc3545';
+        errorMessage.style.fontSize = '0.875rem';
+        errorMessage.style.marginTop = '0.25rem';
+        errorMessage.textContent = message;
+        input.parentElement.appendChild(errorMessage);
+    }
 </script>
