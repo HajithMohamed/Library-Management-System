@@ -1,128 +1,469 @@
 <?php
-$title = 'E-Resources';
-require_once __DIR__ . '/../layouts/header.php';
+/**
+ * E-Resources Browse View - Glassmorphism Design
+ */
+if (!defined('APP_ROOT')) {
+    die('Direct access not permitted');
+}
+
+// $userType is passed from controller
+$isFaculty = ($userType === 'faculty');
+
+$pageTitle = 'Digital Library';
+include APP_ROOT . '/views/layouts/header.php';
 ?>
 
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">E-Resources</h1>
-        <?php if ($userType !== 'student'): ?>
-            <a href="/e-resources/upload" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-                Upload Resource
-            </a>
-        <?php endif; ?>
+<!-- Font Awesome CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --glass-bg: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --card-hover-bg: rgba(255, 255, 255, 0.15);
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .eresources-container {
+        min-height: 100vh;
+        position: relative;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        padding-bottom: 60px;
+    }
+
+    /* Animated Background */
+    .eresources-container::before {
+        content: '';
+        position: absolute;
+        width: 200%;
+        height: 200%;
+        top: -50%;
+        left: -50%;
+        background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+        animation: rotate 20s linear infinite;
+        pointer-events: none;
+    }
+
+    @keyframes rotate {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .floating-shapes {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .shape {
+        position: absolute;
+        opacity: 0.1;
+        animation: float 15s infinite ease-in-out;
+        background: white;
+    }
+
+    .shape:nth-child(1) {
+        top: 20%;
+        left: 10%;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+    }
+
+    .shape:nth-child(2) {
+        top: 60%;
+        right: 15%;
+        width: 120px;
+        height: 120px;
+        border-radius: 30% 70%;
+        animation-delay: 2s;
+    }
+
+    .shape:nth-child(3) {
+        bottom: 20%;
+        left: 15%;
+        width: 100px;
+        height: 100px;
+        border-radius: 20px;
+        animation-delay: 4s;
+        transform: rotate(45deg);
+    }
+
+    @keyframes float {
+
+        0%,
+        100% {
+            transform: translateY(0) rotate(0deg);
+        }
+
+        50% {
+            transform: translateY(-30px) rotate(180deg);
+        }
+    }
+
+    .content-wrapper {
+        position: relative;
+        z-index: 1;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+
+    /* Hero Section */
+    .hero-section {
+        text-align: center;
+        margin-bottom: 50px;
+        padding-top: 40px;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .hero-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, #fff, #f0f0f0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .hero-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 800;
+        color: white;
+        margin-bottom: 15px;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-subtitle {
+        font-size: clamp(1.1rem, 2vw, 1.4rem);
+        color: rgba(255, 255, 255, 0.95);
+        max-width: 700px;
+        margin: 0 auto 30px;
+        line-height: 1.6;
+    }
+
+    /* Search Bar */
+    .search-container {
+        max-width: 600px;
+        margin: 0 auto 40px;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 18px 50px 18px 25px;
+        border-radius: 50px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        color: white;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .search-input:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        outline: none;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 25px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.2rem;
+    }
+
+    /* Hero Actions */
+    .hero-actions {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 50px;
+    }
+
+    .btn-hero {
+        padding: 14px 30px;
+        border-radius: 50px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: white;
+        color: #667eea;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Resources Grid */
+    .resources-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+    }
+
+    .resource-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 30px;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .resource-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        background: var(--card-hover-bg);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .card-icon {
+        font-size: 3rem;
+        color: white;
+        margin-bottom: 20px;
+        width: 70px;
+        height: 70px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .resource-card:nth-child(4n+1) .card-icon {
+        color: #FFD700;
+    }
+
+    .resource-card:nth-child(4n+2) .card-icon {
+        color: #FF6B6B;
+    }
+
+    .resource-card:nth-child(4n+3) .card-icon {
+        color: #4ECDC4;
+    }
+
+    .resource-card:nth-child(4n+4) .card-icon {
+        color: #95E1D3;
+    }
+
+    .resource-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .resource-meta {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .resource-desc {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 25px;
+        flex: 1;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .btn-download {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        text-align: center;
+        padding: 12px;
+        border-radius: 15px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-download:hover {
+        background: white;
+        color: #667eea;
+    }
+
+    /* Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px;
+        background: var(--glass-bg);
+        border-radius: 30px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .empty-state i {
+        font-size: 5rem;
+        color: rgba(255, 255, 255, 0.3);
+        margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+        font-size: 2rem;
+        color: white;
+        margin-bottom: 10px;
+    }
+
+    .empty-state p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.1rem;
+    }
+</style>
+
+<div class="eresources-container">
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
     </div>
 
-    <?php if (isset($_SESSION['success'])): ?>
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <span class="block sm:inline"><?php echo $_SESSION['success'];
-            unset($_SESSION['success']); ?></span>
-        </div>
-    <?php endif; ?>
+    <div class="content-wrapper">
+        <div class="hero-section">
+            <div class="hero-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <h1 class="hero-title">Digital Collections</h1>
+            <p class="hero-subtitle">
+                Explore our curated repository of digital learning materials, research papers, and educational resources
+                accessible anytime, anywhere.
+            </p>
 
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <span class="block sm:inline"><?php echo $_SESSION['error'];
-            unset($_SESSION['error']); ?></span>
-        </div>
-    <?php endif; ?>
+            <div class="search-container">
+                <input type="text" class="search-input" id="resourceSearch" placeholder="Search resources...">
+                <i class="fas fa-search search-icon"></i>
+            </div>
 
-    <!-- Search/Filter could go here -->
-
-    <?php if (empty($resources)): ?>
-        <div class="text-center py-12 bg-gray-50 rounded-lg">
-            <p class="text-gray-500 text-lg">No resources found.</p>
+            <?php if ($isFaculty): ?>
+                <div class="hero-actions">
+                    <a href="<?= BASE_URL ?>e-resources/upload" class="btn-hero btn-primary">
+                        <i class="fas fa-cloud-upload-alt"></i> Upload New Resource
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
-    <?php else: ?>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <?php foreach ($resources as $resource): ?>
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                    <div class="p-5">
-                        <div class="flex justify-between items-start">
-                            <h3 class="text-xl font-semibold text-gray-800 mb-2 truncate"
-                                title="<?php echo htmlspecialchars($resource['title']); ?>">
-                                <?php echo htmlspecialchars($resource['title']); ?>
-                            </h3>
-                            <span class="px-2 py-1 text-xs font-semibold rounded 
-                                <?php
-                                echo match ($resource['status']) {
-                                    'approved' => 'bg-green-100 text-green-800',
-                                    'pending' => 'bg-yellow-100 text-yellow-800',
-                                    'rejected' => 'bg-red-100 text-red-800',
-                                    default => 'bg-gray-100 text-gray-800'
-                                };
-                                ?>">
-                                <?php echo ucfirst($resource['status']); ?>
-                            </span>
+
+        <div class="resources-grid" id="resourcesGrid">
+            <?php if (empty($resources)): ?>
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>Collection Empty</h3>
+                    <p>No digital resources are currently available.</p>
+                </div>
+            <?php else: ?>
+                <?php foreach ($resources as $resource): ?>
+                    <div class="resource-card" data-title="<?= strtolower(htmlspecialchars($resource['title'])) ?>">
+                        <div class="card-icon">
+                            <i class="far fa-file-pdf"></i>
                         </div>
 
-                        <p class="text-gray-600 text-sm mb-4 h-12 overflow-hidden">
-                            <?php echo htmlspecialchars(substr($resource['description'], 0, 100)) . (strlen($resource['description']) > 100 ? '...' : ''); ?>
+                        <h3 class="resource-title"><?= htmlspecialchars($resource['title']) ?></h3>
+
+                        <div class="resource-meta">
+                            <span><i class="far fa-user"></i>
+                                <?= htmlspecialchars($resource['uploadedBy'] ?? 'Library') ?></span>
+                            <span>•</span>
+                            <span><?= date('M d, Y', strtotime($resource['createdAt'])) ?></span>
+                        </div>
+
+                        <p class="resource-desc">
+                            <?= htmlspecialchars($resource['description'] ?? 'No description available for this resource.') ?>
                         </p>
 
-                        <div class="flex items-center text-xs text-gray-500 mb-4">
-                            <span>By: <?php echo htmlspecialchars($resource['uploaderName'] ?? 'Unknown'); ?></span>
-                            <span class="mx-2">•</span>
-                            <span><?php echo date('M d, Y', strtotime($resource['createdAt'])); ?></span>
-                        </div>
-
-                        <div class="flex justify-between items-center mt-4 border-t pt-4">
-                            <?php if ($resource['status'] === 'approved' || ($userType === 'faculty' && $resource['uploadedBy'] == $_SESSION['user_id']) || $userType === 'admin'): ?>
-                                <a href="<?php echo htmlspecialchars($resource['fileUrl']); ?>" target="_blank"
-                                    class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                                        </path>
-                                    </svg>
-                                    View/Download
-                                </a>
-                            <?php else: ?>
-                                <span class="text-gray-400 text-sm">Not available</span>
-                            <?php endif; ?>
-
-                            <!-- Admin Actions -->
-                            <?php if ($userType === 'admin'): ?>
-                                <div class="flex space-x-2">
-                                    <?php if ($resource['status'] === 'pending'): ?>
-                                        <a href="/e-resources/approve/<?php echo $resource['resourceId']; ?>"
-                                            class="text-green-600 hover:text-green-800" title="Approve">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M5 13l4 4L19 7"></path>
-                                            </svg>
-                                        </a>
-                                        <a href="/e-resources/reject/<?php echo $resource['resourceId']; ?>"
-                                            class="text-red-600 hover:text-red-800" title="Reject">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </a>
-                                    <?php endif; ?>
-                                    <a href="/e-resources/delete/<?php echo $resource['resourceId']; ?>"
-                                        onclick="return confirm('Are you sure you want to delete this resource?')"
-                                        class="text-gray-600 hover:text-red-600" title="Delete">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                            </path>
-                                        </svg>
-                                    </a>
-                                </div>
-                            <?php elseif ($userType === 'faculty' && $resource['uploadedBy'] == $_SESSION['user_id']): ?>
-                                <a href="/e-resources/delete/<?php echo $resource['resourceId']; ?>"
-                                    onclick="return confirm('Are you sure?')"
-                                    class="text-red-600 hover:text-red-800 text-sm">Delete</a>
-                            <?php endif; ?>
+                        <div style="display: flex; gap: 10px; margin-top: auto;">
+                            <a href="<?= htmlspecialchars($resource['fileUrl']) ?>" target="_blank" class="btn-download"
+                                style="flex: 1;">
+                                <span>View</span> <i class="fas fa-external-link-alt" style="margin-left: 5px;"></i>
+                            </a>
+                            <a href="<?= BASE_URL ?>e-resources/obtain/<?= $resource['resourceId'] ?>" class="btn-download"
+                                style="flex: 1; background: rgba(255, 255, 255, 0.3); border-color: rgba(255,255,255,0.4);">
+                                <span>Save</span> <i class="fas fa-plus" style="margin-left: 5px;"></i>
+                            </a>
                         </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
 
-<?php require_once __DIR__ . '/../layouts/footer.php'; ?>
+<script>
+    // Search Functionality
+    document.getElementById('resourceSearch').addEventListener('input', function (e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.resource-card');
+
+        cards.forEach(card => {
+            const title = card.getAttribute('data-title');
+            if (title.includes(searchTerm)) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+</script>
+
+<!-- Note: Footer intentionally omitted/customized for this full-page design if needed, 
+     or include standard footer depending on layout preference. 
+     Standard footer follows: -->
+<?php include APP_ROOT . '/views/layouts/footer.php'; ?>
