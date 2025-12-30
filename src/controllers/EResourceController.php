@@ -28,17 +28,23 @@ class EResourceController extends BaseController
             return;
         }
 
-        $userType = $_SESSION['user_type'] ?? 'student';
-        $userId = $_SESSION['user_id'];
+        // Use standardized role from AuthController (always lowercase: 'admin', 'student', 'faculty'/'teacher')
+        $userRole = $_SESSION['role'] ?? 'student';
+
+        // Handle potential legacy session if 'role' is not set but 'userType' is
+        if (!isset($_SESSION['role']) && isset($_SESSION['userType'])) {
+            $userRole = strtolower($_SESSION['userType']);
+        }
+
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
 
         $resources = [];
 
-        if ($userType === 'admin') {
+        if ($userRole === 'admin') {
             // Admin sees all resources
             $resources = $this->eResourceModel->getAll();
-        } elseif ($userType === 'faculty') {
-            // Faculty sees approved resources AND their own uploads (pending or otherwise)
-            // Ideally we merge them or show in separate tabs. For simplicity, let's show all APPROVED + Own Pending/Rejected
+        } elseif ($userRole === 'faculty' || $userRole === 'teacher') {
+            // Faculty sees approved resources AND their own uploads
             $allApproved = $this->eResourceModel->getAll('approved');
             $myUploads = $this->eResourceModel->getByUser($userId);
 
@@ -61,11 +67,19 @@ class EResourceController extends BaseController
             $resources = $this->eResourceModel->getAll('approved');
         }
 
-        $this->view('eresources/index', [
-            'resources' => $resources,
-            'userType' => $userType,
-            'title' => 'E-Resources'
-        ]);
+        if ($userRole === 'admin') {
+            $this->view('admin/eresources', [
+                'resources' => $resources,
+                'userType' => $userRole,
+                'title' => 'E-Resources Management'
+            ]);
+        } else {
+            $this->view('eresources/index', [
+                'resources' => $resources,
+                'userType' => $userRole,
+                'title' => 'E-Resources'
+            ]);
+        }
     }
 
     /**
@@ -73,14 +87,27 @@ class EResourceController extends BaseController
      */
     public function showUpload()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] === 'student') {
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            $this->redirect('/login');
+            return;
+        }
+
+        if ($userRole === 'student') {
             $this->redirect('/e-resources');
             return;
         }
 
-        $this->view('eresources/upload', [
-            'title' => 'Upload E-Resource'
-        ]);
+        if ($userRole === 'admin') {
+            $this->view('admin/eresources_upload', [
+                'title' => 'Upload E-Resource'
+            ]);
+        } else {
+            $this->view('eresources/upload', [
+                'title' => 'Upload E-Resource'
+            ]);
+        }
     }
 
     /**
@@ -93,7 +120,10 @@ class EResourceController extends BaseController
             return;
         }
 
-        if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] === 'student') {
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+
+        if (!isset($userId) || $userRole === 'student') {
             $_SESSION['error'] = "Unauthorized access.";
             $this->redirect('/e-resources');
             return;
@@ -120,11 +150,11 @@ class EResourceController extends BaseController
                 'fileUrl' => $uploadResult['url'],
                 'publicId' => $uploadResult['public_id'],
                 'uploadedBy' => $_SESSION['user_id'],
-                'status' => ($_SESSION['user_type'] === 'admin') ? 'approved' : 'pending' // Auto-approve admin uploads
+                'status' => ($userRole === 'admin') ? 'approved' : 'pending' // Auto-approve admin uploads
             ];
 
             if ($this->eResourceModel->create($dbData)) {
-                $_SESSION['success'] = "Resource uploaded successfully." . (($_SESSION['user_type'] !== 'admin') ? " It is pending approval." : "");
+                $_SESSION['success'] = "Resource uploaded successfully." . (($userRole !== 'admin') ? " It is pending approval." : "");
                 $this->redirect('/e-resources');
             } else {
                 // If DB fails, try to delete from cloudinary to clean up
@@ -143,7 +173,9 @@ class EResourceController extends BaseController
      */
     public function approve($id)
     {
-        if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+
+        if ($userRole !== 'admin') {
             $_SESSION['error'] = "Unauthorized.";
             $this->redirect('/e-resources');
             return;
@@ -162,7 +194,9 @@ class EResourceController extends BaseController
      */
     public function reject($id)
     {
-        if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+
+        if ($userRole !== 'admin') {
             $_SESSION['error'] = "Unauthorized.";
             $this->redirect('/e-resources');
             return;
@@ -193,8 +227,11 @@ class EResourceController extends BaseController
             return;
         }
 
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+        $currentUserId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+
         // Only Admin or the Uploader can delete
-        if ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_id'] !== $resource['uploadedBy']) {
+        if ($userRole !== 'admin' && $currentUserId !== $resource['uploadedBy']) {
             $_SESSION['error'] = "Unauthorized.";
             $this->redirect('/e-resources');
             return;
@@ -210,5 +247,54 @@ class EResourceController extends BaseController
             $_SESSION['error'] = "Failed to delete resource.";
         }
         $this->redirect('/e-resources');
+    }
+    /**
+     * Add resource to user's library
+     */
+    public function obtain($id)
+    {
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            $this->redirect('/login');
+            return;
+        }
+
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+
+        if ($this->eResourceModel->saveToLibrary($userId, $id)) {
+            $_SESSION['success'] = "Resource added to your library.";
+        } else {
+            $_SESSION['error'] = "Failed to add resource.";
+        }
+
+        // Redirect back to browse page
+        $this->redirect('/e-resources');
+    }
+
+    /**
+     * Display user's saved resources (My Library)
+     */
+    public function myResources()
+    {
+        if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
+            $this->redirect('/login');
+            return;
+        }
+
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+
+        $resources = $this->eResourceModel->getSavedResources($userId);
+
+        if ($userRole === 'admin') {
+            $this->redirect('/admin/eresources'); // Admins don't have a "personal" library view in this context usually
+            return;
+        }
+
+        $viewPath = ($userRole === 'faculty') ? 'faculty/eresources' : 'users/eresources';
+
+        $this->view($viewPath, [
+            'resources' => $resources,
+            'title' => 'My E-Resources Library'
+        ]);
     }
 }

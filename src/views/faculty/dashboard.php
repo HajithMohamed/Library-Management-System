@@ -653,7 +653,8 @@ include APP_ROOT . '/views/layouts/header.php';
     <div class="dashboard-wrapper">
         <div class="dashboard-header">
             <h1><i class="fas fa-hand-wave" style="margin-right: 10px;"></i> Welcome Back,
-                <?= htmlspecialchars($user['username'] ?? 'Faculty Member') ?>!</h1>
+                <?= htmlspecialchars($user['username'] ?? 'Faculty Member') ?>!
+            </h1>
             <p>Here's your library overview for today</p>
         </div>
 
@@ -707,7 +708,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </a>
                 <a href="<?= BASE_URL ?>e-resources" class="action-btn primary">
                     <i class="fas fa-file-pdf"></i>
-                    <span>E-Resources</span>
+                    <span>Browse All E-Resources</span>
                 </a>
                 <a href="<?= BASE_URL ?>faculty/borrow-history" class="action-btn primary">
                     <i class="fas fa-history"></i>

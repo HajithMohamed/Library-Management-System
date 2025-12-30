@@ -134,4 +134,62 @@ class EResource extends BaseModel
             return null;
         }
     }
+    /**
+     * Save a resource to user's library
+     */
+    public function saveToLibrary($userId, $resourceId)
+    {
+        try {
+            // Check if already saved
+            if ($this->isSaved($userId, $resourceId)) {
+                return true; // Already saved, consider success
+            }
+
+            $stmt = $this->db->prepare("INSERT INTO user_eresources (user_id, resource_id) VALUES (?, ?)");
+            $stmt->bind_param("ii", $userId, $resourceId);
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error saving to library: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if resource is already saved
+     */
+    public function isSaved($userId, $resourceId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT id FROM user_eresources WHERE user_id = ? AND resource_id = ?");
+            $stmt->bind_param("ii", $userId, $resourceId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result->num_rows > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get saved resources for a user
+     */
+    public function getSavedResources($userId)
+    {
+        try {
+            $sql = "SELECT r.*, ue.obtained_at as savedAt, u.username as uploaderName 
+                    FROM e_resources r
+                    JOIN user_eresources ue ON r.resourceId = ue.resource_id
+                    LEFT JOIN users u ON r.uploadedBy = u.userId
+                    WHERE ue.user_id = ?
+                    ORDER BY ue.obtained_at DESC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param("i", $userId);
+            $stmt->execute();
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error fetching saved resources: " . $e->getMessage());
+            return [];
+        }
+    }
 }

@@ -138,10 +138,13 @@ class Router
 
         $method = $_SERVER['REQUEST_METHOD'];
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        if ($path === null) {
+            $path = '/';
+        }
 
         // Remove base path if running in subdirectory
         $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
-        if (strpos($path, $basePath) === 0) {
+        if ($path && $basePath && strpos($path, $basePath) === 0) {
             $path = substr($path, strlen($basePath));
         }
 
@@ -769,6 +772,11 @@ $router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload'
 $router->addRoute('GET', '/e-resources/approve/{id}', 'EResourceController', 'approve');
 $router->addRoute('GET', '/e-resources/reject/{id}', 'EResourceController', 'reject');
 $router->addRoute('GET', '/e-resources/delete/{id}', 'EResourceController', 'delete');
+
+// User Actions
+$router->addRoute('GET', '/e-resources/obtain/{id}', 'EResourceController', 'obtain');
+$router->addRoute('GET', '/my-e-resources', 'EResourceController', 'myResources');
+$router->addRoute('GET', '/e-resources/my-library', 'EResourceController', 'myResources');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)

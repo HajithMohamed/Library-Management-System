@@ -759,11 +759,11 @@ $recentActivity = $recentActivity ?? [];
                 <div class="action-icon">
                     <i class="fas fa-file-pdf"></i>
                 </div>
-                <h5>E-Resources</h5>
+                <h5>E-Resources Library</h5>
                 <p>Access digital library resources and E-Books</p>
                 <a href="<?= BASE_URL ?>e-resources" class="action-btn">
                     <i class="fas fa-file-pdf"></i>
-                    <span>View Resources</span>
+                    <span>Browse All E-Resources</span>
                 </a>
             </div>
 
