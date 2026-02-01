@@ -85,6 +85,27 @@ debug.log
 /cache/
 
 # ===========================================
+# STORAGE DIRECTORIES (Production Structure)
+# ===========================================
+# Storage cache - exclude contents but keep directory
+/storage/cache/*
+!/storage/cache/.gitkeep
+
+# Storage uploads - exclude contents but keep directory
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# Storage sessions - exclude contents but keep directory
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+
+# ===========================================
+# CONFIGURATION & CREDENTIALS
+# ===========================================
+# Credentials file with sensitive data
+/config/credentials.php
+
+# ===========================================
 # IDE & EDITOR FILES
 # ===========================================
 # Visual Studio Code

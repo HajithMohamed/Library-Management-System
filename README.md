@@ -15,37 +15,53 @@ A comprehensive Library Management System built with PHP using MVC architecture 
 ## Project Structure
 
 ```
-src/
-├── controllers/          # Request handling controllers
-│   ├── AuthController.php
-│   ├── BookController.php
-│   ├── UserController.php
-│   └── AdminController.php
-├── models/              # Database access models
-│   ├── Book.php
-│   ├── User.php
-│   └── Transaction.php
-├── services/            # Business logic services
-│   ├── AuthService.php
-│   ├── BookService.php
-│   ├── UserService.php
-│   └── AdminService.php
-├── helpers/             # Utility functions
-│   └── AuthHelper.php
-├── config/              # Configuration files
-│   ├── config.php
-│   └── dbConnection.php
-├── views/               # View templates
-│   ├── layouts/
-│   ├── auth/
-│   ├── books/
-│   ├── users/
-│   ├── admin/
-│   └── errors/
-└── public/              # Public entry point and assets
-    ├── index.php        # Front Controller
-    └── assets/          # CSS, JS, images
+├── src/                    # Application source code
+│   ├── controllers/        # Request handling controllers
+│   │   ├── AuthController.php
+│   │   ├── BookController.php
+│   │   ├── UserController.php
+│   │   └── AdminController.php
+│   ├── models/            # Database access models
+│   │   ├── Book.php
+│   │   ├── User.php
+│   │   └── Transaction.php
+│   ├── services/          # Business logic services
+│   │   ├── AuthService.php
+│   │   ├── BookService.php
+│   │   ├── UserService.php
+│   │   └── AdminService.php
+│   ├── helpers/           # Utility functions
+│   │   └── AuthHelper.php
+│   ├── config/            # Configuration files
+│   │   ├── config.php
+│   │   └── dbConnection.php
+│   ├── views/             # View templates
+│   │   ├── layouts/
+│   │   ├── auth/
+│   │   ├── books/
+│   │   ├── users/
+│   │   ├── admin/
+│   │   └── errors/
+│   └── public/            # Public entry point and assets
+│       ├── index.php      # Front Controller
+│       └── assets/        # CSS, JS, images
+├── tests/                 # Test files (organized by type)
+│   ├── Unit/              # Unit tests for models and components
+│   ├── Integration/       # Integration tests for database and APIs
+│   └── Feature/           # Feature/workflow tests
+├── storage/               # Application storage
+│   ├── cache/             # Cache files
+│   ├── uploads/           # User uploaded files
+│   └── sessions/          # PHP session files
+├── config/                # Root-level configuration
+│   └── credentials.example.php  # Credentials template
+├── logs/                  # Application logs
+├── docker/                # Docker configuration files
+├── .env                   # Environment variables (not in git)
+├── .env.example           # Environment template
+└── SECURITY.md            # Security policy and best practices
 ```
+
 
 ## Quick Start with Docker
 
@@ -391,13 +407,373 @@ docker logs ils_php
 docker system prune -a
 ```
 
+## Production Deployment
+
+### Production Deployment Checklist
+
+Before deploying to a production environment, complete the following steps:
+
+#### 1. Environment Configuration
+- [ ] Copy `.env.example` to `.env` and configure all variables
+- [ ] Set `APP_DEBUG=false` in production `.env`
+- [ ] Use strong, unique passwords for all credentials
+- [ ] Change `ADMIN_CODE` from default value
+- [ ] Configure SMTP with valid credentials and test email delivery
+- [ ] Configure Cloudinary for production image hosting (if used)
+- [ ] Set correct timezone in `TZ` variable
+
+#### 2. Security Hardening
+- [ ] Review and implement all items in `SECURITY.md`
+- [ ] Ensure `.env` file is not committed to git
+- [ ] Set proper file permissions (see Security Best Practices below)
+- [ ] Enable HTTPS with valid SSL/TLS certificate
+- [ ] Configure security headers in web server (Nginx/Apache)
+- [ ] Disable directory listing in web server
+- [ ] Review all user input validation and sanitization
+- [ ] Implement rate limiting on authentication endpoints
+- [ ] Enable CSRF protection on all forms
+- [ ] Review and update CORS policies
+
+#### 3. Database Security
+- [ ] Create dedicated database user with minimal privileges
+- [ ] Never use root database user for application
+- [ ] Enable MySQL SSL connections
+- [ ] Set strong database passwords
+- [ ] Configure database firewall rules
+- [ ] Set up automated database backups
+- [ ] Test backup restoration procedure
+
+#### 4. Performance Optimization
+- [ ] Enable PHP OpCache in production
+- [ ] Configure proper cache headers
+- [ ] Optimize database queries and add indexes
+- [ ] Enable gzip compression
+- [ ] Minify CSS and JavaScript files
+- [ ] Optimize images (compress and use WebP where possible)
+- [ ] Set up CDN for static assets (optional)
+
+#### 5. Monitoring & Logging
+- [ ] Configure application logging to `logs/` directory
+- [ ] Set up log rotation to prevent disk space issues
+- [ ] Implement error monitoring (e.g., Sentry, Rollbar)
+- [ ] Monitor server resources (CPU, memory, disk)
+- [ ] Set up uptime monitoring
+- [ ] Configure alerts for critical errors
+- [ ] Review logs regularly for security incidents
+
+#### 6. Deployment Process
+- [ ] Use git tags for version tracking
+- [ ] Document deployment procedure
+- [ ] Create staging environment for testing
+- [ ] Perform security scan before deployment
+- [ ] Run all tests before deploying
+- [ ] Plan for zero-downtime deployment if possible
+- [ ] Have rollback plan ready
+
+### Production Environment Variables
+
+Ensure these critical variables are set correctly for production:
+
+```bash
+# Required for production
+APP_DEBUG=false
+MYSQL_ROOT_PASSWORD=<strong-unique-password>
+MYSQL_PASSWORD=<strong-unique-password>
+DB_PASSWORD=<strong-unique-password>
+ADMIN_CODE=<strong-unique-code>
+SMTP_USERNAME=<your-production-email>
+SMTP_PASSWORD=<your-app-password>
+CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+CLOUDINARY_API_KEY=<your-api-key>
+CLOUDINARY_API_SECRET=<your-api-secret>
+```
+
+## Security Best Practices
+
+### File Permissions
+
+Set appropriate file permissions to prevent unauthorized access:
+
+```bash
+# Navigate to project directory
+cd /path/to/Integrated-Library-System
+
+# Set ownership (adjust user:group as needed)
+chown -R www-data:www-data .
+
+# Set directory permissions
+find . -type d -exec chmod 755 {} \;
+
+# Set file permissions
+find . -type f -exec chmod 644 {} \;
+
+# Restrict sensitive files
+chmod 600 .env
+chmod 600 config/credentials.php
+
+# Make storage directories writable
+chmod 775 storage/cache storage/uploads storage/sessions logs
+```
+
+### Credential Management
+
+1. **Never commit sensitive data to git**
+   - Use `.env` for environment-specific configuration
+   - Use `config/credentials.php` for sensitive credentials
+   - Both files are in `.gitignore`
+
+2. **Use strong passwords**
+   - Minimum 16 characters
+   - Mix of uppercase, lowercase, numbers, and symbols
+   - Use a password manager to generate and store passwords
+
+3. **Rotate credentials regularly**
+   - Change passwords every 90 days
+   - Update API keys when team members leave
+   - Revoke unused API keys immediately
+
+4. **Separate credentials by environment**
+   - Development, staging, and production should have different credentials
+   - Never use production credentials in development
+
+### HTTPS Configuration
+
+Always use HTTPS in production:
+
+1. **Obtain SSL Certificate**
+   - Use Let's Encrypt for free SSL certificates
+   - Configure auto-renewal
+
+2. **Force HTTPS**
+   - Redirect all HTTP traffic to HTTPS
+   - Set HSTS (HTTP Strict Transport Security) header
+
+3. **Configure Nginx for HTTPS** (example):
+   ```nginx
+   server {
+       listen 443 ssl http2;
+       server_name yourdomain.com;
+       
+       ssl_certificate /path/to/cert.pem;
+       ssl_certificate_key /path/to/key.pem;
+       
+       # Security headers
+       add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+       add_header X-Frame-Options "SAMEORIGIN" always;
+       add_header X-Content-Type-Options "nosniff" always;
+       add_header X-XSS-Protection "1; mode=block" always;
+       
+       # Your application configuration
+       root /var/www/html/public;
+       index index.php;
+       
+       location / {
+           try_files $uri $uri/ /index.php?$query_string;
+       }
+       
+       location ~ \.php$ {
+           fastcgi_pass php:9000;
+           fastcgi_index index.php;
+           include fastcgi_params;
+           fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+       }
+   }
+   
+   # Redirect HTTP to HTTPS
+   server {
+       listen 80;
+       server_name yourdomain.com;
+       return 301 https://$server_name$request_uri;
+   }
+   ```
+
+### Regular Updates
+
+- Keep PHP, MySQL, and all dependencies up to date
+- Monitor security advisories for used packages
+- Test updates in staging before applying to production
+- Subscribe to security mailing lists for PHP and MySQL
+
+### Backup Strategy
+
+1. **Database Backups**
+   - Automated daily backups
+   - Keep backups for at least 30 days
+   - Store backups off-site (different server/cloud storage)
+   - Encrypt backup files
+
+2. **File Backups**
+   - Backup user uploads regularly
+   - Backup application code (use git)
+   - Test restoration procedures monthly
+
+3. **Backup Script Example**:
+   ```bash
+   #!/bin/bash
+   # Daily backup script
+   BACKUP_DIR="/backups/$(date +%Y-%m-%d)"
+   mkdir -p "$BACKUP_DIR"
+   
+   # Database backup
+   docker exec ils_db mysqldump -u root -p$MYSQL_ROOT_PASSWORD integrated_library_system > "$BACKUP_DIR/database.sql"
+   
+   # File backup
+   tar -czf "$BACKUP_DIR/uploads.tar.gz" storage/uploads/
+   
+   # Keep only last 30 days
+   find /backups -type d -mtime +30 -exec rm -rf {} \;
+   ```
+
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+We welcome contributions to the Library Management System! Please follow these guidelines:
+
+### Code Style Standards
+
+1. **PHP Code Style**
+   - Follow PSR-12 coding standard
+   - Use meaningful variable and function names
+   - Add PHPDoc comments for all classes and methods
+   - Keep functions small and focused (single responsibility)
+
+2. **Indentation & Formatting**
+   - Use 2 spaces for indentation (not tabs)
+   - Maximum line length: 120 characters
+   - Always use braces `{}` for control structures
+
+3. **Naming Conventions**
+   - Classes: `PascalCase` (e.g., `UserController`)
+   - Methods: `camelCase` (e.g., `getUserById`)
+   - Variables: `camelCase` (e.g., `$userId`)
+   - Constants: `UPPER_SNAKE_CASE` (e.g., `DB_HOST`)
+   - Database tables: `snake_case` (e.g., `borrow_records`)
+
+### Testing Requirements
+
+1. **Write Tests**
+   - Add unit tests for new models in `tests/Unit/`
+   - Add integration tests for API endpoints in `tests/Integration/`
+   - Add feature tests for user workflows in `tests/Feature/`
+
+2. **Test Coverage**
+   - Aim for at least 70% code coverage
+   - All business logic must be tested
+   - Test both success and failure cases
+
+3. **Running Tests**
+   ```bash
+   # Run all tests
+   php tests/Unit/test_user_model.php
+   php tests/Integration/testConnection.php
+   php tests/Feature/check_history.php
+   ```
+
+### Pull Request Process
+
+1. **Before Submitting**
+   - Ensure your code follows the style guidelines
+   - Write or update tests as needed
+   - Update documentation if you changed functionality
+   - Test your changes locally with Docker
+   - Ensure no linting errors
+
+2. **Creating a Pull Request**
+   - Fork the repository
+   - Create a feature branch: `git checkout -b feature/your-feature-name`
+   - Make your changes in small, logical commits
+   - Push to your fork: `git push origin feature/your-feature-name`
+   - Open a pull request with a clear description
+
+3. **Pull Request Description Should Include**
+   - Summary of changes
+   - Motivation and context
+   - Related issue numbers (if applicable)
+   - Screenshots for UI changes
+   - Testing performed
+
+4. **Pull Request Review**
+   - At least one approval required
+   - All CI checks must pass
+   - No merge conflicts
+   - Code review feedback must be addressed
+
+### Commit Message Format
+
+Use conventional commit format:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples:**
+```
+feat(auth): add two-factor authentication
+
+Implemented TOTP-based 2FA for enhanced security.
+Users can enable 2FA in their profile settings.
+
+Closes #123
+
+---
+
+fix(book): resolve issue with ISBN validation
+
+Fixed regex pattern to properly validate ISBN-13 format.
+
+Fixes #456
+
+---
+
+docs(readme): update deployment instructions
+
+Added production deployment checklist and security best practices.
+```
+
+### Branch Naming Conventions
+
+- Feature branches: `feature/short-description`
+- Bug fixes: `fix/short-description`
+- Hotfixes: `hotfix/short-description`
+- Documentation: `docs/short-description`
+
+Examples:
+- `feature/add-email-notifications`
+- `fix/book-search-pagination`
+- `hotfix/sql-injection-vulnerability`
+- `docs/update-api-documentation`
+
+### Code Review Guidelines
+
+**For Authors:**
+- Keep pull requests small and focused
+- Respond to feedback promptly
+- Don't take criticism personally
+
+**For Reviewers:**
+- Be constructive and respectful
+- Focus on code quality, not personal preferences
+- Approve only when you're confident in the changes
+- Check for security vulnerabilities
+
+### Getting Help
+
+- Review existing issues and pull requests
+- Check documentation in `README.md` and `SECURITY.md`
+- Ask questions in pull request comments
+- Contact the development team
 
 ## License
 
@@ -405,5 +781,8 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For support and questions, please contact the development team or create an issue in the repository.
+For support and questions, please:
+- Create an issue in the repository for bugs or feature requests
+- Review `SECURITY.md` for security-related concerns
+- Contact the development team for general inquiries
 

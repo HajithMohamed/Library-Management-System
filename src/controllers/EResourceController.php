@@ -157,7 +157,9 @@ class EResourceController extends BaseController
 
             if ($this->eResourceModel->create($dbData)) {
                 $_SESSION['success'] = "Resource uploaded successfully." . (($userRole !== 'admin') ? " It is pending approval." : "");
-                $this->redirect('/e-resources');
+                // Redirect admin to admin page, others to public page
+                $redirectUrl = ($userRole === 'admin') ? '/admin/eresources' : '/e-resources';
+                $this->redirect($redirectUrl);
             } else {
                 // If DB fails, try to delete from cloudinary to clean up
                 $this->cloudinaryService->deleteFile($uploadResult['public_id']);
@@ -257,6 +259,102 @@ class EResourceController extends BaseController
     }
 
     /**
+     * Show edit form for e-resource (Admin only)
+     */
+    public function showEdit($id)
+    {
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+
+        if ($userRole !== 'admin') {
+            $_SESSION['error'] = "Unauthorized access.";
+            $this->redirect('/e-resources');
+            return;
+        }
+
+        $resource = $this->eResourceModel->getById($id);
+        if (!$resource) {
+            $_SESSION['error'] = "Resource not found.";
+            $this->redirect('/admin/eresources');
+            return;
+        }
+
+        $this->view('admin/eresources_edit', [
+            'resource' => $resource,
+            'title' => 'Edit E-Resource',
+            'cloudinaryService' => $this->cloudinaryService
+        ]);
+    }
+
+    /**
+     * Update e-resource (Admin only)
+     */
+    public function update($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/eresources');
+            return;
+        }
+
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+
+        if ($userRole !== 'admin') {
+            $_SESSION['error'] = "Unauthorized access.";
+            $this->redirect('/e-resources');
+            return;
+        }
+
+        $resource = $this->eResourceModel->getById($id);
+        if (!$resource) {
+            $_SESSION['error'] = "Resource not found.";
+            $this->redirect('/admin/eresources');
+            return;
+        }
+
+        $title = $_POST['title'] ?? '';
+        $description = $_POST['description'] ?? '';
+
+        if (empty($title)) {
+            $_SESSION['error'] = "Title is required.";
+            $this->redirect('/e-resources/edit/' . $id);
+            return;
+        }
+
+        $updateData = [
+            'title' => $title,
+            'description' => $description
+        ];
+
+        // Check if new file is uploaded
+        if (isset($_FILES['resourceFile']) && $_FILES['resourceFile']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['resourceFile'];
+
+            // Upload new file to Cloudinary
+            $uploadResult = $this->cloudinaryService->uploadFile($file['tmp_name'], 'library_resources');
+
+            if ($uploadResult['success']) {
+                // Delete old file from Cloudinary
+                $this->cloudinaryService->deleteFile($resource['publicId']);
+
+                // Update with new file info
+                $updateData['fileUrl'] = $uploadResult['url'];
+                $updateData['publicId'] = $uploadResult['public_id'];
+            } else {
+                $_SESSION['error'] = "File upload failed: " . $uploadResult['message'];
+                $this->redirect('/e-resources/edit/' . $id);
+                return;
+            }
+        }
+
+        if ($this->eResourceModel->update($id, $updateData)) {
+            $_SESSION['success'] = "Resource updated successfully.";
+        } else {
+            $_SESSION['error'] = "Failed to update resource.";
+        }
+
+        $this->redirect('/admin/eresources');
+    }
+
+    /**
      * Delete resource
      */
     public function delete($id)
@@ -292,7 +390,10 @@ class EResourceController extends BaseController
         } else {
             $_SESSION['error'] = "Failed to delete resource.";
         }
-        $this->redirect('/e-resources');
+
+        // Redirect admin to admin page, others to public page
+        $redirectUrl = ($userRole === 'admin') ? '/admin/eresources' : '/e-resources';
+        $this->redirect($redirectUrl);
     }
     /**
      * Add resource to user's library

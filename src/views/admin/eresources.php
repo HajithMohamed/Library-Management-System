@@ -274,6 +274,9 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                             class="btn-action btn-reject" title="Reject"><i class="fas fa-times"></i></a>
                                     <?php endif; ?>
 
+                                    <a href="<?= BASE_URL ?>e-resources/edit/<?= $resource['resourceId'] ?>" class="btn-action"
+                                        style="background:#fef3c7; color:#d97706;" title="Edit"><i class="fas fa-edit"></i></a>
+
                                     <a href="<?= htmlspecialchars($resource['fileUrl']) ?>" target="_blank" class="btn-action"
                                         style="background:#e0f2fe; color:#0369a1;" title="View"><i class="fas fa-eye"></i></a>
 

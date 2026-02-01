@@ -141,7 +141,7 @@ class Router
         if ($path === null) {
             $path = '/';
         }
-        
+
         // Collapse multiple slashes
         $path = preg_replace('#/+#', '/', $path);
 
@@ -771,6 +771,8 @@ $router->addRoute('GET', '/e-resources/index', 'EResourceController', 'index');
 $router->addRoute('GET', '/e-resources/list', 'EResourceController', 'list');
 $router->addRoute('GET', '/e-resources/upload', 'EResourceController', 'showUpload');
 $router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload');
+$router->addRoute('GET', '/e-resources/edit/{id}', 'EResourceController', 'showEdit');
+$router->addRoute('POST', '/e-resources/update/{id}', 'EResourceController', 'update');
 
 // Admin/Faculty Actions
 $router->addRoute('GET', '/e-resources/approve/{id}', 'EResourceController', 'approve');
@@ -781,6 +783,9 @@ $router->addRoute('GET', '/e-resources/delete/{id}', 'EResourceController', 'del
 $router->addRoute('GET', '/e-resources/obtain/{id}', 'EResourceController', 'obtain');
 $router->addRoute('GET', '/my-e-resources', 'EResourceController', 'myResources');
 $router->addRoute('GET', '/e-resources/my-library', 'EResourceController', 'myResources');
+
+// Admin E-Resources view
+$router->addRoute('GET', '/admin/eresources', 'EResourceController', 'index');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)

@@ -104,6 +104,57 @@ class EResource extends BaseModel
     }
 
     /**
+     * Update resource details
+     */
+    public function update($resourceId, $data)
+    {
+        try {
+            // Build dynamic update query based on what fields are provided
+            $fields = [];
+            $values = [];
+            $types = '';
+
+            if (isset($data['title'])) {
+                $fields[] = "title = ?";
+                $values[] = $data['title'];
+                $types .= 's';
+            }
+            if (isset($data['description'])) {
+                $fields[] = "description = ?";
+                $values[] = $data['description'];
+                $types .= 's';
+            }
+            if (isset($data['fileUrl'])) {
+                $fields[] = "fileUrl = ?";
+                $values[] = $data['fileUrl'];
+                $types .= 's';
+            }
+            if (isset($data['publicId'])) {
+                $fields[] = "publicId = ?";
+                $values[] = $data['publicId'];
+                $types .= 's';
+            }
+
+            if (empty($fields)) {
+                return false;
+            }
+
+            // Add resourceId to values
+            $values[] = $resourceId;
+            $types .= 'i';
+
+            $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE resourceId = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param($types, ...$values);
+
+            return $stmt->execute();
+        } catch (\Exception $e) {
+            error_log("Error updating resource: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Delete a resource
      */
     public function delete($resourceId)
