@@ -43,4 +43,66 @@ class Role extends BaseModel
         }
         return null;
     }
+
+    /**
+     * Get role by name/slug
+     */
+    public function getRoleByName($name)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM roles WHERE name = ? OR slug = ?");
+        $stmt->execute([$name, $name]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Get permissions for a role by ID
+     */
+    public function getPermissions($roleId)
+    {
+        $sql = "SELECT p.* FROM permissions p 
+                JOIN permission_role pr ON p.id = pr.permission_id 
+                WHERE pr.role_id = ?";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$roleId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Assign permission to role
+     */
+    public function assignPermission($roleId, $permissionId)
+    {
+        try {
+            $stmt = $this->db->prepare("INSERT INTO permission_role (role_id, permission_id) VALUES (?, ?)");
+            return $stmt->execute([$roleId, $permissionId]);
+        } catch (\Exception $e) {
+            // Handle duplicate entries
+            error_log("Error assigning permission: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Remove permission from role
+     */
+    public function removePermission($roleId, $permissionId)
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM permission_role WHERE role_id = ? AND permission_id = ?");
+            return $stmt->execute([$roleId, $permissionId]);
+        } catch (\Exception $e) {
+            error_log("Error removing permission: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get all roles
+     */
+    public function getAllRoles()
+    {
+        $stmt = $this->db->query("SELECT * FROM roles ORDER BY name");
+        return $stmt->fetchAll();
+    }
 }

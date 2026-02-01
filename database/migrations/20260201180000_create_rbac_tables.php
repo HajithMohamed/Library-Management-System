@@ -103,22 +103,52 @@ class CreateRbacTables extends AbstractMigration
             }
         }
 
-        // Define Permissions
+        // Define Permissions (Comprehensive set from requirements)
         $permissionsData = [
+            // User Management
             'users.create' => 'Create new users',
-            'users.read' => 'View users',
-            'users.update' => 'Update users',
+            'users.read' => 'View user details',
+            'users.update' => 'Update user information',
             'users.delete' => 'Delete users',
-            'books.create' => 'Add books',
-            'books.read' => 'View books',
-            'books.update' => 'Edit books',
-            'books.delete' => 'Delete books',
-            'transactions.create' => 'Issue books',
-            'transactions.read' => 'View transactions',
-            'transactions.update' => 'Update transactions',
+            'users.verify' => 'Verify user accounts',
+            'users.export' => 'Export user data',
+            
+            // Book Management
+            'books.create' => 'Add new books',
+            'books.read' => 'View book details',
+            'books.update' => 'Update book information',
+            'books.delete' => 'Remove books',
+            'books.import' => 'Bulk import books',
+            'books.export' => 'Export book catalog',
+            
+            // Transaction Management
+            'transactions.create' => 'Create borrow transactions',
+            'transactions.read' => 'View transaction history',
+            'transactions.update' => 'Update transactions (returns, renewals)',
+            'transactions.delete' => 'Delete transactions',
+            'transactions.approve' => 'Approve borrow requests',
+            'transactions.renew' => 'Renew borrowed books',
+            
+            // Fine Management
+            'fines.read' => 'View fines',
+            'fines.waive' => 'Waive fines',
+            'fines.collect' => 'Collect fine payments',
+            'fines.export' => 'Export fine reports',
+            
+            // Reports & Analytics
             'reports.view' => 'View reports',
+            'reports.export' => 'Export reports',
+            'reports.analytics' => 'Access analytics dashboard',
+            
+            // System Settings
             'settings.manage' => 'Manage system settings',
+            'settings.backup' => 'Create/restore backups',
+            'settings.maintenance' => 'Perform maintenance tasks',
+            'settings.notifications' => 'Manage notifications',
+            
+            // Audit Logs
             'audit.view' => 'View audit logs',
+            'audit.export' => 'Export audit logs',
         ];
 
         $permissionsTable = $this->table('permissions');
@@ -148,12 +178,34 @@ class CreateRbacTables extends AbstractMigration
             $permMap[$p['slug']] = $p['id'];
 
         $assignments = [
-            'super-admin' => array_keys($permissionsData), // All
-            'admin' => ['users.create', 'users.read', 'users.update', 'users.delete', 'books.create', 'books.read', 'books.update', 'books.delete', 'transactions.create', 'transactions.read', 'transactions.update', 'reports.view', 'audit.view'],
-            'librarian' => ['users.read', 'books.create', 'books.read', 'books.update', 'transactions.create', 'transactions.read', 'transactions.update'],
-            'faculty' => ['books.read'],
-            'student' => ['books.read'],
-            'guest' => ['books.read'],
+            'super-admin' => array_keys($permissionsData), // All permissions
+            'admin' => [
+                'users.create', 'users.read', 'users.update', 'users.delete', 'users.verify', 'users.export',
+                'books.create', 'books.read', 'books.update', 'books.delete', 'books.import', 'books.export',
+                'transactions.create', 'transactions.read', 'transactions.update', 'transactions.delete', 'transactions.approve',
+                'fines.read', 'fines.waive', 'fines.collect', 'fines.export',
+                'reports.view', 'reports.export', 'reports.analytics',
+                'settings.manage', 'settings.notifications',
+                'audit.view', 'audit.export'
+            ],
+            'librarian' => [
+                'users.read',
+                'books.create', 'books.read', 'books.update', 'books.import', 'books.export',
+                'transactions.create', 'transactions.read', 'transactions.update', 'transactions.approve', 'transactions.renew',
+                'fines.read', 'fines.collect',
+                'reports.view'
+            ],
+            'faculty' => [
+                'books.read',
+                'transactions.create', 'transactions.read', 'transactions.renew'
+            ],
+            'student' => [
+                'books.read',
+                'transactions.create', 'transactions.read'
+            ],
+            'guest' => [
+                'books.read'
+            ],
         ];
 
         $permRoleTable = $this->table('permission_role');
