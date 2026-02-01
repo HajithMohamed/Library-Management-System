@@ -523,6 +523,13 @@
                         <span>Users</span>
                     </a>
                 </div>
+                <div class="nav-item">
+                    <a href="<?= BASE_URL ?>admin/roles"
+                        class="nav-link <?= $currentPage === 'roles' ? 'active' : '' ?>" data-title="Roles">
+                        <i class="fas fa-user-shield"></i>
+                        <span>Roles & Permissions</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Financial Section -->

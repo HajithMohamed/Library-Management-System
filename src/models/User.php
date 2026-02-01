@@ -643,5 +643,129 @@ class User extends BaseModel
     {
         return $this->lastError;
     }
+
+    /**
+     * Get roles for the user
+     */
+    public function getRoles($userId = null)
+    {
+        $uid = $userId ?: (isset($this->userId) ? $this->userId : null);
+        // If Model doesn't hold state, we usually pass ID. But generic method might use $this->id if available.
+        // The User model seems to be a service-like model (getUserById), not an Active Record with state.
+        // So we probably need $userId passed in.
+
+        if (!$uid)
+            return [];
+
+        $sql = "SELECT r.* FROM roles r 
+                JOIN role_user ru ON r.id = ru.role_id 
+                WHERE ru.user_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$uid]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Check if user has a specific role
+     */
+    public function hasRole($userId, $roleSlug)
+    {
+        $roles = $this->getRoles($userId);
+        foreach ($roles as $role) {
+            if ($role['slug'] === $roleSlug) {
+                return true;
+            }
+            // Check for Super Admin
+            if ($role['slug'] === 'super-admin') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if user has any of the given roles
+     */
+    public function hasAnyRole($userId, array $roles)
+    {
+        foreach ($roles as $role) {
+            if ($this->hasRole($userId, $role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get all permissions for the user
+     */
+    public function getPermissions($userId)
+    {
+        $sql = "SELECT DISTINCT p.slug, p.name 
+                FROM permissions p
+                JOIN permission_role pr ON p.id = pr.permission_id
+                JOIN role_user ru ON pr.role_id = ru.role_id
+                WHERE ru.user_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Check if user has a specific permission
+     */
+    public function hasPermission($userId, $permissionSlug)
+    {
+        // Super Admin has all permissions
+        if ($this->hasRole($userId, 'super-admin')) {
+            return true;
+        }
+
+        $permissions = $this->getPermissions($userId);
+        foreach ($permissions as $perm) {
+            if ($perm['slug'] === $permissionSlug) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Assign a role to user
+     */
+    public function assignRole($userId, $roleSlug)
+    {
+        // Get role ID
+        $stmt = $this->db->prepare("SELECT id FROM roles WHERE slug = ?");
+        $stmt->execute([$roleSlug]);
+        $role = $stmt->fetch();
+
+        if (!$role)
+            return false;
+
+        try {
+            $stmt = $this->db->prepare("INSERT INTO role_user (user_id, role_id) VALUES (?, ?)");
+            return $stmt->execute([$userId, $role['id']]);
+        } catch (\Exception $e) {
+            // Likely duplicate
+            return false;
+        }
+    }
+
+    /**
+     * Remove role from user
+     */
+    public function removeRole($userId, $roleSlug)
+    {
+        $stmt = $this->db->prepare("SELECT id FROM roles WHERE slug = ?");
+        $stmt->execute([$roleSlug]);
+        $role = $stmt->fetch();
+
+        if (!$role)
+            return false;
+
+        $stmt = $this->db->prepare("DELETE FROM role_user WHERE user_id = ? AND role_id = ?");
+        return $stmt->execute([$userId, $role['id']]);
+    }
 }
 ?>

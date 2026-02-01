@@ -209,6 +209,9 @@ class Router
 
                 error_log("  Parameters: " . print_r($params, true));
 
+                error_log("  Parameters: " . print_r($params, true));
+
+                $this->checkRbac($route['controller'], $route['action']);
                 $this->callController($route['controller'], $route['action'], $params);
 
                 // Run after middleware
@@ -226,6 +229,59 @@ class Router
             error_log("  {$route['method']} {$route['path']}");
         }
         $this->show404();
+    }
+
+    /**
+     * Check RBAC permissions
+     */
+    private function checkRbac($controller, $action)
+    {
+        // Skip for public routes (Home, Auth)
+        if ($controller === 'HomeController' || $controller === 'AuthController') {
+            return;
+        }
+
+        // Admin Routes
+        if (strpos($_SERVER['REQUEST_URI'], '/admin') === 0 || $controller === 'AdminController') {
+            \App\Middleware\CheckRole::handle('admin');
+        }
+
+        // Faculty Routes
+        if (strpos($_SERVER['REQUEST_URI'], '/faculty') === 0 || $controller === 'FacultyController') {
+            \App\Middleware\CheckRole::handle('faculty');
+        }
+
+        // Student Routes
+        if (strpos($_SERVER['REQUEST_URI'], '/student') === 0) {
+            \App\Middleware\CheckRole::handle('student');
+        }
+
+        // User Routes (requires any login)
+        if (strpos($_SERVER['REQUEST_URI'], '/user') === 0 || $controller === 'UserController' || $controller === 'BookController') {
+            // Just ensure logged in (CheckRole handles this as it checks session)
+            if (!isset($_SESSION['user_id'])) {
+                header('Location: /login');
+                exit;
+            }
+        }
+
+        // Specific Permission Checks
+        $permissions = [
+            'AdminController@users' => 'users.read',
+            'AdminController@deleteUser' => 'users.delete',
+            'BookController@addBook' => 'books.create',
+            'BookController@editBook' => 'books.update',
+            'BookController@deleteBook' => 'books.delete',
+            'AdminController@settings' => 'settings.manage',
+            'AdminController@updateSettings' => 'settings.manage',
+            'AdminController@reports' => 'reports.view',
+            'AdminController@exportReport' => 'reports.export',
+        ];
+
+        $key = $controller . '@' . $action;
+        if (isset($permissions[$key])) {
+            \App\Middleware\CheckPermission::handle($permissions[$key]);
+        }
     }
 
     /**
@@ -709,6 +765,10 @@ $router->addRoute('GET', '/admin', 'AdminController', 'dashboard');
 $router->addRoute('GET', '/admin/users', 'AdminController', 'users');
 $router->addRoute('POST', '/admin/users', 'AdminController', 'users'); // FIXED: Handle POST for add/edit/delete
 $router->addRoute('POST', '/admin/users/delete', 'AdminController', 'deleteUser');
+
+// Admin Roles Management
+$router->addRoute('GET', '/admin/roles', 'AdminController', 'roles');
+$router->addRoute('POST', '/admin/roles', 'AdminController', 'roles');
 
 // Admin Books Management
 $router->addRoute('GET', '/admin/books', 'BookController', 'adminBooks');
