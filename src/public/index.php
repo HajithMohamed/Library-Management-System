@@ -589,6 +589,13 @@ $router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword')
 $router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
+// 2FA Routes
+$router->addRoute('GET', '/2fa/setup', 'AuthController', 'setup2fa');
+$router->addRoute('POST', '/2fa/verify-setup', 'AuthController', 'verifySetup2fa');
+$router->addRoute('GET', '/2fa/verify', 'AuthController', 'verify2fa');
+$router->addRoute('POST', '/2fa/verify', 'AuthController', 'verify2fa');
+$router->addRoute('POST', '/2fa/disable', 'AuthController', 'disable2fa');
+
 // ============================================================================
 // USER ROUTES
 // ============================================================================

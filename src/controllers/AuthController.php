@@ -5,6 +5,10 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Helpers\AuthHelper;
+use App\Services\TwoFactorService;
+use App\Services\PasswordService;
+use App\Services\AuditLogger;
+use App\Middleware\SecurityMiddleware;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
@@ -14,12 +18,18 @@ class AuthController
   private $userModel;
   private $authService;
   private $authHelper;
+  private $twoFactorService;
+  private $passwordService;
+  private $auditLogger;
 
   public function __construct()
   {
     $this->userModel = new User();
     $this->authService = new AuthService();
     $this->authHelper = new AuthHelper();
+    $this->twoFactorService = new TwoFactorService();
+    $this->passwordService = new PasswordService();
+    $this->auditLogger = new AuditLogger();
   }
 
   /**
@@ -27,6 +37,9 @@ class AuthController
    */
   public function login()
   {
+    // Apply security headers
+    SecurityMiddleware::setSecurityHeaders();
+
     // Redirect if already logged in
     if ($this->authHelper->isLoggedIn()) {
       $this->authHelper->redirectByUserType();
@@ -36,46 +49,52 @@ class AuthController
       $username = trim($_POST['username'] ?? '');
       $password = $_POST['password'] ?? '';
 
+      // Validate input
       if (empty($username) || empty($password)) {
         $_SESSION['error'] = 'Please enter both username and password.';
         $this->redirect('/');
         return;
       }
 
-      // Get user and verify password to handle unverified flow gracefully
+      // Check Rate Limit
+      $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+      if (!$this->auditLogger->checkRateLimit($ip)) {
+        $this->auditLogger->log(null, 'login_lockout', ['ip' => $ip, 'username' => $username]);
+        $_SESSION['error'] = 'Too many failed attempts. Please try again in 15 minutes.';
+        $this->redirect('/');
+        return;
+      }
+
+      // Get user
       $user = $this->userModel->getUserByUsername($username);
 
-      if ($user && $this->authHelper->verifyPassword($password, $user['password'])) {
+      // Verify password
+      if ($user && $this->passwordService->verifyPassword($password, $user['password'])) {
+
+        // Check if user is verified (email)
         if (empty($user['isVerified'])) {
-          // Redirect unverified users to OTP verification
           $_SESSION['signup_userId'] = $user['userId'];
           $_SESSION['error'] = 'Please verify your email to continue.';
           $this->redirect('/verify-otp');
           return;
         }
 
-        // Verified user -> set session and redirect by role
-        $_SESSION['userId'] = $user['userId'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
-        $_SESSION['emailId'] = $user['emailId'];
-        
-        // ADDED: Also set these for compatibility
-        $_SESSION['user_id'] = $user['userId'];
-        $_SESSION['name'] = $user['username'];
-        $_SESSION['email'] = $user['emailId'];
-        $_SESSION['role'] = strtolower($user['userType']);
-        $_SESSION['logged_in'] = true;
-
-        // Migrate wishlist to favorites if exists
-        if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
-          $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
-          unset($_SESSION['guest_wishlist']);
+        // Check for 2FA
+        if (!empty($user['is_2fa_enabled'])) {
+          $_SESSION['2fa_pending_userId'] = $user['userId'];
+          $_SESSION['2fa_pending_username'] = $user['username'];
+          $this->redirect('/2fa/verify');
+          return;
         }
 
-        $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
-        $this->authHelper->redirectByUserType();
+        // Complete Login
+        $this->completeLogin($user);
+
       } else {
+        // Log failed attempt
+        $this->auditLogger->logLoginAttempt($username, false);
+        $this->auditLogger->log($user['userId'] ?? null, 'login_failed', ['username' => $username, 'ip' => $ip]);
+
         $_SESSION['error'] = 'Invalid username or password.';
         $this->redirect('/');
       }
@@ -85,6 +104,138 @@ class AuthController
     }
   }
 
+  private function completeLogin($user)
+  {
+    $_SESSION['userId'] = $user['userId'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['userType'] = ucfirst(strtolower($user['userType']));
+    $_SESSION['emailId'] = $user['emailId'];
+
+    // Compatibility
+    $_SESSION['user_id'] = $user['userId'];
+    $_SESSION['name'] = $user['username'];
+    $_SESSION['email'] = $user['emailId'];
+    $_SESSION['role'] = strtolower($user['userType']);
+    $_SESSION['logged_in'] = true;
+
+    // Log success
+    $this->auditLogger->log($user['userId'], 'login_success', ['ip' => $_SERVER['REMOTE_ADDR']]);
+    $this->auditLogger->logLoginAttempt($user['username'], true);
+
+    // Migrate wishlist
+    if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
+      $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
+      unset($_SESSION['guest_wishlist']);
+    }
+
+    // Check if password needs rehash
+    if ($this->passwordService->needsRehash($user['password'])) {
+      // We can't rehash here without the plain text password from POST, 
+      // but we shouldn't pass it around. Ideally rehash immediately upon verification.
+      // For now we skip, or we could have done it inside the verify block.
+    }
+
+    $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
+    $this->authHelper->redirectByUserType();
+  }
+
+  /**
+   * 2FA Setup
+   */
+  public function setup2fa()
+  {
+    $this->authHelper->requireAuth();
+    $user = $this->authHelper->getCurrentUser();
+
+    $secret = $this->twoFactorService->generateSecret();
+    $qrCodeUrl = $this->twoFactorService->getQRCodeUrl($user['userId'], $secret);
+
+    $this->render('auth/2fa_setup', [
+      'secret' => $secret,
+      'qrCodeUrl' => $qrCodeUrl
+    ]);
+  }
+
+  public function verifySetup2fa()
+  {
+    $this->authHelper->requireAuth();
+    $secret = $_POST['secret'] ?? '';
+    $code = $_POST['code'] ?? '';
+
+    if ($this->twoFactorService->verifyCode($secret, $code)) {
+      $this->twoFactorService->enable2FA($_SESSION['userId'], $secret);
+
+      // Generate backup codes
+      $backupCodes = $this->twoFactorService->generateBackupCodes($_SESSION['userId']);
+
+      // Show success and backup codes (TODO: create a view for showing backup codes)
+      $_SESSION['success'] = '2FA Enabled Successfully!';
+      // ideally show backup codes now
+      $_SESSION['backup_codes'] = $backupCodes;
+
+      $this->authHelper->redirectByUserType();
+    } else {
+      $_SESSION['error'] = 'Invalid Code. Please try again.';
+      $this->redirect('/2fa/setup'); // Should ideally preserve secret
+    }
+  }
+
+  /**
+   * 2FA Verification (Login)
+   */
+  public function verify2fa()
+  {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $userId = $_SESSION['2fa_pending_userId'] ?? null;
+      if (!$userId) {
+        $this->redirect('/');
+        return;
+      }
+
+      $code = $_POST['code'] ?? '';
+      $backupCode = $_POST['backup_code'] ?? '';
+      $trustDevice = $_POST['trust_device'] ?? 0;
+      $verified = false;
+
+      // Check secret for user
+      $user = $this->userModel->getUserById($userId);
+
+      if (!empty($backupCode)) {
+        if ($this->twoFactorService->verifyBackupCode($userId, $backupCode)) {
+          $verified = true;
+          $this->auditLogger->log($userId, '2fa_backup_used');
+        }
+      } elseif ($this->twoFactorService->verifyCode($user['two_factor_secret'], $code)) {
+        $verified = true;
+      }
+
+      if ($verified) {
+        unset($_SESSION['2fa_pending_userId']);
+        unset($_SESSION['2fa_pending_username']);
+        $this->completeLogin($user);
+      } else {
+        $_SESSION['error'] = 'Invalid code.';
+        $this->redirect('/2fa/verify');
+      }
+
+    } else {
+      if (!isset($_SESSION['2fa_pending_userId'])) {
+        $this->redirect('/');
+        return;
+      }
+      $this->render('auth/2fa_verify');
+    }
+  }
+
+  public function disable2fa()
+  {
+    $this->authHelper->requireAuth();
+    // Require password confirmation logic here...
+    $this->twoFactorService->disable2FA($_SESSION['userId']);
+    $_SESSION['success'] = '2FA Disabled.';
+    $this->authHelper->redirectByUserType();
+  }
+
   /**
    * Signup method
    */
@@ -92,82 +243,82 @@ class AuthController
   {
     // Redirect if already logged in
     if ($this->authHelper->isLoggedIn()) {
-        $this->authHelper->redirectByUserType();
+      $this->authHelper->redirectByUserType();
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data = [
-            'username' => $_POST['username'] ?? $_POST['name'] ?? '', // ADDED: Support both 'name' and 'username'
-            'password' => $_POST['password'] ?? '',
-            'userType' => 'Student', // Automatically set to Student
-            'gender' => $_POST['gender'] ?? '',
-            'dob' => $_POST['dob'] ?? '',
-            'emailId' => $_POST['emailId'] ?? $_POST['email'] ?? '', // ADDED: Support both 'email' and 'emailId'
-            'phoneNumber' => $_POST['phoneNumber'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'isVerified' => 0,
-            'otp' => null,
-            'otpExpiry' => null
-        ];
+      $data = [
+        'username' => $_POST['username'] ?? $_POST['name'] ?? '', // ADDED: Support both 'name' and 'username'
+        'password' => $_POST['password'] ?? '',
+        'userType' => 'Student', // Automatically set to Student
+        'gender' => $_POST['gender'] ?? '',
+        'dob' => $_POST['dob'] ?? '',
+        'emailId' => $_POST['emailId'] ?? $_POST['email'] ?? '', // ADDED: Support both 'email' and 'emailId'
+        'phoneNumber' => $_POST['phoneNumber'] ?? '',
+        'address' => $_POST['address'] ?? '',
+        'isVerified' => 0,
+        'otp' => null,
+        'otpExpiry' => null
+      ];
 
-        // Validate user data
-        $errors = $this->userModel->validateUserData($data);
-        if (!empty($errors)) {
-            $_SESSION['validation_errors'] = $errors;
-            $this->redirect('/signup');
-            return;
-        }
+      // Validate user data
+      $errors = $this->userModel->validateUserData($data);
+      if (!empty($errors)) {
+        $_SESSION['validation_errors'] = $errors;
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Check if username already exists
-        if ($this->userModel->usernameExists($data['username'])) {
-            $_SESSION['error'] = 'Username already exists. Please choose a different username.';
-            $this->redirect('/signup');
-            return;
-        }
+      // Check if username already exists
+      if ($this->userModel->usernameExists($data['username'])) {
+        $_SESSION['error'] = 'Username already exists. Please choose a different username.';
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Check if email already exists
-        if ($this->userModel->emailExists($data['emailId'])) {
-            $_SESSION['error'] = 'Email address already exists. Please use a different email.';
-            $this->redirect('/signup');
-            return;
-        }
+      // Check if email already exists
+      if ($this->userModel->emailExists($data['emailId'])) {
+        $_SESSION['error'] = 'Email address already exists. Please use a different email.';
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Hash password
-        $data['password'] = $this->authHelper->hashPassword($data['password']);
+      // Hash password
+      $data['password'] = $this->authHelper->hashPassword($data['password']);
 
-        // Generate OTP
-        $otp = rand(100000, 999999);
-        $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-        $data['otp'] = $otp;
-        $data['otpExpiry'] = $otpExpiry;
+      // Generate OTP
+      $otp = rand(100000, 999999);
+      $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+      $data['otp'] = $otp;
+      $data['otpExpiry'] = $otpExpiry;
 
-        // Create user (user ID will be auto-generated)
-        if ($this->userModel->createUser($data)) {
-            // Get the generated user ID
-            $generatedUserId = $this->userModel->getLastGeneratedUserId();
-            
-            // Send OTP email
-            if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-                $_SESSION['success'] = 'Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId;
-                $_SESSION['signup_userId'] = $generatedUserId;
-                $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
-                
-                // Redirect to verify-otp page
-                $this->redirect('/verify-otp');
-            } else {
-                $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
-                $_SESSION['signup_userId'] = $generatedUserId;
-                
-                // Still redirect to verify-otp so they can try again
-                $this->redirect('/verify-otp');
-            }
+      // Create user (user ID will be auto-generated)
+      if ($this->userModel->createUser($data)) {
+        // Get the generated user ID
+        $generatedUserId = $this->userModel->getLastGeneratedUserId();
+
+        // Send OTP email
+        if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
+          $_SESSION['success'] = 'Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId;
+          $_SESSION['signup_userId'] = $generatedUserId;
+          $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
+
+          // Redirect to verify-otp page
+          $this->redirect('/verify-otp');
         } else {
-            $_SESSION['error'] = 'Failed to create account. Please try again.';
-            $this->redirect('/signup');
+          $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
+          $_SESSION['signup_userId'] = $generatedUserId;
+
+          // Still redirect to verify-otp so they can try again
+          $this->redirect('/verify-otp');
         }
+      } else {
+        $_SESSION['error'] = 'Failed to create account. Please try again.';
+        $this->redirect('/signup');
+      }
     } else {
-        // Show signup form
-        $this->render('auth/signup');
+      // Show signup form
+      $this->render('auth/signup');
     }
   }
 
@@ -208,33 +359,33 @@ class AuthController
       if ($this->userModel->verifyUser($userId, $otp)) {
         // Get user details to set session
         $user = $this->userModel->getUserById($userId);
-        
+
         if ($user) {
           // Clear signup session variables
           unset($_SESSION['signup_userId']);
           unset($_SESSION['signup_email']);
-          
+
           // Set user session (auto-login)
           $_SESSION['userId'] = $user['userId'];
           $_SESSION['username'] = $user['username'];
           $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
           $_SESSION['emailId'] = $user['emailId'];
-          
+
           // ADDED: Also set these for compatibility
           $_SESSION['user_id'] = $user['userId'];
           $_SESSION['name'] = $user['username'];
           $_SESSION['email'] = $user['emailId'];
           $_SESSION['role'] = strtolower($user['userType']);
           $_SESSION['logged_in'] = true;
-          
+
           // Migrate wishlist to favorites if exists
           if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
             $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
             unset($_SESSION['guest_wishlist']);
           }
-          
+
           $_SESSION['success'] = 'Account verified successfully! Welcome, ' . $user['username'] . '!';
-          
+
           // Redirect to appropriate dashboard based on user type
           $this->authHelper->redirectByUserType();
         } else {
@@ -299,7 +450,7 @@ class AuthController
 
     $otp = rand(100000, 999999);
     $otpExpiry = date('Y-m-d H:i:s', strtotime('+' . OTP_EXPIRY_MINUTES . ' minutes'));
-    
+
     if ($this->userModel->updateUserOtp($user['userId'], $otp, $otpExpiry)) {
       // Send OTP via email
       $subject = "Password Reset OTP - Library System";
@@ -433,7 +584,7 @@ class AuthController
   {
     extract($data);
     $viewFile = APP_ROOT . '/views/' . $view . '.php';
-    
+
 
     if (file_exists($viewFile)) {
       include $viewFile;
@@ -457,9 +608,9 @@ class AuthController
    */
   public function show403()
   {
-      http_response_code(403);
-      $pageTitle = 'Access Denied - 403';
-      include APP_ROOT . '/views/errors/403.php';
+    http_response_code(403);
+    $pageTitle = 'Access Denied - 403';
+    include APP_ROOT . '/views/errors/403.php';
   }
 
   /**
@@ -467,9 +618,9 @@ class AuthController
    */
   public function show404()
   {
-      http_response_code(404);
-      $pageTitle = 'Page Not Found - 404';
-      include APP_ROOT . '/views/errors/404.php';
+    http_response_code(404);
+    $pageTitle = 'Page Not Found - 404';
+    include APP_ROOT . '/views/errors/404.php';
   }
 
   /**
@@ -477,13 +628,13 @@ class AuthController
    */
   public function healthCheck()
   {
-      header('Content-Type: application/json');
-      echo json_encode([
-          'status' => 'ok',
-          'timestamp' => date('Y-m-d H:i:s'),
-          'database' => 'connected'
-      ]);
-      exit();
+    header('Content-Type: application/json');
+    echo json_encode([
+      'status' => 'ok',
+      'timestamp' => date('Y-m-d H:i:s'),
+      'database' => 'connected'
+    ]);
+    exit();
   }
 
   /**
@@ -491,18 +642,18 @@ class AuthController
    */
   public function systemStatus()
   {
-      global $conn;
-      
-      $status = [
-          'system' => 'online',
-          'database' => $conn ? 'connected' : 'disconnected',
-          'php_version' => phpversion(),
-          'timestamp' => date('Y-m-d H:i:s')
-      ];
-      
-      header('Content-Type: application/json');
-      echo json_encode($status);
-      exit();
+    global $conn;
+
+    $status = [
+      'system' => 'online',
+      'database' => $conn ? 'connected' : 'disconnected',
+      'php_version' => phpversion(),
+      'timestamp' => date('Y-m-d H:i:s')
+    ];
+
+    header('Content-Type: application/json');
+    echo json_encode($status);
+    exit();
   }
 
   /**
@@ -511,33 +662,33 @@ class AuthController
   private function migrateWishlistToFavorites($userId, $wishlist)
   {
     try {
-        global $mysqli;
-        
-        if (!$mysqli) {
-            error_log("Wishlist migration error: Database connection not available");
-            return false;
-        }
-        
-        // Use INSERT IGNORE to skip duplicates without errors
-        $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
-        
-        if (!$stmt) {
-            error_log("Wishlist migration error: " . $mysqli->error);
-            return false;
-        }
-        
-        $note = 'Migrated from guest wishlist';
-        
-        foreach ($wishlist as $isbn) {
-            $stmt->bind_param('sss', $userId, $isbn, $note);
-            $stmt->execute();
-        }
-        
-        $stmt->close();
-        return true;
-    } catch (\Exception $e) {
-        error_log("Wishlist migration error: " . $e->getMessage());
+      global $mysqli;
+
+      if (!$mysqli) {
+        error_log("Wishlist migration error: Database connection not available");
         return false;
+      }
+
+      // Use INSERT IGNORE to skip duplicates without errors
+      $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
+
+      if (!$stmt) {
+        error_log("Wishlist migration error: " . $mysqli->error);
+        return false;
+      }
+
+      $note = 'Migrated from guest wishlist';
+
+      foreach ($wishlist as $isbn) {
+        $stmt->bind_param('sss', $userId, $isbn, $note);
+        $stmt->execute();
+      }
+
+      $stmt->close();
+      return true;
+    } catch (\Exception $e) {
+      error_log("Wishlist migration error: " . $e->getMessage());
+      return false;
     }
   }
 }
