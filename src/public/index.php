@@ -141,6 +141,9 @@ class Router
         if ($path === null) {
             $path = '/';
         }
+        
+        // Collapse multiple slashes
+        $path = preg_replace('#/+#', '/', $path);
 
         // Remove base path if running in subdirectory
         $basePath = str_replace($_SERVER['DOCUMENT_ROOT'], '', PUBLIC_ROOT);
@@ -765,6 +768,7 @@ $router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
 
 $router->addRoute('GET', '/e-resources', 'EResourceController', 'index');
 $router->addRoute('GET', '/e-resources/index', 'EResourceController', 'index');
+$router->addRoute('GET', '/e-resources/list', 'EResourceController', 'list');
 $router->addRoute('GET', '/e-resources/upload', 'EResourceController', 'showUpload');
 $router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload');
 

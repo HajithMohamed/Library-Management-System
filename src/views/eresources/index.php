@@ -398,6 +398,17 @@ include APP_ROOT . '/views/layouts/header.php';
                     <a href="<?= BASE_URL ?>e-resources/upload" class="btn-hero btn-primary">
                         <i class="fas fa-cloud-upload-alt"></i> Upload New Resource
                     </a>
+                    <a href="<?= BASE_URL ?>e-resources/list" class="btn-hero btn-secondary"
+                        style="background: rgba(255,255,255,0.2); color:white; border: 1px solid rgba(255,255,255,0.3);">
+                        <i class="fas fa-list"></i> List View
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="hero-actions">
+                    <a href="<?= BASE_URL ?>e-resources/list" class="btn-hero btn-secondary"
+                        style="background: rgba(255,255,255,0.2); color:white; border: 1px solid rgba(255,255,255,0.3);">
+                        <i class="fas fa-list"></i> List View
+                    </a>
                 </div>
             <?php endif; ?>
         </div>
@@ -412,8 +423,21 @@ include APP_ROOT . '/views/layouts/header.php';
             <?php else: ?>
                 <?php foreach ($resources as $resource): ?>
                     <div class="resource-card" data-title="<?= strtolower(htmlspecialchars($resource['title'])) ?>">
-                        <div class="card-icon">
-                            <i class="far fa-file-pdf"></i>
+                        <div class="card-icon" style="padding: 0; overflow: hidden; position: relative;">
+                            <?php
+                            $thumbUrl = isset($cloudinaryService) ? $cloudinaryService->getThumbnailUrl($resource['fileUrl']) : '';
+                            if (!empty($thumbUrl)):
+                                ?>
+                                <img src="<?= $thumbUrl ?>" alt="<?= htmlspecialchars($resource['title']) ?>"
+                                    style="width: 100%; height: 100%; object-fit: cover;"
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="fallback-icon"
+                                    style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                                    <i class="far fa-file-pdf"></i>
+                                </div>
+                            <?php else: ?>
+                                <i class="far fa-file-pdf"></i>
+                            <?php endif; ?>
                         </div>
 
                         <h3 class="resource-title"><?= htmlspecialchars($resource['title']) ?></h3>

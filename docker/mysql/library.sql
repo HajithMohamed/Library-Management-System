@@ -1710,3 +1710,37 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ====================================================================
 -- End of database schema and initial data
 -- ====================================================================
+--
+-- Table structure for table \e_resources\
+--
+
+CREATE TABLE IF NOT EXISTS \e_resources\ (
+  \esourceId\ int(11) NOT NULL AUTO_INCREMENT,
+  \	itle\ varchar(255) NOT NULL,
+  \description\ text DEFAULT NULL,
+  \ileUrl\ varchar(500) NOT NULL,
+  \publicId\ varchar(255) NOT NULL,
+  \uploadedBy\ varchar(255) NOT NULL,
+  \status\ enum('pending','approved','rejected') DEFAULT 'pending',
+  \createdAt\ datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  \updatedAt\ datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (\esourceId\),
+  KEY \idx_uploadedBy\ (\uploadedBy\),
+  KEY \idx_status\ (\status\)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Table structure for table \user_eresources\
+--
+
+CREATE TABLE IF NOT EXISTS \user_eresources\ (
+  \id\ int(11) NOT NULL AUTO_INCREMENT,
+  \user_id\ varchar(255) NOT NULL,
+  \esource_id\ int(11) NOT NULL,
+  \obtained_at\ datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (\id\),
+  UNIQUE KEY \unique_user_resource\ (\user_id\,\esource_id\),
+  KEY \idx_user\ (\user_id\),
+  KEY \idx_resource\ (\esource_id\)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

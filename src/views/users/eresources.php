@@ -440,9 +440,26 @@ include APP_ROOT . '/views/layouts/header.php';
                             <?php foreach ($resources as $resource) { ?>
                                 <tr>
                                     <td data-label="Resource Details">
-                                        <div class="resource-info">
-                                            <span class="resource-title"><?= htmlspecialchars($resource['title']) ?></span>
-                                            <span class="resource-desc"><?= htmlspecialchars($resource['description']) ?></span>
+                                        <div style="display: flex; gap: 15px; align-items: center;">
+                                            <div
+                                                style="width: 50px; height: 70px; border-radius: 8px; overflow: hidden; background: #e5e7eb; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                                <?php
+                                                $thumbUrl = isset($cloudinaryService) ? $cloudinaryService->getThumbnailUrl($resource['fileUrl'], 50, 70) : '';
+                                                if (!empty($thumbUrl)):
+                                                    ?>
+                                                    <img src="<?= $thumbUrl ?>" alt=""
+                                                        style="width: 100%; height: 100%; object-fit: cover;"
+                                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                                    <i class="fas fa-file-pdf" style="display: none; color: #9ca3af;"></i>
+                                                <?php else: ?>
+                                                    <i class="fas fa-file-pdf" style="color: #9ca3af;"></i>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="resource-info">
+                                                <span class="resource-title"><?= htmlspecialchars($resource['title']) ?></span>
+                                                <span
+                                                    class="resource-desc"><?= htmlspecialchars($resource['description']) ?></span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td data-label="Obtained Date">

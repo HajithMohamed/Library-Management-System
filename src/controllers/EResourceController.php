@@ -71,13 +71,15 @@ class EResourceController extends BaseController
             $this->view('admin/eresources', [
                 'resources' => $resources,
                 'userType' => $userRole,
-                'title' => 'E-Resources Management'
+                'title' => 'E-Resources Management',
+                'cloudinaryService' => $this->cloudinaryService
             ]);
         } else {
             $this->view('eresources/index', [
                 'resources' => $resources,
                 'userType' => $userRole,
-                'title' => 'E-Resources'
+                'title' => 'E-Resources',
+                'cloudinaryService' => $this->cloudinaryService
             ]);
         }
     }
@@ -121,7 +123,7 @@ class EResourceController extends BaseController
         }
 
         $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
-        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'] ?? null;
 
         if (!isset($userId) || $userRole === 'student') {
             $_SESSION['error'] = "Unauthorized access.";
@@ -149,7 +151,7 @@ class EResourceController extends BaseController
                 'description' => $description,
                 'fileUrl' => $uploadResult['url'],
                 'publicId' => $uploadResult['public_id'],
-                'uploadedBy' => $_SESSION['user_id'],
+                'uploadedBy' => $userId,
                 'status' => ($userRole === 'admin') ? 'approved' : 'pending' // Auto-approve admin uploads
             ];
 
@@ -208,6 +210,50 @@ class EResourceController extends BaseController
             $_SESSION['error'] = "Failed to reject resource.";
         }
         $this->redirect('/e-resources');
+    }
+
+    /**
+     * Display e-resources in list view (table)
+     */
+    public function list()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
+            return;
+        }
+
+        $userRole = $_SESSION['role'] ?? strtolower($_SESSION['userType'] ?? 'student');
+        $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
+
+        $resources = [];
+
+        if ($userRole === 'admin') {
+            $resources = $this->eResourceModel->getAll();
+        } elseif ($userRole === 'faculty') {
+            $allApproved = $this->eResourceModel->getAll('approved');
+            $myUploads = $this->eResourceModel->getByUser($userId);
+
+            // Merge uniquely
+            $temp = [];
+            foreach ($allApproved as $r)
+                $temp[$r['resourceId']] = $r;
+            foreach ($myUploads as $r)
+                $temp[$r['resourceId']] = $r;
+            $resources = array_values($temp);
+
+            usort($resources, function ($a, $b) {
+                return strtotime($b['createdAt']) - strtotime($a['createdAt']);
+            });
+        } else {
+            $resources = $this->eResourceModel->getAll('approved');
+        }
+
+        $this->view('eresources/list', [
+            'resources' => $resources,
+            'userType' => $userRole,
+            'title' => 'All E-Resources',
+            'cloudinaryService' => $this->cloudinaryService
+        ]);
     }
 
     /**
@@ -294,7 +340,8 @@ class EResourceController extends BaseController
 
         $this->view($viewPath, [
             'resources' => $resources,
-            'title' => 'My E-Resources Library'
+            'title' => 'My E-Resources Library',
+            'cloudinaryService' => $this->cloudinaryService
         ]);
     }
 }

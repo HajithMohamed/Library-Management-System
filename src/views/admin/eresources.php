@@ -60,7 +60,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         background: white;
         padding: 1.5rem;
         border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -83,7 +83,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         background: white;
         border-radius: 16px;
         padding: 1.5rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         overflow-x: auto;
     }
 
@@ -115,9 +115,20 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         font-weight: 600;
     }
 
-    .status-approved { background: #d1fae5; color: #065f46; }
-    .status-pending { background: #fef3c7; color: #92400e; }
-    .status-rejected { background: #fee2e2; color: #991b1b; }
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
 
     .btn-action {
         padding: 0.5rem 1rem;
@@ -136,19 +147,31 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         background: #d1fae5;
         color: #065f46;
     }
-    .btn-approve:hover { background: #10b981; color: white; }
+
+    .btn-approve:hover {
+        background: #10b981;
+        color: white;
+    }
 
     .btn-reject {
         background: #fee2e2;
         color: #991b1b;
     }
-    .btn-reject:hover { background: #ef4444; color: white; }
-    
+
+    .btn-reject:hover {
+        background: #ef4444;
+        color: white;
+    }
+
     .btn-delete {
         background: var(--gray-200);
         color: var(--gray-700);
     }
-    .btn-delete:hover { background: var(--gray-700); color: white; }
+
+    .btn-delete:hover {
+        background: var(--gray-700);
+        color: white;
+    }
 
     .add-btn {
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -159,7 +182,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         font-weight: 600;
         box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3);
     }
-    
+
     .add-btn:hover {
         transform: translateY(-2px);
     }
@@ -182,13 +205,15 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
         <?php if (isset($_SESSION['success'])): ?>
             <div style="background: #d1fae5; color: #065f46; padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
-                <?= $_SESSION['success']; unset($_SESSION['success']); ?>
+                <?= $_SESSION['success'];
+                unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if (isset($_SESSION['error'])): ?>
             <div style="background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
-                <?= $_SESSION['error']; unset($_SESSION['error']); ?>
+                <?= $_SESSION['error'];
+                unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
@@ -205,13 +230,34 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                 </thead>
                 <tbody>
                     <?php if (empty($resources)): ?>
-                        <tr><td colspan="5" style="text-align:center;">No resources found.</td></tr>
+                        <tr>
+                            <td colspan="5" style="text-align:center;">No resources found.</td>
+                        </tr>
                     <?php else: ?>
                         <?php foreach ($resources as $resource): ?>
                             <tr>
                                 <td>
-                                    <strong><?= htmlspecialchars($resource['title']) ?></strong><br>
-                                    <small style="color: #6b7280;"><?= substr(htmlspecialchars($resource['description']), 0, 50) ?>...</small>
+                                    <div style="display: flex; gap: 15px; align-items: center;">
+                                        <div
+                                            style="width: 50px; height: 70px; border-radius: 8px; overflow: hidden; background: #e5e7eb; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                            <?php
+                                            $thumbUrl = isset($cloudinaryService) ? $cloudinaryService->getThumbnailUrl($resource['fileUrl'], 50, 70) : '';
+                                            if (!empty($thumbUrl)):
+                                                ?>
+                                                <img src="<?= $thumbUrl ?>" alt=""
+                                                    style="width: 100%; height: 100%; object-fit: cover;"
+                                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                                <i class="fas fa-file-pdf" style="display: none; color: #9ca3af;"></i>
+                                            <?php else: ?>
+                                                <i class="fas fa-file-pdf" style="color: #9ca3af;"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <strong><?= htmlspecialchars($resource['title']) ?></strong><br>
+                                            <small
+                                                style="color: #6b7280;"><?= substr(htmlspecialchars($resource['description']), 0, 50) ?>...</small>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td><?= htmlspecialchars($resource['uploadedBy']) ?></td>
                                 <td><?= date('M d, Y', strtotime($resource['createdAt'])) ?></td>
@@ -222,13 +268,18 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 </td>
                                 <td>
                                     <?php if ($resource['status'] === 'pending'): ?>
-                                        <a href="<?= BASE_URL ?>e-resources/approve/<?= $resource['resourceId'] ?>" class="btn-action btn-approve" title="Approve"><i class="fas fa-check"></i></a>
-                                        <a href="<?= BASE_URL ?>e-resources/reject/<?= $resource['resourceId'] ?>" class="btn-action btn-reject" title="Reject"><i class="fas fa-times"></i></a>
+                                        <a href="<?= BASE_URL ?>e-resources/approve/<?= $resource['resourceId'] ?>"
+                                            class="btn-action btn-approve" title="Approve"><i class="fas fa-check"></i></a>
+                                        <a href="<?= BASE_URL ?>e-resources/reject/<?= $resource['resourceId'] ?>"
+                                            class="btn-action btn-reject" title="Reject"><i class="fas fa-times"></i></a>
                                     <?php endif; ?>
-                                    
-                                    <a href="<?= htmlspecialchars($resource['fileUrl']) ?>" target="_blank" class="btn-action" style="background:#e0f2fe; color:#0369a1;" title="View"><i class="fas fa-eye"></i></a>
-                                    
-                                    <a href="<?= BASE_URL ?>e-resources/delete/<?= $resource['resourceId'] ?>" class="btn-action btn-delete" title="Delete" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></a>
+
+                                    <a href="<?= htmlspecialchars($resource['fileUrl']) ?>" target="_blank" class="btn-action"
+                                        style="background:#e0f2fe; color:#0369a1;" title="View"><i class="fas fa-eye"></i></a>
+
+                                    <a href="<?= BASE_URL ?>e-resources/delete/<?= $resource['resourceId'] ?>"
+                                        class="btn-action btn-delete" title="Delete"
+                                        onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
