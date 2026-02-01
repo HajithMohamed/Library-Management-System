@@ -2,6 +2,7 @@
     "name": "university-library/lms",
     "description": "University Library Management System",
     "type": "project",
+    "license": "MIT",
     "require": {
         "phpmailer/phpmailer": "^7.0",
         "vlucas/phpdotenv": "^5.5",
