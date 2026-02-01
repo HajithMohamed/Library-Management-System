@@ -19,5 +19,8 @@
 },
     "config": {
         "optimize-autoloader": true
+    },
+    "require-dev": {
+        "robmorgan/phinx": "^0.16.10"
     }
 }
