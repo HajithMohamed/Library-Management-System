@@ -139,7 +139,7 @@ if (!defined('DB_NAME')) {
 }
 
 // =========================
-// MySQL Connection with Retry Logic
+// MySQL Connection with Retry Logic (Legacy mysqli)
 // =========================
 if (!function_exists('createDatabaseConnection')) {
   function createDatabaseConnection($maxRetries = 10, $retryDelay = 2)
@@ -155,7 +155,7 @@ if (!function_exists('createDatabaseConnection')) {
           DB_USER,
           DB_PASSWORD,
           DB_NAME,
-          (int)DB_PORT
+          (int) DB_PORT
         );
 
         if ($mysqli->connect_errno === 0) {
@@ -175,26 +175,56 @@ if (!function_exists('createDatabaseConnection')) {
       }
     }
 
-    // Connection failed after all retries
-    $errorMsg = "Database connection failed after $maxRetries attempts.\n";
-    $errorMsg .= "Last error: $lastError\n";
-    $errorMsg .= "Connection details:\n";
-    $errorMsg .= "- Host: " . DB_HOST . "\n";
-    $errorMsg .= "- Port: " . DB_PORT . "\n";
-    $errorMsg .= "- Database: " . DB_NAME . "\n";
-    $errorMsg .= "- User: " . DB_USER . "\n";
-
-    die($errorMsg);
+    return null; // Don't die here, give PDO a chance or handle in dbConnection.php
   }
 }
 
-// Create database connection (only if not already created)
-if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
+// =========================
+// PDO Connection with Retry Logic (Modern)
+// =========================
+if (!function_exists('createPDOConnection')) {
+  function createPDOConnection($maxRetries = 10, $retryDelay = 2)
+  {
+    $retry = $maxRetries;
+    $pdo = null;
+    $lastError = '';
+
+    while ($retry > 0) {
+      try {
+        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+        $options = [
+          \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+          \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+          \PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+        $pdo = new \PDO($dsn, DB_USER, DB_PASSWORD, $options);
+        return $pdo;
+      } catch (\PDOException $e) {
+        $lastError = $e->getMessage();
+      }
+
+      $retry--;
+      if ($retry > 0) {
+        sleep($retryDelay);
+      }
+    }
+
+    return null;
+  }
+}
+
+// Create database connections
+if (!isset($mysqli) || !($mysqli instanceof \mysqli)) {
   $mysqli = createDatabaseConnection();
+}
+
+if (!isset($pdo) || !($pdo instanceof \PDO)) {
+  $pdo = createPDOConnection();
 }
 
 // Store in GLOBALS for easy access
 $GLOBALS['mysqli'] = $mysqli;
+$GLOBALS['pdo'] = $pdo;
 
 // =========================
 // SMTP / Email Configuration

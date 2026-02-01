@@ -21,6 +21,9 @@
         "optimize-autoloader": true
     },
     "require-dev": {
-        "robmorgan/phinx": "^0.16.10"
+        "robmorgan/phinx": "^0.16.10",
+        "phpunit/phpunit": "*",
+        "mockery/mockery": "*",
+        "phpstan/phpstan": "*"
     }
 }

@@ -7,15 +7,24 @@ class BaseModel
     protected $db;
     protected $table;
 
-    public function __construct()
+    public function __construct(?\PDO $db = null)
     {
-        global $mysqli;
-        
-        if (!isset($mysqli) || !($mysqli instanceof \mysqli)) {
-            throw new \Exception("Database connection not available");
+        if ($db) {
+            $this->db = $db;
+        } else {
+            global $pdo;
+
+            if (!isset($pdo) || !($pdo instanceof \PDO)) {
+                // If it's not set globally, we look for it in GLOBALS just in case
+                if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof \PDO) {
+                    $this->db = $GLOBALS['pdo'];
+                } else {
+                    throw new \Exception("Database connection (PDO) not available in BaseModel");
+                }
+            } else {
+                $this->db = $pdo;
+            }
         }
-        
-        $this->db = $mysqli;
     }
 
     /**
@@ -25,10 +34,8 @@ class BaseModel
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = ? LIMIT 1";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        return $result->fetch_assoc();
+        $stmt->execute([$id]);
+        return $stmt->fetch();
     }
 
     /**
@@ -36,9 +43,13 @@ class BaseModel
      */
     public function all($orderBy = 'id', $order = 'ASC')
     {
+        // Care: potential SQL injection if $orderBy/order are user input
+        // Since this is internal, we validate them
+        $order = strtoupper($order) === 'DESC' ? 'DESC' : 'ASC';
+
         $sql = "SELECT * FROM {$this->table} ORDER BY {$orderBy} {$order}";
-        $result = $this->db->query($sql);
-        return $result->fetch_all(MYSQLI_ASSOC);
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -48,21 +59,21 @@ class BaseModel
     {
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('i', $id);
-        return $stmt->execute();
+        return $stmt->execute([$id]);
     }
 
     /**
      * Count records
      */
-    public function count($where = '')
+    public function count($where = '', $params = [])
     {
         $sql = "SELECT COUNT(*) as count FROM {$this->table}";
         if ($where) {
             $sql .= " WHERE {$where}";
         }
-        $result = $this->db->query($sql);
-        $row = $result->fetch_assoc();
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
         return $row['count'] ?? 0;
     }
 }

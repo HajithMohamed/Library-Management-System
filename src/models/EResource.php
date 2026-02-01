@@ -12,29 +12,21 @@ class EResource extends BaseModel
     public function create($data)
     {
         try {
+            $status = $data['status'] ?? 'pending';
+
             $stmt = $this->db->prepare("
                 INSERT INTO {$this->table} (title, description, fileUrl, publicId, uploadedBy, status)
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
 
-            if (!$stmt) {
-                throw new \Exception("Prepare failed: " . $this->db->error);
-            }
-
-            // Default status pending, overriden if passed (e.g. for admin)
-            $status = $data['status'] ?? 'pending';
-
-            $stmt->bind_param(
-                "ssssss",
+            return $stmt->execute([
                 $data['title'],
                 $data['description'],
                 $data['fileUrl'],
                 $data['publicId'],
                 $data['uploadedBy'],
                 $status
-            );
-
-            return $stmt->execute();
+            ]);
         } catch (\Exception $e) {
             error_log("Error creating e-resource: " . $e->getMessage());
             return false;
@@ -60,11 +52,12 @@ class EResource extends BaseModel
             $stmt = $this->db->prepare($sql);
 
             if ($status) {
-                $stmt->bind_param("s", $status);
+                $stmt->execute([$status]);
+            } else {
+                $stmt->execute();
             }
 
-            $stmt->execute();
-            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error fetching e-resources: " . $e->getMessage());
             return [];
@@ -79,9 +72,8 @@ class EResource extends BaseModel
         try {
             $sql = "SELECT * FROM {$this->table} WHERE uploadedBy = ? ORDER BY createdAt DESC";
             $stmt = $this->db->prepare($sql);
-            $stmt->bind_param("s", $userId);
-            $stmt->execute();
-            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error fetching user e-resources: " . $e->getMessage());
             return [];
@@ -95,8 +87,7 @@ class EResource extends BaseModel
     {
         try {
             $stmt = $this->db->prepare("UPDATE {$this->table} SET status = ? WHERE resourceId = ?");
-            $stmt->bind_param("si", $status, $resourceId);
-            return $stmt->execute();
+            return $stmt->execute([$status, $resourceId]);
         } catch (\Exception $e) {
             error_log("Error updating resource status: " . $e->getMessage());
             return false;
@@ -139,15 +130,11 @@ class EResource extends BaseModel
                 return false;
             }
 
-            // Add resourceId to values
-            $values[] = $resourceId;
-            $types .= 'i';
-
             $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE resourceId = ?";
-            $stmt = $this->db->prepare($sql);
-            $stmt->bind_param($types, ...$values);
+            $values[] = $resourceId;
 
-            return $stmt->execute();
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute($values);
         } catch (\Exception $e) {
             error_log("Error updating resource: " . $e->getMessage());
             return false;
@@ -161,8 +148,7 @@ class EResource extends BaseModel
     {
         try {
             $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE resourceId = ?");
-            $stmt->bind_param("i", $resourceId);
-            return $stmt->execute();
+            return $stmt->execute([$resourceId]);
         } catch (\Exception $e) {
             error_log("Error deleting resource: " . $e->getMessage());
             return false;
@@ -176,10 +162,8 @@ class EResource extends BaseModel
     {
         try {
             $stmt = $this->db->prepare("SELECT * FROM {$this->table} WHERE resourceId = ?");
-            $stmt->bind_param("i", $resourceId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            return $result->fetch_assoc();
+            $stmt->execute([$resourceId]);
+            return $stmt->fetch();
         } catch (\Exception $e) {
             error_log("Error getting resource by ID: " . $e->getMessage());
             return null;
@@ -197,8 +181,7 @@ class EResource extends BaseModel
             }
 
             $stmt = $this->db->prepare("INSERT INTO user_eresources (user_id, resource_id) VALUES (?, ?)");
-            $stmt->bind_param("ii", $userId, $resourceId);
-            return $stmt->execute();
+            return $stmt->execute([$userId, $resourceId]);
         } catch (\Exception $e) {
             error_log("Error saving to library: " . $e->getMessage());
             return false;
@@ -212,10 +195,8 @@ class EResource extends BaseModel
     {
         try {
             $stmt = $this->db->prepare("SELECT id FROM user_eresources WHERE user_id = ? AND resource_id = ?");
-            $stmt->bind_param("ii", $userId, $resourceId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            return $result->num_rows > 0;
+            $stmt->execute([$userId, $resourceId]);
+            return $stmt->rowCount() > 0;
         } catch (\Exception $e) {
             return false;
         }
@@ -235,9 +216,8 @@ class EResource extends BaseModel
                     ORDER BY ue.obtained_at DESC";
 
             $stmt = $this->db->prepare($sql);
-            $stmt->bind_param("i", $userId);
-            $stmt->execute();
-            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error fetching saved resources: " . $e->getMessage());
             return [];

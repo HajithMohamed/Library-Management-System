@@ -12,20 +12,8 @@ class BorrowRecord extends BaseModel
             $sql = "SELECT COUNT(*) as count FROM {$this->table} 
                     WHERE userId = ? AND returnDate IS NULL";
             $stmt = $this->db->prepare($sql);
-            if (!$stmt) {
-                error_log("Failed to prepare statement in getActiveBorrowCount: " . $this->db->error);
-                return 0;
-            }
-            $stmt->bind_param('s', $userId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if (!$result) {
-                error_log("Failed to get result in getActiveBorrowCount: " . $this->db->error);
-                $stmt->close();
-                return 0;
-            }
-            $data = $result->fetch_assoc();
-            $stmt->close();
+            $stmt->execute([$userId]);
+            $data = $stmt->fetch();
             return $data['count'] ?? 0;
         } catch (\Exception $e) {
             error_log("Error in getActiveBorrowCount: " . $e->getMessage());
@@ -40,20 +28,8 @@ class BorrowRecord extends BaseModel
                     WHERE userId = ? AND returnDate IS NULL 
                     AND dueDate < CURDATE()";
             $stmt = $this->db->prepare($sql);
-            if (!$stmt) {
-                error_log("Failed to prepare statement in getOverdueCount: " . $this->db->error);
-                return 0;
-            }
-            $stmt->bind_param('s', $userId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if (!$result) {
-                error_log("Failed to get result in getOverdueCount: " . $this->db->error);
-                $stmt->close();
-                return 0;
-            }
-            $data = $result->fetch_assoc();
-            $stmt->close();
+            $stmt->execute([$userId]);
+            $data = $stmt->fetch();
             return $data['count'] ?? 0;
         } catch (\Exception $e) {
             error_log("Error in getOverdueCount: " . $e->getMessage());
@@ -67,20 +43,8 @@ class BorrowRecord extends BaseModel
             $sql = "SELECT SUM(fineAmount) as total FROM {$this->table} 
                     WHERE userId = ? AND fineAmount > 0 AND fineStatus = 'pending'";
             $stmt = $this->db->prepare($sql);
-            if (!$stmt) {
-                error_log("Failed to prepare statement in getTotalFines: " . $this->db->error);
-                return 0;
-            }
-            $stmt->bind_param('s', $userId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if (!$result) {
-                error_log("Failed to get result in getTotalFines: " . $this->db->error);
-                $stmt->close();
-                return 0;
-            }
-            $data = $result->fetch_assoc();
-            $stmt->close();
+            $stmt->execute([$userId]);
+            $data = $stmt->fetch();
             return $data['total'] ?? 0;
         } catch (\Exception $e) {
             error_log("Error in getTotalFines: " . $e->getMessage());
@@ -96,25 +60,12 @@ class BorrowRecord extends BaseModel
                     JOIN books b ON bb.isbn = b.isbn
                     WHERE bb.userId = ?
                     ORDER BY bb.borrowDate DESC
-                    LIMIT ?";
+                    LIMIT " . (int) $limit;
             $stmt = $this->db->prepare($sql);
-            if (!$stmt) {
-                error_log("Failed to prepare statement in getRecentActivity: " . $this->db->error);
-                return [];
-            }
-            $stmt->bind_param('si', $userId, $limit);
-            $stmt->execute();
-            
-            $result = $stmt->get_result();
-            if (!$result) {
-                error_log("Failed to get result in getRecentActivity: " . $this->db->error);
-                $stmt->close();
-                return [];
-            }
-            
-            $results = $result->fetch_all(MYSQLI_ASSOC);
-            $stmt->close();
-            
+            $stmt->execute([$userId]);
+
+            $results = $stmt->fetchAll();
+
             // Map to expected format
             $activity = [];
             foreach ($results as $row) {
@@ -126,7 +77,7 @@ class BorrowRecord extends BaseModel
                     'author' => $row['author'] ?? 'Unknown'
                 ];
             }
-            
+
             return $activity;
         } catch (\Exception $e) {
             error_log("Error in getRecentActivity: " . $e->getMessage());
@@ -144,9 +95,8 @@ class BorrowRecord extends BaseModel
                 WHERE bb.userId = ? AND bb.status = 'Overdue'
                 ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
     }
 
     public function payFine($borrowId, $amount)
@@ -155,8 +105,7 @@ class BorrowRecord extends BaseModel
                 SET fineStatus = 'paid', finePaymentDate = CURDATE(), finePaymentMethod = 'online' 
                 WHERE tid = ? AND fineAmount = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('sd', $borrowId, $amount);
-        return $stmt->execute();
+        return $stmt->execute([$borrowId, $amount]);
     }
 
     public function createReservation($userId, $isbn)
@@ -164,8 +113,7 @@ class BorrowRecord extends BaseModel
         $sql = "INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate, createdAt) 
                 VALUES (?, ?, 'Active', DATE_ADD(CURDATE(), INTERVAL 7 DAY), NOW())";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('ss', $userId, $isbn);
-        return $stmt->execute();
+        return $stmt->execute([$userId, $isbn]);
     }
 
     public function getActiveBorrows($userId)
@@ -176,9 +124,8 @@ class BorrowRecord extends BaseModel
                 WHERE bb.userId = ? AND bb.returnDate IS NULL
                 ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
     }
 
     public function returnBook($borrowId)
@@ -187,8 +134,7 @@ class BorrowRecord extends BaseModel
                 SET returnDate = CURDATE(), status = 'Returned' 
                 WHERE id = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('i', $borrowId);
-        return $stmt->execute();
+        return $stmt->execute([$borrowId]);
     }
 
     public function getBorrowHistory($userId = null)
@@ -199,11 +145,8 @@ class BorrowRecord extends BaseModel
                 WHERE bb.userId = ?
                 ORDER BY bb.borrowDate DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $userId);
-        $stmt->execute();
-        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-        return $results;
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
     }
 
     public function getAllBorrowedBooks($userId = null)
@@ -217,7 +160,7 @@ class BorrowRecord extends BaseModel
                     WHERE bb.userId = ? AND bb.returnDate IS NULL
                     ORDER BY bb.borrowDate DESC";
             $stmt = $this->db->prepare($sql);
-            $stmt->bind_param('s', $userId);
+            $stmt->execute([$userId]);
         } else {
             $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn, b.category,
                     u.username, u.emailId, u.userType
@@ -227,16 +170,16 @@ class BorrowRecord extends BaseModel
                     WHERE bb.returnDate IS NULL
                     ORDER BY bb.borrowDate DESC";
             $stmt = $this->db->prepare($sql);
+            $stmt->execute();
         }
-        
-        $stmt->execute();
-        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
+
+        $results = $stmt->fetchAll();
+
         // Calculate if overdue
         foreach ($results as &$row) {
             $row['isOverdue'] = !empty($row['dueDate']) && strtotime($row['dueDate']) < time();
         }
-        
+
         return $results;
     }
 
@@ -248,16 +191,14 @@ class BorrowRecord extends BaseModel
                 JOIN books b ON bb.isbn = b.isbn
                 JOIN users u ON bb.userId = u.userId
                 WHERE 1=1";
-        
+
         $params = [];
-        $types = '';
-        
+
         if (!empty($filters['userId'])) {
             $sql .= " AND bb.userId = ?";
             $params[] = $filters['userId'];
-            $types .= 's';
         }
-        
+
         if (!empty($filters['status'])) {
             if ($filters['status'] === 'active') {
                 $sql .= " AND bb.returnDate IS NULL";
@@ -267,15 +208,11 @@ class BorrowRecord extends BaseModel
                 $sql .= " AND bb.returnDate IS NULL AND bb.dueDate < CURDATE()";
             }
         }
-        
+
         $sql .= " ORDER BY bb.borrowDate DESC";
-        
+
         $stmt = $this->db->prepare($sql);
-        if (!empty($params)) {
-            $stmt->bind_param($types, ...$params);
-        }
-        
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
 }

@@ -27,12 +27,11 @@ class Book extends BaseModel
                 OR isbn LIKE ? 
                 OR publisherName LIKE ?
                 ORDER BY bookName ASC";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
-        $stmt->execute();
-        
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+
+        return $stmt->fetchAll();
     }
 
     /**
@@ -42,26 +41,20 @@ class Book extends BaseModel
     {
         $sql = "SELECT * FROM books WHERE 1";
         $params = [];
-        $types = '';
 
         if ($searchTerm) {
             $sql .= " AND (bookName LIKE ? OR authorName LIKE ?)";
             $params[] = "%$searchTerm%";
             $params[] = "%$searchTerm%";
-            $types .= 'ss';
         }
         if ($category) {
             $sql .= " AND category = ?";
             $params[] = $category;
-            $types .= 's';
         }
 
         $stmt = $this->db->prepare($sql);
-        if ($params) {
-            $stmt->bind_param($types, ...$params);
-        }
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -71,10 +64,9 @@ class Book extends BaseModel
     {
         $sql = "SELECT * FROM {$this->table} WHERE isbn = ? LIMIT 1";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $isbn);
-        $stmt->execute();
-        
-        return $stmt->get_result()->fetch_assoc();
+        $stmt->execute([$isbn]);
+
+        return $stmt->fetch();
     }
 
     /**
@@ -83,9 +75,9 @@ class Book extends BaseModel
     public function getAvailableBooks()
     {
         $sql = "SELECT * FROM {$this->table} WHERE available > 0 ORDER BY bookName ASC";
-        $result = $this->db->query($sql);
-        
-        return $result->fetch_all(MYSQLI_ASSOC);
+        $stmt = $this->db->query($sql);
+
+        return $stmt->fetchAll();
     }
 
     /**
@@ -95,28 +87,20 @@ class Book extends BaseModel
     {
         try {
             $sql = "SELECT * FROM {$this->table} ORDER BY bookName ASC";
-            
+            $params = [];
+
             if ($limit) {
                 $sql .= " LIMIT ?";
+                $params[] = (int) $limit;
                 if ($offset) {
                     $sql .= " OFFSET ?";
+                    $params[] = (int) $offset;
                 }
             }
-            
+
             $stmt = $this->db->prepare($sql);
-            
-            if ($limit && $offset) {
-                $stmt->bind_param('ii', $limit, $offset);
-            } elseif ($limit) {
-                $stmt->bind_param('i', $limit);
-            } else {
-                // No parameters, execute directly
-                $result = $this->db->query("SELECT * FROM {$this->table} ORDER BY bookName ASC");
-                return $result->fetch_all(MYSQLI_ASSOC);
-            }
-            
-            $stmt->execute();
-            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->execute($params);
+            return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error getting all books: " . $e->getMessage());
             return [];
@@ -139,7 +123,7 @@ class Book extends BaseModel
                     ORDER BY borrow_count DESC
                     LIMIT ?
                 ");
-                $stmt->bind_param("ssi", $startDate, $endDate, $limit);
+                $stmt->execute([$startDate, $endDate, (int) $limit]);
             } else {
                 $stmt = $this->db->prepare("
                     SELECT b.*, COUNT(t.tid) as borrow_count
@@ -149,13 +133,10 @@ class Book extends BaseModel
                     ORDER BY borrow_count DESC
                     LIMIT ?
                 ");
-                $stmt->bind_param("i", $limit);
+                $stmt->execute([(int) $limit]);
             }
-            
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            return $result->fetch_all(MYSQLI_ASSOC);
+
+            return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error getting popular books: " . $e->getMessage());
             return [];
@@ -171,12 +152,11 @@ class Book extends BaseModel
                 WHERE isTrending = 1 
                 ORDER BY createdAt DESC 
                 LIMIT ?";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('i', $limit);
-        $stmt->execute();
-        
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute([(int) $limit]);
+
+        return $stmt->fetchAll();
     }
 
     /**
@@ -186,10 +166,9 @@ class Book extends BaseModel
     {
         $sql = "SELECT * FROM {$this->table} WHERE category = ? ORDER BY bookName ASC";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $category);
-        $stmt->execute();
-        
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->execute([$category]);
+
+        return $stmt->fetchAll();
     }
 
     /**
@@ -198,13 +177,13 @@ class Book extends BaseModel
     public function getAllCategories()
     {
         $sql = "SELECT DISTINCT category FROM {$this->table} WHERE category IS NOT NULL ORDER BY category ASC";
-        $result = $this->db->query($sql);
-        
+        $stmt = $this->db->query($sql);
+
         $categories = [];
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $stmt->fetch()) {
             $categories[] = $row['category'];
         }
-        
+
         return $categories;
     }
 
@@ -217,9 +196,9 @@ class Book extends BaseModel
                 (isbn, barcode, bookName, authorName, publisherName, description, 
                 category, publicationYear, totalCopies, available, bookImage)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('sssssssiiis',
+        return $stmt->execute([
             $data['isbn'],
             $data['barcode'],
             $data['bookName'],
@@ -231,9 +210,7 @@ class Book extends BaseModel
             $data['totalCopies'],
             $data['available'],
             $data['bookImage']
-        );
-        
-        return $stmt->execute();
+        ]);
     }
 
     /**
@@ -243,13 +220,11 @@ class Book extends BaseModel
     {
         $fields = [];
         $values = [];
-        $types = '';
 
         foreach ($data as $key => $value) {
             if ($key !== 'isbn') {
                 $fields[] = "{$key} = ?";
                 $values[] = $value;
-                $types .= is_int($value) ? 'i' : 's';
             }
         }
 
@@ -258,13 +233,11 @@ class Book extends BaseModel
         }
 
         $values[] = $isbn;
-        $types .= 's';
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE isbn = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param($types, ...$values);
-        
-        return $stmt->execute();
+
+        return $stmt->execute($values);
     }
 
     /**
@@ -274,9 +247,8 @@ class Book extends BaseModel
     {
         $sql = "DELETE FROM {$this->table} WHERE isbn = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $isbn);
-        
-        return $stmt->execute();
+
+        return $stmt->execute([$isbn]);
     }
 
     /**
@@ -287,11 +259,10 @@ class Book extends BaseModel
         $sql = "UPDATE {$this->table} 
                 SET available = available - 1, borrowed = borrowed + 1 
                 WHERE isbn = ? AND available > 0";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $isbn);
-        
-        return $stmt->execute();
+
+        return $stmt->execute([$isbn]);
     }
 
     /**
@@ -302,11 +273,10 @@ class Book extends BaseModel
         $sql = "UPDATE {$this->table} 
                 SET available = available + 1, borrowed = borrowed - 1 
                 WHERE isbn = ?";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param('s', $isbn);
-        
-        return $stmt->execute();
+
+        return $stmt->execute([$isbn]);
     }
 
     /**
@@ -320,9 +290,9 @@ class Book extends BaseModel
                 SUM(available) as available_copies,
                 SUM(borrowed) as borrowed_copies
                 FROM {$this->table}";
-        
-        $result = $this->db->query($sql);
-        return $result->fetch_assoc();
+
+        $stmt = $this->db->query($sql);
+        return $stmt->fetch();
     }
 
     /**
@@ -331,15 +301,14 @@ class Book extends BaseModel
     public function getTotalBooksCount()
     {
         try {
-            global $mysqli;
             // Count distinct books (not total copies)
             $sql = "SELECT COUNT(*) as count FROM books";
-            $result = $mysqli->query($sql);
-            
-            if ($row = $result->fetch_assoc()) {
-                return (int)$row['count'];
+            $stmt = $this->db->query($sql);
+
+            if ($row = $stmt->fetch()) {
+                return (int) $row['count'];
             }
-            
+
             return 0;
         } catch (\Exception $e) {
             error_log("Error getting total books count: " . $e->getMessage());
@@ -353,15 +322,14 @@ class Book extends BaseModel
     public function getAvailableBooksCount()
     {
         try {
-            global $mysqli;
             // Sum available copies from all books
             $sql = "SELECT COALESCE(SUM(available), 0) as count FROM books";
-            $result = $mysqli->query($sql);
-            
-            if ($row = $result->fetch_assoc()) {
-                return (int)$row['count'];
+            $stmt = $this->db->query($sql);
+
+            if ($row = $stmt->fetch()) {
+                return (int) $row['count'];
             }
-            
+
             return 0;
         } catch (\Exception $e) {
             error_log("Error getting available books count: " . $e->getMessage());
