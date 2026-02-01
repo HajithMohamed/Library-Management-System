@@ -173,16 +173,13 @@ function searchUsers() {
 // Filter by role
 function filterByRole() {
     const roleSlug = document.getElementById('filterRole').value;
-    const rows = document.querySelectorAll('#usersTable tbody tr');
     
-    if (!roleSlug) {
-        rows.forEach(row => row.style.display = '');
-        return;
+    // Reload page with filter parameter
+    if (roleSlug) {
+        window.location.href = window.location.pathname + '?role=' + roleSlug;
+    } else {
+        window.location.href = window.location.pathname;
     }
-    
-    // This would ideally be done server-side with a page reload
-    // For now, we'll just show all rows
-    alert('Please reload the page with role filter parameter');
 }
 
 // Filter by user type
@@ -213,7 +210,7 @@ function assignRole() {
     const roleSlug = document.getElementById('roleSelect').value;
     
     if (!roleSlug) {
-        alert('Please select a role');
+        showNotification('Please select a role', 'error');
         return;
     }
     
@@ -227,19 +224,20 @@ function assignRole() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Role assigned successfully');
-            location.reload();
+            showNotification('Role assigned successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + (data.message || 'Failed to assign role'));
+            showNotification('Error: ' + (data.message || 'Failed to assign role'), 'error');
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+        showNotification('Error: ' + error.message, 'error');
     });
 }
 
 // Remove role from user
 function removeUserRole(userId, roleId) {
+    // Show confirmation using Bootstrap modal would be better, but using native confirm for simplicity
     if (!confirm('Are you sure you want to remove this role?')) {
         return;
     }
@@ -254,15 +252,34 @@ function removeUserRole(userId, roleId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Role removed successfully');
-            location.reload();
+            showNotification('Role removed successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + (data.message || 'Failed to remove role'));
+            showNotification('Error: ' + (data.message || 'Failed to remove role'), 'error');
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+        showNotification('Error: ' + error.message, 'error');
     });
+}
+
+// Simple notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 </script>
 
