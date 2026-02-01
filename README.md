@@ -5,6 +5,7 @@ A comprehensive Library Management System built with PHP using MVC architecture 
 ## Features
 
 - **User Management**: Student, Faculty, and Admin user types
+- **Role-Based Access Control (RBAC)**: Granular permission system with 6 predefined roles and 37 permissions
 - **Book Management**: Add, edit, delete, and search books
 - **Borrowing System**: Borrow and return books with fine calculation
 - **Admin Dashboard**: Comprehensive admin panel with reports and statistics
@@ -774,6 +775,24 @@ Examples:
 - Check documentation in `README.md` and `SECURITY.md`
 - Ask questions in pull request comments
 - Contact the development team
+
+## Documentation
+
+### Core Documentation
+- **[RBAC Guide](RBAC_GUIDE.md)**: Comprehensive guide to the Role-Based Access Control system
+- **[Route Protection Examples](ROUTE_PROTECTION_EXAMPLES.md)**: Examples of migrating from legacy userType to RBAC
+- **[Security Policy](SECURITY.md)**: Security best practices and vulnerability reporting
+- **[Admin Features](ADMIN_FEATURES_README.md)**: Admin panel features and usage
+
+### RBAC System Overview
+
+The system implements a comprehensive RBAC with:
+- **6 Predefined Roles**: Super Admin, Admin, Librarian, Faculty, Student, Guest
+- **37 Granular Permissions**: Organized across 6 modules (users, books, transactions, fines, reports, settings, audit)
+- **Permission-Based Access**: Granular control over who can perform specific actions
+- **Backward Compatible**: Maintains support for legacy `userType` checks during transition
+
+For detailed RBAC usage, see [RBAC_GUIDE.md](RBAC_GUIDE.md).
 
 ## License
 
