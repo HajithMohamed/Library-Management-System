@@ -209,7 +209,6 @@ docker-compose.local.yml
 # ===========================================
 # PHPUnit
 /phpunit.xml
-/phpunit.xml.dist
 /coverage/
 /clover.xml
 

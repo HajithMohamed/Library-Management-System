@@ -1,6 +1,7 @@
 {
     "name": "university-library/lms",
     "description": "University Library Management System",
+    "license": "proprietary",
     "type": "project",
     "require": {
         "phpmailer/phpmailer": "^7.0",
@@ -9,6 +10,12 @@
         "cloudinary/cloudinary_php": "^3.1",
         "phpgangsta/googleauthenticator": "dev-master",
         "firebase/php-jwt": "^6.0"
+    },
+    "require-dev": {
+        "robmorgan/phinx": "*",
+        "phpunit/phpunit": "^11.5.50",
+        "mockery/mockery": "*",
+        "phpstan/phpstan": "^2.0"
     },
     "autoload": {
         "psr-4": {
@@ -21,11 +28,5 @@
     },
     "config": {
         "optimize-autoloader": true
-    },
-    "require-dev": {
-        "robmorgan/phinx": "*",
-        "phpunit/phpunit": "*",
-        "mockery/mockery": "*",
-        "phpstan/phpstan": "*"
     }
 }
