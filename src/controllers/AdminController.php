@@ -1832,4 +1832,209 @@ class AdminController
 
     $this->redirect('/admin/notifications');
   }
+
+  /**
+   * User Roles Management
+   */
+  public function userRoles()
+  {
+    $this->authHelper->requireAdmin();
+
+    global $conn;
+
+    // Fetch all users with their roles
+    $users = [];
+    $userResult = $conn->query("SELECT userId, username, emailId, userType FROM users ORDER BY username");
+    
+    if ($userResult) {
+      while ($user = $userResult->fetch_assoc()) {
+        // Get roles for this user
+        $roleStmt = $conn->prepare("SELECT r.id, r.name, r.slug FROM roles r 
+                                     JOIN role_user ru ON r.id = ru.role_id 
+                                     WHERE ru.user_id = ?");
+        $roleStmt->bind_param('s', $user['userId']);
+        $roleStmt->execute();
+        $roleResult = $roleStmt->get_result();
+        
+        $user['roles'] = [];
+        while ($role = $roleResult->fetch_assoc()) {
+          $user['roles'][] = $role;
+        }
+        $roleStmt->close();
+        
+        $users[] = $user;
+      }
+    }
+
+    // Fetch all available roles
+    $allRoles = [];
+    $roleResult = $conn->query("SELECT * FROM roles ORDER BY name");
+    if ($roleResult) {
+      while ($role = $roleResult->fetch_assoc()) {
+        $allRoles[] = $role;
+      }
+    }
+
+    $pageTitle = 'User Role Management';
+    include APP_ROOT . '/views/admin/user-roles.php';
+  }
+
+  /**
+   * Assign role to user (API endpoint)
+   */
+  public function assignRoleToUser()
+  {
+    $this->authHelper->requireAdmin();
+
+    header('Content-Type: application/json');
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+      echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+      return;
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $userId = $data['userId'] ?? null;
+    $roleSlug = $data['roleSlug'] ?? null;
+
+    if (!$userId || !$roleSlug) {
+      echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+      return;
+    }
+
+    try {
+      $userModel = new \App\Models\User();
+      $result = $userModel->assignRole($userId, $roleSlug);
+
+      if ($result) {
+        // Log the action
+        $this->adminService->logAdminActivity(
+          'Assign Role',
+          "Assigned role '{$roleSlug}' to user '{$userId}'",
+          'success'
+        );
+
+        echo json_encode(['success' => true, 'message' => 'Role assigned successfully']);
+      } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to assign role (may already be assigned)']);
+      }
+    } catch (\Exception $e) {
+      error_log("Error assigning role: " . $e->getMessage());
+      echo json_encode(['success' => false, 'message' => 'Server error']);
+    }
+  }
+
+  /**
+   * Remove role from user (API endpoint)
+   */
+  public function removeRoleFromUser()
+  {
+    $this->authHelper->requireAdmin();
+
+    header('Content-Type: application/json');
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+      echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+      return;
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $userId = $data['userId'] ?? null;
+    $roleId = $data['roleId'] ?? null;
+
+    if (!$userId || !$roleId) {
+      echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+      return;
+    }
+
+    try {
+      global $conn;
+      
+      // Get role slug first
+      $stmt = $conn->prepare("SELECT slug FROM roles WHERE id = ?");
+      $stmt->bind_param('i', $roleId);
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $role = $result->fetch_assoc();
+      $stmt->close();
+
+      if (!$role) {
+        echo json_encode(['success' => false, 'message' => 'Role not found']);
+        return;
+      }
+
+      $userModel = new \App\Models\User();
+      $result = $userModel->removeRole($userId, $role['slug']);
+
+      if ($result) {
+        // Log the action
+        $this->adminService->logAdminActivity(
+          'Remove Role',
+          "Removed role '{$role['slug']}' from user '{$userId}'",
+          'success'
+        );
+
+        echo json_encode(['success' => true, 'message' => 'Role removed successfully']);
+      } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to remove role']);
+      }
+    } catch (\Exception $e) {
+      error_log("Error removing role: " . $e->getMessage());
+      echo json_encode(['success' => false, 'message' => 'Server error']);
+    }
+  }
+
+  /**
+   * Permissions Management View
+   */
+  public function permissions()
+  {
+    $this->authHelper->requireAdmin();
+
+    global $conn;
+
+    $permissionModel = new \App\Models\Permission();
+
+    // Fetch all permissions
+    $allPermissions = $permissionModel->getAllPermissions();
+
+    // Group permissions by module
+    $permissionsByModule = $permissionModel->getAllPermissionsGrouped();
+
+    // Fetch all roles
+    $allRoles = [];
+    $roleResult = $conn->query("SELECT * FROM roles ORDER BY name");
+    if ($roleResult) {
+      while ($role = $roleResult->fetch_assoc()) {
+        $allRoles[] = $role;
+      }
+    }
+
+    // Build permission -> roles mapping
+    $permissionRoles = [];
+    foreach ($allPermissions as $perm) {
+      $stmt = $conn->prepare("SELECT r.id, r.name, r.slug FROM roles r 
+                              JOIN permission_role pr ON r.id = pr.role_id 
+                              WHERE pr.permission_id = ?");
+      $stmt->bind_param('i', $perm['id']);
+      $stmt->execute();
+      $result = $stmt->get_result();
+      
+      $permissionRoles[$perm['id']] = [];
+      while ($role = $result->fetch_assoc()) {
+        $permissionRoles[$perm['id']][] = $role;
+      }
+      $stmt->close();
+    }
+
+    // Build role -> permissions mapping for matrix
+    $rolePermissions = [];
+    foreach ($allRoles as $role) {
+      $roleModel = new \App\Models\Role();
+      $rolePermissions[$role['id']] = $roleModel->getPermissions($role['id']);
+    }
+
+    $pageTitle = 'Permissions Management';
+    include APP_ROOT . '/views/admin/permissions.php';
+  }
 }
