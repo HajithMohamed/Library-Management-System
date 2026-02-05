@@ -3,20 +3,18 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase as BaseTestCase;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 
 abstract class TestCase extends BaseTestCase
 {
-    use MockeryPHPUnitIntegration;
-
     protected function setUp(): void
     {
         parent::setUp();
+        // Add any common setup logic here
     }
 
     protected function tearDown(): void
     {
+        // Add any common cleanup logic here
         parent::tearDown();
-        \Mockery::close();
     }
 }

@@ -19,7 +19,6 @@ class NotificationService
                 VALUES (?, ?, ?, ?, 0, NOW())
             ");
             return $stmt->execute([$userId, $title, $message, $type]);
-            
         } catch (PDOException $e) {
             error_log("Notification creation error: " . $e->getMessage());
             return false;
@@ -34,7 +33,6 @@ class NotificationService
                 WHERE id = ? AND userId = ?
             ");
             return $stmt->execute([$notificationId, $userId]);
-            
         } catch (PDOException $e) {
             error_log("Notification update error: " . $e->getMessage());
             return false;
@@ -49,7 +47,6 @@ class NotificationService
             ");
             $stmt->execute([$userId]);
             return $stmt->fetchColumn();
-            
         } catch (PDOException $e) {
             error_log("Notification count error: " . $e->getMessage());
             return 0;
