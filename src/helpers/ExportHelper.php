@@ -1,7 +1,14 @@
 <?php
-class ExportHelper {
-    
-    public static function exportFavorites($userId) {
+
+namespace App\Helpers;
+
+use PDO;
+use PDOException;
+
+class ExportHelper
+{
+    public static function exportFavorites($userId)
+    {
         try {
             require_once __DIR__ . '/../config/dbConnection.php';
             

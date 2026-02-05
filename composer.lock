@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3e8cf9d6a1015a9120b1272bdcaa1e52",
+    "content-hash": "f6f930714b53bc316b650e6114860dcc",
     "packages": [
         {
             "name": "cloudinary/cloudinary_php",
@@ -3341,10 +3341,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "phpgangsta/googleauthenticator": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

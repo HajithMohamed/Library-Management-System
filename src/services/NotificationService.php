@@ -1,6 +1,11 @@
 <?php
-class NotificationService {
-    
+
+namespace App\Services;
+
+use PDOException;
+
+class NotificationService
+{
     private $pdo;
     
     public function __construct($pdo) {

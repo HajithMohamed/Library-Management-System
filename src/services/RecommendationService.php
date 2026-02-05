@@ -1,5 +1,12 @@
 <?php
-class RecommendationService {
+
+namespace App\Services;
+
+use PDO;
+use PDOException;
+
+class RecommendationService
+{
     
     private $pdo;
     
