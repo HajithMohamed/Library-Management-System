@@ -5,6 +5,14 @@
  * Also ensures $pdo is available
  */
 
+// Skip database connection in test mode
+if (isset($_ENV['TEST_MODE']) && $_ENV['TEST_MODE']) {
+    if (isset($GLOBALS['test_pdo'])) {
+        $pdo = $GLOBALS['test_pdo'];
+    }
+    return;
+}
+
 // Ensure connections are available from config.php
 if (!isset($mysqli) || !($mysqli instanceof \mysqli)) {
     // If mysqli failed but PDO succeeded, some things might still work if we don't die

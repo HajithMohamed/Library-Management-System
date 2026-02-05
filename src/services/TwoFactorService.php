@@ -2,21 +2,26 @@
 
 namespace App\Services;
 
-use App\Core\Database;
-use PHPGangsta_GoogleAuthenticator;
+use PDO;
+use PDOException;
 
 class TwoFactorService
 {
-    private $ga;
-    private $db;
-
-    public function __construct()
+    private $pdo;
+    
+    public function __construct($pdo = null)
     {
-        // Check if class exists to avoid fatal error if dependency missing
-        if (class_exists('PHPGangsta_GoogleAuthenticator')) {
-            $this->ga = new PHPGangsta_GoogleAuthenticator();
+        // Support test mode
+        if (isset($_ENV['TEST_MODE']) && $_ENV['TEST_MODE'] && isset($GLOBALS['test_pdo'])) {
+            $this->pdo = $GLOBALS['test_pdo'];
+        } elseif ($pdo !== null) {
+            $this->pdo = $pdo;
+        } else {
+            if (!isset($_ENV['TEST_MODE'])) {
+                require_once __DIR__ . '/../config/dbConnection.php';
+                $this->pdo = $GLOBALS['pdo'] ?? null;
+            }
         }
-        $this->db = new Database();
     }
 
     /**
@@ -24,9 +29,7 @@ class TwoFactorService
      */
     public function generateSecret()
     {
-        if (!$this->ga)
-            return null;
-        return $this->ga->createSecret();
+        return bin2hex(random_bytes(5)); // 10 chars hex
     }
 
     /**
@@ -34,8 +37,6 @@ class TwoFactorService
      */
     public function getQRCodeUrl($username, $secret, $issuer = 'LibrarySystem')
     {
-        if (!$this->ga)
-            return null;
         return $this->ga->getQRCodeGoogleUrl($issuer . ' (' . $username . ')', $secret);
     }
 
@@ -44,8 +45,6 @@ class TwoFactorService
      */
     public function verifyCode($secret, $code)
     {
-        if (!$this->ga)
-            return false;
         // 2 = 2*30sec tolerance (1 minute before/after)
         return $this->ga->verifyCode($secret, $code, 2);
     }

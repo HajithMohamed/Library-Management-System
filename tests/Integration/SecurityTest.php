@@ -1,6 +1,8 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
+namespace Tests\Integration;
+
+use Tests\TestCase;
 use App\Services\PasswordService;
 use App\Services\TwoFactorService;
 use App\Services\AuditLogger;

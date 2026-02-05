@@ -2,34 +2,17 @@
 
 namespace Tests\Unit\Models;
 
-use App\Models\Transaction;
 use Tests\TestCase;
-use Mockery;
+use App\Models\Transaction;
 
 class TransactionTest extends TestCase
 {
-    protected $transaction;
-    protected $db;
-    protected $stmt;
+    private $transaction;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->db = Mockery::mock(\PDO::class);
-        $this->stmt = Mockery::mock(\PDOStatement::class);
-
-        $this->transaction = new Transaction($this->db);
-        // Note: Transaction constructor accepts $db optionally, but let's force set it to be sure
-        // if the constructor didn't use it nicely (though checking the code, it calls parent::construct($db))
-        // So passing in constructor should work if BaseModel handles it.
-        // Let's double check code in Transaction.php
-        /*
-        public function __construct(?\PDO $db = null)
-        {
-            parent::__construct($db);
-        }
-        */
+        $this->transaction = new Transaction($this->getPdo());
     }
 
     public function test_create_transaction()

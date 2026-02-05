@@ -2,15 +2,27 @@
 
 namespace App\Services;
 
-use App\Core\Database;
+use PDO;
+use PDOException;
 
 class PasswordService
 {
-    private $db;
-
-    public function __construct()
+    private $pdo;
+    
+    public function __construct($pdo = null)
     {
-        $this->db = new Database();
+        // Support test mode
+        if (isset($_ENV['TEST_MODE']) && $_ENV['TEST_MODE'] && isset($GLOBALS['test_pdo'])) {
+            $this->pdo = $GLOBALS['test_pdo'];
+        } elseif ($pdo !== null) {
+            $this->pdo = $pdo;
+        } else {
+            // Only load dbConnection if not in test mode
+            if (!isset($_ENV['TEST_MODE'])) {
+                require_once __DIR__ . '/../config/dbConnection.php';
+                $this->pdo = $GLOBALS['pdo'] ?? null;
+            }
+        }
     }
 
     /**
@@ -73,7 +85,7 @@ class PasswordService
     public function isPasswordReused($userId, $password)
     {
         // Check last 5 passwords
-        $stmt = $this->db->prepare("
+        $stmt = $this->pdo->prepare("
             SELECT password_hash FROM password_history 
             WHERE user_id = ? 
             ORDER BY created_at DESC 
@@ -96,7 +108,7 @@ class PasswordService
     public function recordPasswordHistory($userId, $passwordHash)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO password_history (user_id, password_hash, created_at)
                 VALUES (?, ?, NOW())
             ");

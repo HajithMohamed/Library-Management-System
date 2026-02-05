@@ -2,3 +2,10 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
 src/public/assets/videos/background.mp4 filter=lfs diff=lfs merge=lfs -text
 src/public/assets/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
+/tests export-ignore
+/.github export-ignore
+/phpunit.xml export-ignore
+/phpstan.neon export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/create_test_db.php export-ignore

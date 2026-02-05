@@ -2,41 +2,17 @@
 
 namespace Tests\Unit\Models;
 
-use App\Models\User;
 use Tests\TestCase;
-use Mockery;
+use App\Models\User;
 
 class UserTest extends TestCase
 {
-    protected $user;
-    protected $db;
-    protected $stmt;
+    private $user;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Mock the PDO connection
-        $this->db = Mockery::mock(\PDO::class);
-        $this->stmt = Mockery::mock(\PDOStatement::class);
-
-        // Inject the mock DB into the User model
-        // Note: The User model constructor creates a new Database connection. 
-        // We'll need to mock the Database class or the PDO injection if possible.
-        // Looking at User.php, it extends BaseModel. Let's see how BaseModel handles DB.
-        // Assuming we can probably inject it or we might need to refactor User/BaseModel slightly 
-        // to be more testable, but for now let's try to partial mock or just mock the property if public/protected.
-
-        // Since User extends BaseModel and uses $this->db, we need to see if we can set it.
-        // If $db is protected in BaseModel, we can reflect to set it.
-
-        $this->user = new User();
-
-        // Use reflection to set the protected db property
-        $reflection = new \ReflectionClass($this->user);
-        $property = $reflection->getProperty('db');
-        $property->setAccessible(true);
-        $property->setValue($this->user, $this->db);
+        $this->user = new User($this->getPdo());
     }
 
     public function test_get_user_by_id_returns_user_when_found()

@@ -2,29 +2,17 @@
 
 namespace Tests\Unit\Models;
 
-use App\Models\Book;
 use Tests\TestCase;
-use Mockery;
+use App\Models\Book;
 
 class BookTest extends TestCase
 {
-    protected $book;
-    protected $db;
-    protected $stmt;
+    private $book;
 
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->db = Mockery::mock(\PDO::class);
-        $this->stmt = Mockery::mock(\PDOStatement::class);
-
-        $this->book = new Book();
-
-        $reflection = new \ReflectionClass($this->book);
-        $property = $reflection->getProperty('db');
-        $property->setAccessible(true);
-        $property->setValue($this->book, $this->db);
+        $this->book = new Book($this->getPdo());
     }
 
     public function test_search_performs_like_query()

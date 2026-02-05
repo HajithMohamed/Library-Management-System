@@ -2,28 +2,26 @@
 
 namespace App\Models;
 
+use PDO;
+
 class BaseModel
 {
-    protected $db;
-    protected $table;
-
-    public function __construct(?\PDO $db = null)
+    protected $pdo;
+    
+    public function __construct($pdo = null)
     {
-        if ($db) {
-            $this->db = $db;
+        // Support test mode
+        if (isset($_ENV['TEST_MODE']) && $_ENV['TEST_MODE'] && isset($GLOBALS['test_pdo'])) {
+            $this->pdo = $GLOBALS['test_pdo'];
+        } elseif ($pdo !== null) {
+            $this->pdo = $pdo;
         } else {
-            global $pdo;
-
-            if (!isset($pdo) || !($pdo instanceof \PDO)) {
-                // If it's not set globally, we look for it in GLOBALS just in case
-                if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof \PDO) {
-                    $this->db = $GLOBALS['pdo'];
-                } else {
-                    throw new \Exception("Database connection (PDO) not available in BaseModel");
-                }
-            } else {
-                $this->db = $pdo;
+            // Load from dbConnection
+            require_once __DIR__ . '/../config/dbConnection.php';
+            if (!isset($GLOBALS['pdo'])) {
+                throw new \Exception('Database connection (PDO) not available in BaseModel');
             }
+            $this->pdo = $GLOBALS['pdo'];
         }
     }
 
@@ -33,7 +31,7 @@ class BaseModel
     public function findById($id)
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = ? LIMIT 1";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
@@ -48,7 +46,7 @@ class BaseModel
         $order = strtoupper($order) === 'DESC' ? 'DESC' : 'ASC';
 
         $sql = "SELECT * FROM {$this->table} ORDER BY {$orderBy} {$order}";
-        $stmt = $this->db->query($sql);
+        $stmt = $this->pdo->query($sql);
         return $stmt->fetchAll();
     }
 
@@ -58,7 +56,7 @@ class BaseModel
     public function delete($id)
     {
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$id]);
     }
 
@@ -71,7 +69,7 @@ class BaseModel
         if ($where) {
             $sql .= " WHERE {$where}";
         }
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch();
         return $row['count'] ?? 0;
