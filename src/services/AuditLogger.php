@@ -28,7 +28,7 @@ class AuditLogger
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
             $detailsJson = json_encode($details);
 
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO audit_logs (user_id, action, details, ip_address, user_agent, created_at)
                 VALUES (?, ?, ?, ?, ?, NOW())
             ");
@@ -54,7 +54,7 @@ class AuditLogger
         try {
             $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO login_attempts (ip_address, username, attempt_time, is_successful)
                 VALUES (?, ?, NOW(), ?)
             ");

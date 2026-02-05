@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use PDO;
+use PDOException;
+
 class Book extends BaseModel
 {
     protected $table = 'books';
@@ -28,7 +31,7 @@ class Book extends BaseModel
                 OR publisherName LIKE ?
                 ORDER BY bookName ASC";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
 
         return $stmt->fetchAll();
@@ -52,7 +55,7 @@ class Book extends BaseModel
             $params[] = $category;
         }
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
@@ -63,7 +66,7 @@ class Book extends BaseModel
     public function findByISBN($isbn)
     {
         $sql = "SELECT * FROM {$this->table} WHERE isbn = ? LIMIT 1";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$isbn]);
 
         return $stmt->fetch();
@@ -75,7 +78,7 @@ class Book extends BaseModel
     public function getAvailableBooks()
     {
         $sql = "SELECT * FROM {$this->table} WHERE available > 0 ORDER BY bookName ASC";
-        $stmt = $this->db->query($sql);
+        $stmt = $this->pdo->query($sql);
 
         return $stmt->fetchAll();
     }
@@ -98,7 +101,7 @@ class Book extends BaseModel
                 }
             }
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll();
         } catch (\Exception $e) {
@@ -114,7 +117,7 @@ class Book extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT b.*, COUNT(t.tid) as borrow_count
                     FROM books b
                     LEFT JOIN transactions t ON b.isbn = t.isbn
@@ -125,7 +128,7 @@ class Book extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate, (int) $limit]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT b.*, COUNT(t.tid) as borrow_count
                     FROM books b
                     LEFT JOIN transactions t ON b.isbn = t.isbn
@@ -153,7 +156,7 @@ class Book extends BaseModel
                 ORDER BY createdAt DESC 
                 LIMIT ?";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([(int) $limit]);
 
         return $stmt->fetchAll();
@@ -165,7 +168,7 @@ class Book extends BaseModel
     public function getByCategory($category)
     {
         $sql = "SELECT * FROM {$this->table} WHERE category = ? ORDER BY bookName ASC";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$category]);
 
         return $stmt->fetchAll();
@@ -177,7 +180,7 @@ class Book extends BaseModel
     public function getAllCategories()
     {
         $sql = "SELECT DISTINCT category FROM {$this->table} WHERE category IS NOT NULL ORDER BY category ASC";
-        $stmt = $this->db->query($sql);
+        $stmt = $this->pdo->query($sql);
 
         $categories = [];
         while ($row = $stmt->fetch()) {
@@ -197,7 +200,7 @@ class Book extends BaseModel
                 category, publicationYear, totalCopies, available, bookImage)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([
             $data['isbn'],
             $data['barcode'],
@@ -235,7 +238,7 @@ class Book extends BaseModel
         $values[] = $isbn;
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE isbn = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         return $stmt->execute($values);
     }
@@ -246,7 +249,7 @@ class Book extends BaseModel
     public function deleteBook($isbn)
     {
         $sql = "DELETE FROM {$this->table} WHERE isbn = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         return $stmt->execute([$isbn]);
     }
@@ -260,7 +263,7 @@ class Book extends BaseModel
                 SET available = available - 1, borrowed = borrowed + 1 
                 WHERE isbn = ? AND available > 0";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         return $stmt->execute([$isbn]);
     }
@@ -274,7 +277,7 @@ class Book extends BaseModel
                 SET available = available + 1, borrowed = borrowed - 1 
                 WHERE isbn = ?";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
 
         return $stmt->execute([$isbn]);
     }
@@ -291,7 +294,7 @@ class Book extends BaseModel
                 SUM(borrowed) as borrowed_copies
                 FROM {$this->table}";
 
-        $stmt = $this->db->query($sql);
+        $stmt = $this->pdo->query($sql);
         return $stmt->fetch();
     }
 
@@ -303,7 +306,7 @@ class Book extends BaseModel
         try {
             // Count distinct books (not total copies)
             $sql = "SELECT COUNT(*) as count FROM books";
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
 
             if ($row = $stmt->fetch()) {
                 return (int) $row['count'];
@@ -324,7 +327,7 @@ class Book extends BaseModel
         try {
             // Sum available copies from all books
             $sql = "SELECT COALESCE(SUM(available), 0) as count FROM books";
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
 
             if ($row = $stmt->fetch()) {
                 return (int) $row['count'];

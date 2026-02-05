@@ -10,7 +10,7 @@ class BookReservation extends BaseModel
     public function getReservationsByUser($userId)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT br.*, b.bookName, b.authorName, b.bookImage
                 FROM book_reservations br
                 JOIN books b ON br.isbn = b.isbn
@@ -32,7 +32,7 @@ class BookReservation extends BaseModel
     public function createReservation($userId, $isbn)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate, createdAt)
                 VALUES (?, ?, 'Active', DATE_ADD(CURDATE(), INTERVAL 7 DAY), NOW())
             ");
@@ -50,7 +50,7 @@ class BookReservation extends BaseModel
     public function getActiveReservationByUserAndBook($userId, $isbn)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT * FROM book_reservations 
                 WHERE userId = ? AND isbn = ? AND reservationStatus = 'Active'
                 LIMIT 1

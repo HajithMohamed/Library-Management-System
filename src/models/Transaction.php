@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use PDO;
+use PDOException;
+
 class Transaction extends BaseModel
 {
-    protected $table = 'transactions';
+    protected $table = 'transactions'; // Add this line
 
     public function __construct(?\PDO $db = null)
     {
@@ -16,8 +19,9 @@ class Transaction extends BaseModel
      */
     public function createTransaction($data)
     {
-        $sql = "INSERT INTO transactions (tid, userId, isbn, fine, borrowDate, returnDate, lastFinePaymentDate) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $this->db->prepare($sql);
+        $sql = "INSERT INTO transactions (tid, userId, isbn, fine, borrowDate, returnDate, lastFinePaymentDate) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $this->pdo->prepare($sql);
 
         return $stmt->execute([
             $data['tid'],
@@ -36,7 +40,7 @@ class Transaction extends BaseModel
     public function getTransactionById($tid)
     {
         $sql = "SELECT * FROM transactions WHERE tid = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$tid]);
 
         return $stmt->fetch();
@@ -48,7 +52,7 @@ class Transaction extends BaseModel
     public function getBorrowedBooks($userId)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT t.*, b.bookName, b.authorName, b.bookImage, b.isbn
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
@@ -81,7 +85,7 @@ class Transaction extends BaseModel
     public function getOverdueBooks($userId)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT t.*, b.bookName, b.authorName, b.bookImage
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
@@ -105,7 +109,7 @@ class Transaction extends BaseModel
     public function getTransactionsByUser($userId)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT t.*, b.bookName, b.authorName
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
@@ -138,7 +142,7 @@ class Transaction extends BaseModel
     {
         try {
             // Query to get ALL transactions with fines (paid or unpaid)
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT t.*, b.bookName, b.isbn, b.authorName
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
@@ -201,7 +205,7 @@ class Transaction extends BaseModel
     public function returnBook($transactionId)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 UPDATE transactions 
                 SET returnDate = CURDATE() 
                 WHERE tid = ? AND returnDate IS NULL
@@ -211,12 +215,12 @@ class Transaction extends BaseModel
 
             if ($result && $stmt->rowCount() > 0) {
                 // Update book availability
-                $getIsbn = $this->db->prepare("SELECT isbn FROM transactions WHERE tid = ?");
+                $getIsbn = $this->pdo->prepare("SELECT isbn FROM transactions WHERE tid = ?");
                 $getIsbn->execute([$transactionId]);
                 $isbnResult = $getIsbn->fetch();
 
                 if ($isbnResult) {
-                    $updateBook = $this->db->prepare("
+                    $updateBook = $this->pdo->prepare("
                         UPDATE books 
                         SET available = available + 1, borrowed = borrowed - 1 
                         WHERE isbn = ?
@@ -248,7 +252,7 @@ class Transaction extends BaseModel
     public function getActiveBorrowByUserAndBook($userId, $isbn)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT * FROM transactions 
                 WHERE userId = ? AND isbn = ? AND returnDate IS NULL
                 LIMIT 1
@@ -270,7 +274,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($userId) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT t.*, b.bookName, b.authorName, b.isbn
                     FROM transactions t
                     JOIN books b ON t.isbn = b.isbn
@@ -280,7 +284,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate, $userId]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT t.*, b.bookName, b.authorName, b.isbn
                     FROM transactions t
                     JOIN books b ON t.isbn = b.isbn
@@ -304,7 +308,7 @@ class Transaction extends BaseModel
     {
         try {
             $sql = "SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL";
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
 
             if ($row = $stmt->fetch()) {
                 return (int) $row['count'];
@@ -331,7 +335,7 @@ class Transaction extends BaseModel
                     AND DATEDIFF(CURDATE(), t.borrowDate) > 14
                     ORDER BY t.borrowDate ASC";
 
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
             return $stmt->fetchAll();
         } catch (\Exception $e) {
             error_log("Error getting overdue transactions: " . $e->getMessage());
@@ -342,7 +346,7 @@ class Transaction extends BaseModel
     public function updateFine($tid, $fineAmount)
     {
         try {
-            $stmt = $this->db->prepare("UPDATE transactions SET fineAmount = ? WHERE tid = ?");
+            $stmt = $this->pdo->prepare("UPDATE transactions SET fineAmount = ? WHERE tid = ?");
             return $stmt->execute([$fineAmount, $tid]);
         } catch (\Exception $e) {
             error_log("Error updating fine: " . $e->getMessage());
@@ -353,10 +357,10 @@ class Transaction extends BaseModel
     public function payFine($tid, $amount, $paymentMethod = 'cash', $cardDetails = null)
     {
         try {
-            $this->db->beginTransaction();
+            $this->pdo->beginTransaction();
 
             // Validate amount matches transaction fine
-            $stmt = $this->db->prepare("SELECT fineAmount, fineStatus FROM transactions WHERE tid = ?");
+            $stmt = $this->pdo->prepare("SELECT fineAmount, fineStatus FROM transactions WHERE tid = ?");
             $stmt->execute([$tid]);
             $result = $stmt->fetch();
 
@@ -373,7 +377,7 @@ class Transaction extends BaseModel
             }
 
             // Update transaction fine status
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 UPDATE transactions 
                 SET fineStatus = 'paid', 
                     finePaymentDate = CURDATE(), 
@@ -389,20 +393,20 @@ class Transaction extends BaseModel
             }
 
             // Record payment in payments table if it exists
-            $tableCheck = $this->db->query("SHOW TABLES LIKE 'payments'");
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'payments'");
             if ($tableCheck->rowCount() > 0) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     INSERT INTO payments (transactionId, amount, paymentMethod, paymentDate, status)
                     VALUES (?, ?, ?, CURDATE(), 'completed')
                 ");
                 $stmt->execute([$tid, $amount, $paymentMethod]);
             }
 
-            $this->db->commit();
+            $this->pdo->commit();
             return true;
 
         } catch (\Exception $e) {
-            $this->db->rollBack();
+            $this->pdo->rollBack();
             error_log("Error paying fine: " . $e->getMessage());
             return false;
         }
@@ -422,7 +426,7 @@ class Transaction extends BaseModel
                     FROM transactions 
                     WHERE fineAmount > 0";
 
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
             return $stmt->fetch();
         } catch (\Exception $e) {
             error_log("Error getting fine stats: " . $e->getMessage());
@@ -442,14 +446,14 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(*) as count 
                     FROM transactions 
                     WHERE borrowDate BETWEEN ? AND ?
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM transactions");
+                $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM transactions");
                 $stmt->execute();
             }
 
@@ -471,7 +475,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE fineAmount > 0 
@@ -479,7 +483,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE fineAmount > 0
@@ -505,7 +509,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE fineStatus = 'paid' 
@@ -513,7 +517,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE fineStatus = 'paid'
@@ -539,7 +543,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE (fineStatus = 'pending' OR fineStatus IS NULL)
@@ -548,7 +552,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COALESCE(SUM(fineAmount), 0) as total
                     FROM transactions 
                     WHERE (fineStatus = 'pending' OR fineStatus IS NULL)
@@ -575,7 +579,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(*) as count
                     FROM transactions 
                     WHERE returnDate IS NULL 
@@ -584,7 +588,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(*) as count
                     FROM transactions 
                     WHERE returnDate IS NULL 
@@ -611,7 +615,7 @@ class Transaction extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(*) as count
                     FROM transactions 
                     WHERE returnDate IS NOT NULL
@@ -619,7 +623,7 @@ class Transaction extends BaseModel
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(*) as count
                     FROM transactions 
                     WHERE returnDate IS NOT NULL
@@ -638,4 +642,3 @@ class Transaction extends BaseModel
         }
     }
 }
-?>

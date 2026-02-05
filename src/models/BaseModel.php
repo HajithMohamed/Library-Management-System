@@ -7,6 +7,7 @@ use PDO;
 class BaseModel
 {
     protected $pdo;
+    protected $table; // Add this property
     
     public function __construct($pdo = null)
     {
@@ -17,11 +18,13 @@ class BaseModel
             $this->pdo = $pdo;
         } else {
             // Load from dbConnection
-            require_once __DIR__ . '/../config/dbConnection.php';
-            if (!isset($GLOBALS['pdo'])) {
-                throw new \Exception('Database connection (PDO) not available in BaseModel');
+            if (!isset($_ENV['TEST_MODE'])) {
+                require_once __DIR__ . '/../config/dbConnection.php';
+                if (!isset($GLOBALS['pdo'])) {
+                    throw new \Exception('Database connection (PDO) not available in BaseModel');
+                }
+                $this->pdo = $GLOBALS['pdo'];
             }
-            $this->pdo = $GLOBALS['pdo'];
         }
     }
 
@@ -55,23 +58,34 @@ class BaseModel
      */
     public function delete($id)
     {
+        // Check if table is set
+        if (!$this->table) {
+            throw new \Exception("Table name not defined in model");
+        }
+        
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$id]);
     }
-
+    
     /**
      * Count records
      */
     public function count($where = '', $params = [])
     {
+        // Check if table is set
+        if (!$this->table) {
+            throw new \Exception("Table name not defined in model");
+        }
+        
         $sql = "SELECT COUNT(*) as count FROM {$this->table}";
         if ($where) {
-            $sql .= " WHERE {$where}";
+            $sql .= " WHERE " . $where;
         }
+        
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
-        $row = $stmt->fetch();
-        return $row['count'] ?? 0;
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['count'] ?? 0;
     }
 }

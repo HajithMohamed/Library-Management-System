@@ -14,7 +14,7 @@ class EResource extends BaseModel
         try {
             $status = $data['status'] ?? 'pending';
 
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} (title, description, fileUrl, publicId, uploadedBy, status)
                 VALUES (?, ?, ?, ?, ?, ?)
             ");
@@ -49,7 +49,7 @@ class EResource extends BaseModel
 
             $sql .= " ORDER BY r.createdAt DESC";
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
 
             if ($status) {
                 $stmt->execute([$status]);
@@ -71,7 +71,7 @@ class EResource extends BaseModel
     {
         try {
             $sql = "SELECT * FROM {$this->table} WHERE uploadedBy = ? ORDER BY createdAt DESC";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
             return $stmt->fetchAll();
         } catch (\Exception $e) {
@@ -86,7 +86,7 @@ class EResource extends BaseModel
     public function updateStatus($resourceId, $status)
     {
         try {
-            $stmt = $this->db->prepare("UPDATE {$this->table} SET status = ? WHERE resourceId = ?");
+            $stmt = $this->pdo->prepare("UPDATE {$this->table} SET status = ? WHERE resourceId = ?");
             return $stmt->execute([$status, $resourceId]);
         } catch (\Exception $e) {
             error_log("Error updating resource status: " . $e->getMessage());
@@ -133,7 +133,7 @@ class EResource extends BaseModel
             $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE resourceId = ?";
             $values[] = $resourceId;
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             return $stmt->execute($values);
         } catch (\Exception $e) {
             error_log("Error updating resource: " . $e->getMessage());
@@ -147,7 +147,7 @@ class EResource extends BaseModel
     public function delete($resourceId)
     {
         try {
-            $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE resourceId = ?");
+            $stmt = $this->pdo->prepare("DELETE FROM {$this->table} WHERE resourceId = ?");
             return $stmt->execute([$resourceId]);
         } catch (\Exception $e) {
             error_log("Error deleting resource: " . $e->getMessage());
@@ -161,7 +161,7 @@ class EResource extends BaseModel
     public function getById($resourceId)
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM {$this->table} WHERE resourceId = ?");
+            $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE resourceId = ?");
             $stmt->execute([$resourceId]);
             return $stmt->fetch();
         } catch (\Exception $e) {
@@ -180,7 +180,7 @@ class EResource extends BaseModel
                 return true; // Already saved, consider success
             }
 
-            $stmt = $this->db->prepare("INSERT INTO user_eresources (user_id, resource_id) VALUES (?, ?)");
+            $stmt = $this->pdo->prepare("INSERT INTO user_eresources (user_id, resource_id) VALUES (?, ?)");
             return $stmt->execute([$userId, $resourceId]);
         } catch (\Exception $e) {
             error_log("Error saving to library: " . $e->getMessage());
@@ -194,7 +194,7 @@ class EResource extends BaseModel
     public function isSaved($userId, $resourceId)
     {
         try {
-            $stmt = $this->db->prepare("SELECT id FROM user_eresources WHERE user_id = ? AND resource_id = ?");
+            $stmt = $this->pdo->prepare("SELECT id FROM user_eresources WHERE user_id = ? AND resource_id = ?");
             $stmt->execute([$userId, $resourceId]);
             return $stmt->rowCount() > 0;
         } catch (\Exception $e) {
@@ -215,7 +215,7 @@ class EResource extends BaseModel
                     WHERE ue.user_id = ?
                     ORDER BY ue.obtained_at DESC";
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
             return $stmt->fetchAll();
         } catch (\Exception $e) {

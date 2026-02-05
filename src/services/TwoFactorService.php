@@ -4,10 +4,12 @@ namespace App\Services;
 
 use PDO;
 use PDOException;
+use PHPGangsta_GoogleAuthenticator;
 
 class TwoFactorService
 {
     private $pdo;
+    private $ga;
     
     public function __construct($pdo = null)
     {
@@ -22,6 +24,9 @@ class TwoFactorService
                 $this->pdo = $GLOBALS['pdo'] ?? null;
             }
         }
+        
+        // Initialize Google Authenticator
+        $this->ga = new PHPGangsta_GoogleAuthenticator();
     }
 
     /**
@@ -37,6 +42,9 @@ class TwoFactorService
      */
     public function getQRCodeUrl($username, $secret, $issuer = 'LibrarySystem')
     {
+        if (!$this->ga) {
+            return null;
+        }
         return $this->ga->getQRCodeGoogleUrl($issuer . ' (' . $username . ')', $secret);
     }
 
@@ -45,6 +53,9 @@ class TwoFactorService
      */
     public function verifyCode($secret, $code)
     {
+        if (!$this->ga) {
+            return false;
+        }
         // 2 = 2*30sec tolerance (1 minute before/after)
         return $this->ga->verifyCode($secret, $code, 2);
     }
@@ -97,25 +108,22 @@ class TwoFactorService
     private function storeBackupCodes($userId, $codes)
     {
         $json = json_encode(array_values($codes));
-        $stmt = $this->db->prepare("UPDATE users SET backup_codes = ? WHERE userId = ?");
+        $stmt = $this->pdo->prepare("UPDATE users SET backup_codes = ? WHERE userId = ?");
         return $stmt->execute([$json, $userId]);
     }
 
     private function getStoredBackupCodes($userId)
     {
-        $stmt = $this->db->prepare("SELECT backup_codes FROM users WHERE userId = ?");
+        $stmt = $this->pdo->prepare("SELECT backup_codes FROM users WHERE userId = ?");
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
-        if ($row && !empty($row['backup_codes'])) {
-            return json_decode($row['backup_codes'], true) ?: [];
-        }
-        return [];
+        return $row && !empty($row['backup_codes']) ? json_decode($row['backup_codes'], true) : [];
     }
 
     public function enable2FA($userId, $secret)
     {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = ?, is_2fa_enabled = 1 WHERE userId = ?");
+            $stmt = $this->pdo->prepare("UPDATE users SET two_factor_secret = ?, is_2fa_enabled = 1 WHERE userId = ?");
             return $stmt->execute([$secret, $userId]);
         } catch (\Exception $e) {
             error_log("Error enabling 2FA: " . $e->getMessage());
@@ -126,7 +134,7 @@ class TwoFactorService
     public function disable2FA($userId)
     {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = NULL, is_2fa_enabled = 0, backup_codes = NULL WHERE userId = ?");
+            $stmt = $this->pdo->prepare("UPDATE users SET two_factor_secret = NULL, is_2fa_enabled = 0, backup_codes = NULL WHERE userId = ?");
             return $stmt->execute([$userId]);
         } catch (\Exception $e) {
             error_log("Error disabling 2FA: " . $e->getMessage());

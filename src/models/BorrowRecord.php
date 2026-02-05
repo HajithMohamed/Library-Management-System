@@ -11,7 +11,7 @@ class BorrowRecord extends BaseModel
         try {
             $sql = "SELECT COUNT(*) as count FROM {$this->table} 
                     WHERE userId = ? AND returnDate IS NULL";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
             $data = $stmt->fetch();
             return $data['count'] ?? 0;
@@ -27,7 +27,7 @@ class BorrowRecord extends BaseModel
             $sql = "SELECT COUNT(*) as count FROM {$this->table} 
                     WHERE userId = ? AND returnDate IS NULL 
                     AND dueDate < CURDATE()";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
             $data = $stmt->fetch();
             return $data['count'] ?? 0;
@@ -42,7 +42,7 @@ class BorrowRecord extends BaseModel
         try {
             $sql = "SELECT SUM(fineAmount) as total FROM {$this->table} 
                     WHERE userId = ? AND fineAmount > 0 AND fineStatus = 'pending'";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
             $data = $stmt->fetch();
             return $data['total'] ?? 0;
@@ -61,7 +61,7 @@ class BorrowRecord extends BaseModel
                     WHERE bb.userId = ?
                     ORDER BY bb.borrowDate DESC
                     LIMIT " . (int) $limit;
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
 
             $results = $stmt->fetchAll();
@@ -94,7 +94,7 @@ class BorrowRecord extends BaseModel
                 JOIN books b ON bb.isbn = b.isbn
                 WHERE bb.userId = ? AND bb.status = 'Overdue'
                 ORDER BY bb.borrowDate DESC";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -104,7 +104,7 @@ class BorrowRecord extends BaseModel
         $sql = "UPDATE {$this->table} 
                 SET fineStatus = 'paid', finePaymentDate = CURDATE(), finePaymentMethod = 'online' 
                 WHERE tid = ? AND fineAmount = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$borrowId, $amount]);
     }
 
@@ -112,7 +112,7 @@ class BorrowRecord extends BaseModel
     {
         $sql = "INSERT INTO book_reservations (userId, isbn, reservationStatus, expiryDate, createdAt) 
                 VALUES (?, ?, 'Active', DATE_ADD(CURDATE(), INTERVAL 7 DAY), NOW())";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$userId, $isbn]);
     }
 
@@ -123,7 +123,7 @@ class BorrowRecord extends BaseModel
                 JOIN books b ON bb.isbn = b.isbn
                 WHERE bb.userId = ? AND bb.returnDate IS NULL
                 ORDER BY bb.borrowDate DESC";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -133,7 +133,7 @@ class BorrowRecord extends BaseModel
         $sql = "UPDATE {$this->table} 
                 SET returnDate = CURDATE(), status = 'Returned' 
                 WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$borrowId]);
     }
 
@@ -144,7 +144,7 @@ class BorrowRecord extends BaseModel
                 JOIN books b ON bb.isbn = b.isbn
                 WHERE bb.userId = ?
                 ORDER BY bb.borrowDate DESC";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -159,7 +159,7 @@ class BorrowRecord extends BaseModel
                     JOIN users u ON bb.userId = u.userId
                     WHERE bb.userId = ? AND bb.returnDate IS NULL
                     ORDER BY bb.borrowDate DESC";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$userId]);
         } else {
             $sql = "SELECT bb.*, b.bookName, b.authorName, b.isbn, b.category,
@@ -169,7 +169,7 @@ class BorrowRecord extends BaseModel
                     JOIN users u ON bb.userId = u.userId
                     WHERE bb.returnDate IS NULL
                     ORDER BY bb.borrowDate DESC";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute();
         }
 
@@ -211,7 +211,7 @@ class BorrowRecord extends BaseModel
 
         $sql .= " ORDER BY bb.borrowDate DESC";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }

@@ -19,7 +19,7 @@ class Role extends BaseModel
                 JOIN permission_role pr ON p.id = pr.permission_id 
                 WHERE pr.role_id = ?";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$this->id]);
         return $stmt->fetchAll();
     }
@@ -49,7 +49,7 @@ class Role extends BaseModel
      */
     public function getRoleByName($name)
     {
-        $stmt = $this->db->prepare("SELECT * FROM roles WHERE name = ? OR slug = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM roles WHERE name = ? OR slug = ?");
         $stmt->execute([$name, $name]);
         return $stmt->fetch();
     }
@@ -63,7 +63,7 @@ class Role extends BaseModel
                 JOIN permission_role pr ON p.id = pr.permission_id 
                 WHERE pr.role_id = ?";
         
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$roleId]);
         return $stmt->fetchAll();
     }
@@ -74,7 +74,7 @@ class Role extends BaseModel
     public function assignPermission($roleId, $permissionId)
     {
         try {
-            $stmt = $this->db->prepare("INSERT INTO permission_role (role_id, permission_id) VALUES (?, ?)");
+            $stmt = $this->pdo->prepare("INSERT INTO permission_role (role_id, permission_id) VALUES (?, ?)");
             return $stmt->execute([$roleId, $permissionId]);
         } catch (\Exception $e) {
             // Handle duplicate entries
@@ -89,7 +89,7 @@ class Role extends BaseModel
     public function removePermission($roleId, $permissionId)
     {
         try {
-            $stmt = $this->db->prepare("DELETE FROM permission_role WHERE role_id = ? AND permission_id = ?");
+            $stmt = $this->pdo->prepare("DELETE FROM permission_role WHERE role_id = ? AND permission_id = ?");
             return $stmt->execute([$roleId, $permissionId]);
         } catch (\Exception $e) {
             error_log("Error removing permission: " . $e->getMessage());
@@ -102,7 +102,7 @@ class Role extends BaseModel
      */
     public function getAllRoles()
     {
-        $stmt = $this->db->query("SELECT * FROM roles ORDER BY name");
+        $stmt = $this->pdo->query("SELECT * FROM roles ORDER BY name");
         return $stmt->fetchAll();
     }
 }

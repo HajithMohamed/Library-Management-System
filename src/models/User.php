@@ -2,9 +2,13 @@
 
 namespace App\Models;
 
+use PDO;
+use PDOException;
+
 class User extends BaseModel
 {
-    protected $table = 'users';
+    protected $table = 'users'; // Add this line
+
     private $lastError = null;
 
     public function __construct()
@@ -19,7 +23,7 @@ class User extends BaseModel
     public function getUserById($userId)
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM users WHERE userId = ?");
+            $stmt = $this->pdo->prepare("SELECT * FROM users WHERE userId = ?");
             $stmt->execute([$userId]);
             return $stmt->fetch();
         } catch (\Exception $e) {
@@ -36,7 +40,7 @@ class User extends BaseModel
         try {
             // Try emailId column first (your schema)
             $sql = "SELECT * FROM {$this->table} WHERE emailId = ? LIMIT 1";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$email]);
 
             if ($row = $stmt->fetch()) {
@@ -45,7 +49,7 @@ class User extends BaseModel
 
             // Fallback: try 'email' column
             $sql = "SELECT * FROM {$this->table} WHERE email = ? LIMIT 1";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$email]);
             return $stmt->fetch();
         } catch (\Exception $e) {
@@ -88,7 +92,7 @@ class User extends BaseModel
             $query = "UPDATE users SET " . implode(", ", $fields) . " WHERE userId = ?";
             $values[] = $userId;
 
-            $stmt = $this->db->prepare($query);
+            $stmt = $this->pdo->prepare($query);
             return $stmt->execute($values);
         } catch (\Exception $e) {
             error_log("Error updating user: " . $e->getMessage());
@@ -104,14 +108,14 @@ class User extends BaseModel
         try {
             // In SQLite 'SHOW TABLES' doesn't exist, we should use a more portable check or just try-catch
             // For now, let's keep it simple for MySQL but aware of SQLite
-            if ($this->db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql') {
-                $tableCheck = $this->db->query("SHOW TABLES LIKE 'notifications'");
+            if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql') {
+                $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'notifications'");
                 if ($tableCheck->rowCount() === 0) {
                     return [];
                 }
             }
 
-            $stmt = $this->db->prepare("SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC LIMIT 10");
+            $stmt = $this->pdo->prepare("SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC LIMIT 10");
             $stmt->execute([$userId]);
 
             $notifications = [];
@@ -139,7 +143,7 @@ class User extends BaseModel
     public function emailExists($email)
     {
         try {
-            $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM users WHERE email = ?");
+            $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM users WHERE email = ?");
             $stmt->execute([$email]);
             $row = $stmt->fetch();
 
@@ -159,7 +163,7 @@ class User extends BaseModel
      */
     public function getUserByUsername($username)
     {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
         $stmt->execute([$username]);
         return $stmt->fetch();
     }
@@ -170,10 +174,10 @@ class User extends BaseModel
     public function usernameExists($username, $excludeUserId = null)
     {
         if ($excludeUserId) {
-            $stmt = $this->db->prepare("SELECT userId FROM users WHERE username = ? AND userId != ?");
+            $stmt = $this->pdo->prepare("SELECT userId FROM users WHERE username = ? AND userId != ?");
             $stmt->execute([$username, $excludeUserId]);
         } else {
-            $stmt = $this->db->prepare("SELECT userId FROM users WHERE username = ?");
+            $stmt = $this->pdo->prepare("SELECT userId FROM users WHERE username = ?");
             $stmt->execute([$username]);
         }
 
@@ -250,7 +254,7 @@ class User extends BaseModel
         $userId = $this->generateUserId($data['userType']);
 
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 INSERT INTO users (
                     userId, username, password, userType, gender, dob, 
                     emailId, phoneNumber, address, isVerified, otp, otpExpiry
@@ -307,7 +311,7 @@ class User extends BaseModel
 
         // Get the last user ID with this prefix
         $pattern = $prefix . $year . '%';
-        $stmt = $this->db->prepare("SELECT userId FROM users WHERE userId LIKE ? ORDER BY userId DESC LIMIT 1");
+        $stmt = $this->pdo->prepare("SELECT userId FROM users WHERE userId LIKE ? ORDER BY userId DESC LIMIT 1");
         $stmt->execute([$pattern]);
 
         if ($row = $stmt->fetch()) {
@@ -340,14 +344,14 @@ class User extends BaseModel
     {
         try {
             // Get user's OTP and expiry
-            $stmt = $this->db->prepare("SELECT otp, otpExpiry FROM users WHERE userId = ?");
+            $stmt = $this->pdo->prepare("SELECT otp, otpExpiry FROM users WHERE userId = ?");
             $stmt->execute([$userId]);
 
             if ($row = $stmt->fetch()) {
                 // Check if OTP matches and is not expired
                 if ($row['otp'] === $otp && strtotime($row['otpExpiry']) > time()) {
                     // Update user as verified and clear OTP
-                    $updateStmt = $this->db->prepare("UPDATE users SET isVerified = 1, otp = NULL, otpExpiry = NULL WHERE userId = ?");
+                    $updateStmt = $this->pdo->prepare("UPDATE users SET isVerified = 1, otp = NULL, otpExpiry = NULL WHERE userId = ?");
                     return $updateStmt->execute([$userId]);
                 } else {
                     error_log("OTP mismatch or expired for user: " . $userId);
@@ -384,7 +388,7 @@ class User extends BaseModel
                 $params[] = (int) $limit;
             }
 
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
 
             return $stmt->fetchAll();
@@ -408,19 +412,19 @@ class User extends BaseModel
             ];
 
             // Total users
-            $stmt = $this->db->query("SELECT COUNT(*) as total FROM {$this->table}");
+            $stmt = $this->pdo->query("SELECT COUNT(*) as total FROM {$this->table}");
             if ($row = $stmt->fetch()) {
                 $stats['total'] = (int) $row['total'];
             }
 
             // Users by type
-            $stmt = $this->db->query("SELECT userType, COUNT(*) as count FROM {$this->table} GROUP BY userType");
+            $stmt = $this->pdo->query("SELECT userType, COUNT(*) as count FROM {$this->table} GROUP BY userType");
             while ($row = $stmt->fetch()) {
                 $stats['byType'][$row['userType']] = (int) $row['count'];
             }
 
             // Verified vs unverified
-            $stmt = $this->db->query("SELECT COUNT(*) as verified FROM {$this->table} WHERE isVerified = 1");
+            $stmt = $this->pdo->query("SELECT COUNT(*) as verified FROM {$this->table} WHERE isVerified = 1");
             if ($row = $stmt->fetch()) {
                 $stats['verified'] = (int) $row['verified'];
             }
@@ -446,7 +450,7 @@ class User extends BaseModel
     {
         try {
             $sql = "SELECT COUNT(*) as count FROM users";
-            $stmt = $this->db->query($sql);
+            $stmt = $this->pdo->query($sql);
 
             if ($row = $stmt->fetch()) {
                 return (int) $row['count'];
@@ -466,14 +470,14 @@ class User extends BaseModel
     {
         try {
             if ($startDate && $endDate) {
-                $stmt = $this->db->prepare("
+                $stmt = $this->pdo->prepare("
                     SELECT COUNT(DISTINCT userId) as count 
                     FROM transactions 
                     WHERE borrowDate BETWEEN ? AND ?
                 ");
                 $stmt->execute([$startDate, $endDate]);
             } else {
-                $stmt = $this->db->query("
+                $stmt = $this->pdo->query("
                     SELECT COUNT(DISTINCT userId) as count 
                     FROM transactions 
                     WHERE returnDate IS NULL
@@ -497,7 +501,7 @@ class User extends BaseModel
     public function getUsersByDateRange($startDate, $endDate)
     {
         try {
-            $stmt = $this->db->prepare("
+            $stmt = $this->pdo->prepare("
                 SELECT * FROM users 
                 WHERE createdAt BETWEEN ? AND ?
                 ORDER BY createdAt DESC
@@ -516,7 +520,7 @@ class User extends BaseModel
     public function deleteUser($userId)
     {
         try {
-            $stmt = $this->db->prepare("DELETE FROM {$this->table} WHERE userId = ?");
+            $stmt = $this->pdo->prepare("DELETE FROM {$this->table} WHERE userId = ?");
             return $stmt->execute([$userId]);
         } catch (\Exception $e) {
             error_log("Error deleting user: " . $e->getMessage());
@@ -573,7 +577,7 @@ class User extends BaseModel
         $values[] = $userId;
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE userId = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute($values);
     }
 
@@ -581,7 +585,7 @@ class User extends BaseModel
     {
         // Verify current password
         $sql = "SELECT password FROM {$this->table} WHERE userId = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$userId]);
         $result = $stmt->fetch();
 
@@ -593,7 +597,7 @@ class User extends BaseModel
         // Update password (remove updatedAt reference)
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
         $sql = "UPDATE {$this->table} SET password = ? WHERE userId = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$hashedPassword, $userId]);
     }
 
@@ -602,7 +606,7 @@ class User extends BaseModel
      */
     public function findById($userId)
     {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE userId = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE userId = ?");
         $stmt->execute([$userId]);
         return $stmt->fetch();
     }
@@ -614,7 +618,7 @@ class User extends BaseModel
     {
         try {
             $sql = "UPDATE {$this->table} SET otp = ?, otpExpiry = ? WHERE userId = ?";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             return $stmt->execute([$otp, $otpExpiry, $userId]);
         } catch (\Exception $e) {
             error_log("Error updating user OTP: " . $e->getMessage());
@@ -631,7 +635,7 @@ class User extends BaseModel
             $sql = "UPDATE {$this->table} 
                     SET password = ?, otp = NULL, otpExpiry = NULL 
                     WHERE userId = ?";
-            $stmt = $this->db->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             return $stmt->execute([$hashedPassword, $userId]);
         } catch (\Exception $e) {
             error_log("Error updating user password: " . $e->getMessage());
@@ -649,20 +653,29 @@ class User extends BaseModel
      */
     public function getRoles($userId = null)
     {
-        $uid = $userId ?: (isset($this->userId) ? $this->userId : null);
-        // If Model doesn't hold state, we usually pass ID. But generic method might use $this->id if available.
+        // If userId is passed, use it; otherwise check if this instance has userId property
+        $uid = $userId ?: ($this->userId ?? null);
+
+        // If Model doesn't hold state, we usually pass ID. But generic method might use $this->id if available
         // The User model seems to be a service-like model (getUserById), not an Active Record with state.
-        // So we probably need $userId passed in.
 
-        if (!$uid)
+        if ($uid === null) {
             return [];
+        }
 
-        $sql = "SELECT r.* FROM roles r 
-                JOIN role_user ru ON r.id = ru.role_id 
-                WHERE ru.user_id = ?";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([$uid]);
-        return $stmt->fetchAll();
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT r.* 
+                FROM roles r
+                INNER JOIN user_roles ur ON r.id = ur.roleId
+                WHERE ur.userId = ?
+            ");
+            $stmt->execute([$uid]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Get roles error: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -706,7 +719,7 @@ class User extends BaseModel
                 JOIN permission_role pr ON p.id = pr.permission_id
                 JOIN role_user ru ON pr.role_id = ru.role_id
                 WHERE ru.user_id = ?";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
@@ -736,7 +749,7 @@ class User extends BaseModel
     public function assignRole($userId, $roleSlug)
     {
         // Get role ID
-        $stmt = $this->db->prepare("SELECT id FROM roles WHERE slug = ?");
+        $stmt = $this->pdo->prepare("SELECT id FROM roles WHERE slug = ?");
         $stmt->execute([$roleSlug]);
         $role = $stmt->fetch();
 
@@ -744,7 +757,7 @@ class User extends BaseModel
             return false;
 
         try {
-            $stmt = $this->db->prepare("INSERT INTO role_user (user_id, role_id) VALUES (?, ?)");
+            $stmt = $this->pdo->prepare("INSERT INTO role_user (user_id, role_id) VALUES (?, ?)");
             return $stmt->execute([$userId, $role['id']]);
         } catch (\Exception $e) {
             // Likely duplicate
@@ -757,15 +770,14 @@ class User extends BaseModel
      */
     public function removeRole($userId, $roleSlug)
     {
-        $stmt = $this->db->prepare("SELECT id FROM roles WHERE slug = ?");
+        $stmt = $this->pdo->prepare("SELECT id FROM roles WHERE slug = ?");
         $stmt->execute([$roleSlug]);
         $role = $stmt->fetch();
 
         if (!$role)
             return false;
 
-        $stmt = $this->db->prepare("DELETE FROM role_user WHERE user_id = ? AND role_id = ?");
+        $stmt = $this->pdo->prepare("DELETE FROM role_user WHERE user_id = ? AND role_id = ?");
         return $stmt->execute([$userId, $role['id']]);
     }
 }
-?>

@@ -19,7 +19,7 @@ class Permission extends BaseModel
                 JOIN permission_role pr ON r.id = pr.role_id 
                 WHERE pr.permission_id = ?";
 
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$this->id]);
         return $stmt->fetchAll();
     }
@@ -29,7 +29,7 @@ class Permission extends BaseModel
      */
     public function getPermissionByName($name)
     {
-        $stmt = $this->db->prepare("SELECT * FROM permissions WHERE name = ? OR slug = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM permissions WHERE name = ? OR slug = ?");
         $stmt->execute([$name, $name]);
         return $stmt->fetch();
     }
@@ -40,7 +40,7 @@ class Permission extends BaseModel
     public function getPermissionsByModule($module)
     {
         // Extract module from slug (e.g., 'users.create' -> 'users')
-        $stmt = $this->db->prepare("SELECT * FROM permissions WHERE slug LIKE ? ORDER BY slug");
+        $stmt = $this->pdo->prepare("SELECT * FROM permissions WHERE slug LIKE ? ORDER BY slug");
         $stmt->execute([$module . '.%']);
         return $stmt->fetchAll();
     }
@@ -50,7 +50,7 @@ class Permission extends BaseModel
      */
     public function getAllPermissions()
     {
-        $stmt = $this->db->query("SELECT * FROM permissions ORDER BY slug");
+        $stmt = $this->pdo->query("SELECT * FROM permissions ORDER BY slug");
         return $stmt->fetchAll();
     }
 
