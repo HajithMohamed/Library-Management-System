@@ -27,7 +27,7 @@ define('BASE_URL', 'http://localhost/');
 // Ensure logs directory exists for tests
 $logsDir = APP_ROOT . '/logs';
 if (!is_dir($logsDir)) {
-    @mkdir($logsDir, 0755, true);
+    mkdir($logsDir, 0755, true);
 }
 
 // Setup error logging for tests

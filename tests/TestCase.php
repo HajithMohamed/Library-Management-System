@@ -26,7 +26,7 @@ abstract class TestCase extends BaseTestCase
             $pass = getenv('DB_PASSWORD') ?: '';
 
             self::$pdo = new PDO(
-                "mysql:host={$host};port={$port};dbname={$dbname}",
+                "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4",
                 $user,
                 $pass,
                 [
