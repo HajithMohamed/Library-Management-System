@@ -224,6 +224,16 @@ body::-webkit-scrollbar {
     color: #991b1b;
 }
 
+.badge-info {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    color: #0369a1;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    color: #4b5563;
+}
+
 .btn-small {
     padding: 0.5rem 1rem;
     border-radius: 10px;
@@ -426,6 +436,7 @@ body::-webkit-scrollbar {
                                 <th><i class="fas fa-book"></i> Book Name</th>
                                 <th><i class="fas fa-user-edit"></i> Author</th>
                                 <th><i class="fas fa-calendar-plus"></i> Borrow Date</th>
+                                <th><i class="fas fa-calendar-times"></i> Due Date</th>
                                 <th><i class="fas fa-calendar-check"></i> Return Date</th>
                                 <th><i class="fas fa-money-bill-wave"></i> Fine</th>
                                 <th><i class="fas fa-star"></i> Actions</th>
@@ -438,6 +449,23 @@ body::-webkit-scrollbar {
                                     <td><?php echo htmlspecialchars($transaction['authorName'] ?? 'N/A'); ?></td>
                                     <td><?php echo date('M d, Y', strtotime($transaction['borrowDate'])); ?></td>
                                     <td>
+                                        <?php if (!empty($transaction['dueDate']) && !$transaction['returnDate']): ?>
+                                            <?php
+                                            $daysLeft = (strtotime($transaction['dueDate']) - time()) / 86400;
+                                            if ($daysLeft < 0): ?>
+                                                <span class="badge badge-danger"><?= date('M d, Y', strtotime($transaction['dueDate'])) ?></span>
+                                            <?php elseif ($daysLeft <= 2): ?>
+                                                <span class="badge badge-warning"><?= date('M d, Y', strtotime($transaction['dueDate'])) ?></span>
+                                            <?php else: ?>
+                                                <?= date('M d, Y', strtotime($transaction['dueDate'])) ?>
+                                            <?php endif; ?>
+                                        <?php elseif (!empty($transaction['dueDate'])): ?>
+                                            <?= date('M d, Y', strtotime($transaction['dueDate'])) ?>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
                                         <?php if ($transaction['returnDate']): ?>
                                             <?php echo date('M d, Y', strtotime($transaction['returnDate'])); ?>
                                         <?php else: ?>
@@ -446,7 +474,7 @@ body::-webkit-scrollbar {
                                     </td>
                                     <td>
                                         <?php if ($transaction['fineAmount'] > 0): ?>
-                                            <span class="fine-amount">₹<?php echo number_format($transaction['fineAmount'], 2); ?></span>
+                                            <span class="fine-amount">LKR <?php echo number_format($transaction['fineAmount'], 2); ?></span>
                                             <span class="badge <?php echo $transaction['fineStatus'] === 'Paid' ? 'badge-success' : 'badge-danger'; ?>">
                                                 <?php echo $transaction['fineStatus']; ?>
                                             </span>
@@ -457,54 +485,37 @@ body::-webkit-scrollbar {
                                     <td>
                                         <?php if (!$transaction['returnDate']): ?>
                                             <?php
-                                            // Check renewal status from renewal_requests table
-                                            global $mysqli;
-                                            $privileges = null;
-                                            $privStmt = $mysqli->prepare("SELECT max_renewals, borrow_period_days FROM users WHERE userId = ?");
-                                            $privStmt->bind_param("s", $_SESSION['userId']);
-                                            $privStmt->execute();
-                                            $privileges = $privStmt->get_result()->fetch_assoc();
-                                            $privStmt->close();
-                                            $maxRenewals = (int)($privileges['max_renewals'] ?? 1);
-                                            $borrowPeriod = (int)($privileges['borrow_period_days'] ?? 14);
-
-                                            // Count approved renewals
-                                            $rrStmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM renewal_requests WHERE tid = ? AND status = 'Approved'");
-                                            $rrStmt->bind_param("s", $transaction['id']);
-                                            $rrStmt->execute();
-                                            $approvedRenewals = (int)($rrStmt->get_result()->fetch_assoc()['cnt'] ?? 0);
-                                            $rrStmt->close();
-
-                                            // Check for pending request
-                                            $pendStmt = $mysqli->prepare("SELECT id FROM renewal_requests WHERE tid = ? AND userId = ? AND status = 'Pending'");
-                                            $pendStmt->bind_param("ss", $transaction['id'], $_SESSION['userId']);
-                                            $pendStmt->execute();
-                                            $hasPendingRequest = $pendStmt->get_result()->fetch_assoc();
-                                            $pendStmt->close();
-
-                                            $dueDate = date('Y-m-d', strtotime($transaction['borrowDate'] . " + {$borrowPeriod} days"));
-                                            $isOverdue = strtotime($dueDate) < time();
-                                            $canRenew = ($approvedRenewals < $maxRenewals) && !$isOverdue && !$hasPendingRequest;
+                                            $renewalInfo = $transaction['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 1, 'isOverdue' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
+                                            $canRenew = $renewalInfo['canRenew'] ?? false;
+                                            $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
+                                            $maxRenewals = $renewalInfo['maxRenewals'] ?? 1;
+                                            $isOverdue = !empty($renewalInfo['isOverdue']);
+                                            $hasPendingRequest = !empty($renewalInfo['hasPendingRequest']);
+                                            $withinWindow = !empty($renewalInfo['withinRenewalWindow']);
                                             ?>
                                             <?php if ($hasPendingRequest): ?>
                                                 <span class="badge badge-warning" title="Waiting for admin approval">
                                                     ⏳ Pending Approval
                                                 </span>
                                             <?php elseif ($canRenew): ?>
-                                                <form method="POST" action="<?= BASE_URL ?><?= ($_SESSION['userType'] ?? 'Student') === 'Faculty' ? 'faculty' : 'user' ?>/renew" style="display:inline;">
+                                                <form method="POST" action="<?= BASE_URL ?>user/renew" style="display:inline;">
                                                     <input type="hidden" name="borrow_id" value="<?= $transaction['id'] ?>">
-                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $approvedRenewals ?>/<?= $maxRenewals ?>"
+                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>"
                                                             onclick="return confirm('Submit renewal request? Admin approval is required.')">
-                                                        📋 Request Renewal (<?= $approvedRenewals ?>/<?= $maxRenewals ?>)
+                                                        <i class="fas fa-sync-alt"></i> Request Renewal (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
                                                     </button>
                                                 </form>
                                             <?php elseif ($isOverdue): ?>
                                                 <span class="badge badge-danger" title="Overdue - cannot renew">
                                                     ⚠ Overdue
                                                 </span>
-                                            <?php else: ?>
-                                                <span class="badge badge-warning" title="Max renewals reached">
-                                                    Renewed <?= $approvedRenewals ?>/<?= $maxRenewals ?>
+                                            <?php elseif ($renewalsUsed >= $maxRenewals): ?>
+                                                <span class="badge badge-secondary" title="Max renewals reached">
+                                                    Renewed <?= $renewalsUsed ?>/<?= $maxRenewals ?>
+                                                </span>
+                                            <?php elseif (!$withinWindow): ?>
+                                                <span class="badge badge-info" title="Renewal available within 2 days of due date">
+                                                    <i class="fas fa-clock"></i> Renew opens near due date
                                                 </span>
                                             <?php endif; ?>
                                         <?php elseif ($transaction['returnDate'] && $_SESSION['userType'] === 'Student'): ?>
