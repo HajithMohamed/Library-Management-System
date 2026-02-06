@@ -568,7 +568,7 @@
             <?php if (isset($_SESSION['userId'])): ?>
                 <?php
                 // Fetch unread notification count
-                require_once __DIR__ . '/../../models/Notification.php';
+                require_once __DIR__ . '/../../Models/Notification.php';
                 $notificationModel = new \App\Models\Notification();
                 $unreadCount = $notificationModel->getUnreadCount($_SESSION['userId']);
                 ?>

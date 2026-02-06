@@ -12,10 +12,10 @@
         "firebase/php-jwt": "^6.0"
     },
     "require-dev": {
-        "robmorgan/phinx": "*",
-        "phpunit/phpunit": "^11.5.50",
         "mockery/mockery": "*",
-        "phpstan/phpstan": "^2.0"
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.5.50",
+        "robmorgan/phinx": "*"
     },
     "autoload": {
         "psr-4": {

@@ -2,7 +2,7 @@
 
 namespace Tests\Performance;
 
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 use App\Models\Book;
 use Mockery;
 
@@ -19,12 +19,13 @@ class PerformanceTest extends TestCase
         $this->db = Mockery::mock(\PDO::class);
         $this->stmt = Mockery::mock(\PDOStatement::class);
 
-        $this->bookModel = new Book();
+        $this->bookModel = new Book($this->db);
+    }
 
-        $reflection = new \ReflectionClass($this->bookModel);
-        $property = $reflection->getProperty('db');
-        $property->setAccessible(true);
-        $property->setValue($this->bookModel, $this->db);
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 
     public function test_large_dataset_query_performance()

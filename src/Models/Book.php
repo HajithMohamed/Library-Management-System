@@ -9,9 +9,9 @@ class Book extends BaseModel
 {
     protected $table = 'books';
 
-    public function __construct()
+    public function __construct(?\PDO $db = null)
     {
-        parent::__construct();
+        parent::__construct($db);
     }
 
     /**

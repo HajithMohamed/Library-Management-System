@@ -15,13 +15,10 @@ class SecurityTest extends TestCase
 
     protected function setUp(): void
     {
-        // Mocking can be done here if needed.
-        // For integrated services relying on DB, we might need a test DB environment.
-        // Since we didn't migrate the DB, we will test isolated logic details.
+        parent::setUp();
 
         $this->passwordService = new PasswordService();
         $this->twoFactorService = new TwoFactorService();
-        //$this->auditLogger = new AuditLogger(); // Needs DB connection
     }
 
     public function testPasswordStrength()

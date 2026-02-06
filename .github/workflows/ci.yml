@@ -81,6 +81,11 @@ jobs:
           fi
         continue-on-error: true
 
-      # Skip PHPUnit tests for now - they need refactoring
-      # - name: Run PHPUnit
-      #   run: vendor/bin/phpunit --testdox
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --testdox
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: integrated_library_system
+          DB_USERNAME: root
+          DB_PASSWORD: root

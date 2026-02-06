@@ -15,8 +15,8 @@ class ExampleTest extends TestCase
     {
         // Verify basic application structure exists
         $this->assertDirectoryExists(__DIR__ . '/../src');
-        $this->assertDirectoryExists(__DIR__ . '/../src/controllers');
-        $this->assertDirectoryExists(__DIR__ . '/../src/models');
-        $this->assertDirectoryExists(__DIR__ . '/../src/services');
+        $this->assertDirectoryExists(__DIR__ . '/../src/Controllers');
+        $this->assertDirectoryExists(__DIR__ . '/../src/Models');
+        $this->assertDirectoryExists(__DIR__ . '/../src/Services');
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Tests\Database;
 
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 use App\Models\User;
 use App\Models\Book;
 
@@ -13,6 +13,8 @@ class DatabaseTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $_ENV['TEST_MODE'] = true;
 
         $this->pdo = new \PDO('sqlite::memory:');
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
@@ -53,12 +55,7 @@ class DatabaseTest extends TestCase
 
     public function test_user_insertion_and_retrieval()
     {
-        $user = new User();
-        // Inject real PDO
-        $reflection = new \ReflectionClass($user);
-        $property = $reflection->getProperty('db');
-        $property->setAccessible(true);
-        $property->setValue($user, $this->pdo);
+        $user = new User($this->pdo);
 
         $data = [
             'username' => 'dbtest',

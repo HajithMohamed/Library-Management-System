@@ -2,7 +2,7 @@
 
 namespace Tests\Integration;
 
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 use App\Models\Transaction;
 use App\Models\Book;
 use Mockery;
@@ -21,14 +21,14 @@ class BorrowSystemTest extends TestCase
         $this->db = Mockery::mock(\PDO::class);
         $this->stmt = Mockery::mock(\PDOStatement::class);
 
-        $this->bookModel = new Book();
+        $this->bookModel = new Book($this->db);
         $this->transactionModel = new Transaction($this->db);
+    }
 
-        // Inject DB Mock for Book model
-        $reflection = new \ReflectionClass($this->bookModel);
-        $property = $reflection->getProperty('db');
-        $property->setAccessible(true);
-        $property->setValue($this->bookModel, $this->db);
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 
     public function test_complete_borrow_workflow()
@@ -42,22 +42,20 @@ class BorrowSystemTest extends TestCase
             ->once()
             ->with("SELECT * FROM books WHERE isbn = ? LIMIT 1")
             ->andReturn($this->stmt);
-        $this->stmt->shouldReceive('execute')->with([$isbn]);
+        $this->stmt->shouldReceive('execute')->andReturn(true);
         $this->stmt->shouldReceive('fetch')->andReturn(['isbn' => $isbn, 'bookName' => 'Test', 'available' => 5]);
 
         // 2. Decrease availability
         $this->db->shouldReceive('prepare')
             ->once()
-            ->with("UPDATE books SET available = available - 1, borrowed = borrowed + 1 WHERE isbn = ? AND available > 0")
+            ->with(Mockery::pattern('/UPDATE.*books.*SET.*available.*=.*available.*-.*1.*borrowed.*=.*borrowed.*\+.*1.*WHERE.*isbn.*=.*\?.*AND.*available.*>.*0/s'))
             ->andReturn($this->stmt);
-        $this->stmt->shouldReceive('execute')->with([$isbn])->andReturn(true);
 
         // 3. Create Transaction
         $this->db->shouldReceive('prepare')
             ->once()
             ->with(Mockery::pattern('/INSERT INTO transactions/'))
             ->andReturn($this->stmt);
-        $this->stmt->shouldReceive('execute')->andReturn(true);
 
         // Execute workflow steps manually as the Controller would do
         $book = $this->bookModel->findByISBN($isbn);

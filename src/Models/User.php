@@ -11,10 +11,10 @@ class User extends BaseModel
 
     private $lastError = null;
 
-    public function __construct()
+    public function __construct(?\PDO $db = null)
     {
         // Call parent constructor to initialize $db from BaseModel
-        parent::__construct();
+        parent::__construct($db);
     }
 
     /**

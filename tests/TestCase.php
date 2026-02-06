@@ -17,12 +17,18 @@ abstract class TestCase extends BaseTestCase
         $_ENV['TEST_MODE'] = true;
         putenv('TEST_MODE=true');
         
-        // Try to create test database connection
+        // Try to create test database connection using environment variables
         try {
+            $host = getenv('DB_HOST') ?: 'localhost';
+            $port = getenv('DB_PORT') ?: '3306';
+            $dbname = getenv('DB_DATABASE') ?: 'library_test';
+            $user = getenv('DB_USERNAME') ?: 'root';
+            $pass = getenv('DB_PASSWORD') ?: '';
+
             self::$pdo = new PDO(
-                'mysql:host=localhost;dbname=library_test',
-                'root',
-                'HAzi@1915',
+                "mysql:host={$host};port={$port};dbname={$dbname}",
+                $user,
+                $pass,
                 [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
