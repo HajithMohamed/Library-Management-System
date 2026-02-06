@@ -539,6 +539,26 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
             color: #667eea;
         }
 
+        .badge-success {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .badge-info {
+            background: #cffafe;
+            color: #0891b2;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .sidebar {
@@ -677,22 +697,86 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                             <div class="stat-label">Active Loans</div>
                             <div class="stat-number"><?= $report['active_loans'] ?? 0 ?></div>
                         </div>
+                        <div class="stat-card orange">
+                            <div class="stat-label">Overdue Books</div>
+                            <div class="stat-number"><?= $report['overdue_books'] ?? 0 ?></div>
+                        </div>
                     </div>
+
+                    <?php if (!empty($report['transactions'])): ?>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <i class="fas fa-history"></i> User Borrow History
+                        </div>
+                        <div class="responsive-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Book Name</th>
+                                        <th>Author</th>
+                                        <th>Borrow Date</th>
+                                        <th>Return Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($report['transactions'] as $txn): ?>
+                                        <?php
+                                            $isOverdue = false;
+                                            if (empty($txn['returnDate'])) {
+                                                $borrowPeriod = $txn['borrow_period_days'] ?? 14;
+                                                $dueDate = date('Y-m-d', strtotime($txn['borrowDate'] . " + {$borrowPeriod} days"));
+                                                $isOverdue = strtotime($dueDate) < time();
+                                            }
+                                            if (!empty($txn['returnDate'])) {
+                                                $statusClass = 'badge-success';
+                                                $statusLabel = 'Returned';
+                                            } elseif ($isOverdue) {
+                                                $statusClass = 'badge-danger';
+                                                $statusLabel = 'Overdue';
+                                            } else {
+                                                $statusClass = 'badge-warning';
+                                                $statusLabel = 'Active';
+                                            }
+                                        ?>
+                                        <tr>
+                                            <td><strong><?= htmlspecialchars($txn['tid']) ?></strong></td>
+                                            <td><?= htmlspecialchars($txn['username'] ?? $txn['userId']) ?></td>
+                                            <td><?= htmlspecialchars($txn['emailId'] ?? '') ?></td>
+                                            <td><strong><?= htmlspecialchars($txn['bookName']) ?></strong></td>
+                                            <td><?= htmlspecialchars($txn['authorName']) ?></td>
+                                            <td><?= htmlspecialchars($txn['borrowDate']) ?></td>
+                                            <td><?= !empty($txn['returnDate']) ? htmlspecialchars($txn['returnDate']) : '<em>Not returned</em>' ?></td>
+                                            <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="info-card" style="text-align:center; margin-top:1.5rem;">
+                        <div class="info-card-header">No borrow history found for this date range.</div>
+                    </div>
+                    <?php endif; ?>
 
                 <?php elseif ($reportType === 'fines'): ?>
                     <!-- Fines Report -->
                     <div class="stats-grid">
                         <div class="stat-card orange">
                             <div class="stat-label">Total Fines</div>
-                            <div class="stat-number">LKR<?= number_format($report['total_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR <?= number_format($report['total_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-label">Collected Fines</div>
-                            <div class="stat-number">LKR<?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR <?= number_format($report['collected_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card pink">
                             <div class="stat-label">Pending Fines</div>
-                            <div class="stat-number">LKR<?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
+                            <div class="stat-number">LKR <?= number_format($report['pending_fines'] ?? 0, 2) ?></div>
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-label">Overdue Books</div>
@@ -703,6 +787,56 @@ include APP_ROOT . '/views/admin/admin-navbar.php';
                             <div class="stat-number" style="font-size: 1.5rem;"><?= $report['period'] ?? '' ?></div>
                         </div>
                     </div>
+
+                    <?php if (!empty($report['fine_details'])): ?>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <i class="fas fa-money-bill-wave"></i> User Fine Details
+                        </div>
+                        <div class="responsive-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Book Name</th>
+                                        <th>Fine Amount</th>
+                                        <th>Status</th>
+                                        <th>Payment Date</th>
+                                        <th>Payment Method</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($report['fine_details'] as $fine): ?>
+                                        <tr>
+                                            <td><strong><?= htmlspecialchars($fine['tid']) ?></strong></td>
+                                            <td><?= htmlspecialchars($fine['username'] ?? $fine['userId']) ?></td>
+                                            <td><?= htmlspecialchars($fine['emailId'] ?? '') ?></td>
+                                            <td><strong><?= htmlspecialchars($fine['bookName']) ?></strong></td>
+                                            <td>LKR <?= number_format($fine['fineAmount'] ?? 0, 2) ?></td>
+                                            <td>
+                                                <?php if (($fine['fineStatus'] ?? '') === 'paid'): ?>
+                                                    <span class="badge badge-success">Paid</span>
+                                                <?php elseif (($fine['fineStatus'] ?? '') === 'waived'): ?>
+                                                    <span class="badge badge-info">Waived</span>
+                                                <?php else: ?>
+                                                    <span class="badge badge-danger">Pending</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?= !empty($fine['finePaymentDate']) ? htmlspecialchars($fine['finePaymentDate']) : '<em>N/A</em>' ?></td>
+                                            <td><?= !empty($fine['finePaymentMethod']) ? ucfirst(htmlspecialchars($fine['finePaymentMethod'])) : '<em>N/A</em>' ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="info-card" style="text-align:center; margin-top:1.5rem;">
+                        <div class="info-card-header">No fine records found for this date range.</div>
+                    </div>
+                    <?php endif; ?>
 
                 <?php elseif ($reportType === 'users'): ?>
                     <!-- Users Report -->

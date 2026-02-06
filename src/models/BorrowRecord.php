@@ -9,8 +9,9 @@ class BorrowRecord extends BaseModel
     public function getActiveBorrowCount($userId)
     {
         try {
-            $sql = "SELECT COUNT(*) as count FROM {$this->table} 
-                    WHERE userId = ? AND returnDate IS NULL";
+            // Count from books_borrowed table (the primary borrow management table)
+            $sql = "SELECT COUNT(*) as count FROM books_borrowed 
+                    WHERE userId = ? AND status = 'Active'";
             $stmt = $this->db->prepare($sql);
             if (!$stmt) {
                 error_log("Failed to prepare statement in getActiveBorrowCount: " . $this->db->error);

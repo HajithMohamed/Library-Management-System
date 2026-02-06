@@ -1,6 +1,6 @@
 <?php
-// Fetch transactions for the user
-$stmt = $pdo->prepare("SELECT * FROM transactions WHERE userId = ? ORDER BY borrowDate DESC");
+// Fetch borrow history for the user
+$stmt = $pdo->prepare("SELECT * FROM books_borrowed WHERE userId = ? ORDER BY borrowDate DESC");
 $stmt->execute([$_SESSION['userId']]);
 $transactions = $stmt->fetchAll();
 ?>

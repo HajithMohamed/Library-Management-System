@@ -390,7 +390,7 @@ class Transaction
     public function getActiveBorrowingCount()
     {
         try {
-            $sql = "SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL";
+            $sql = "SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Active'";
             $result = $this->db->query($sql);
             
             if ($row = $result->fetch_assoc()) {
@@ -755,6 +755,98 @@ class Transaction
         } catch (\Exception $e) {
             error_log("Error getting returned books count: " . $e->getMessage());
             return 0;
+        }
+    }
+
+    /**
+     * Get transactions with user details (for borrow history report)
+     */
+    public function getTransactionsWithUserDetails($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT t.tid, t.userId, t.isbn, t.borrowDate, t.returnDate,
+                           t.fineAmount, t.fineStatus,
+                           b.bookName, b.authorName,
+                           u.username, u.emailId, u.userType, u.borrow_period_days
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    JOIN users u ON t.userId = u.userId
+                    WHERE t.borrowDate BETWEEN ? AND ?
+                    ORDER BY t.borrowDate DESC
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT t.tid, t.userId, t.isbn, t.borrowDate, t.returnDate,
+                           t.fineAmount, t.fineStatus,
+                           b.bookName, b.authorName,
+                           u.username, u.emailId, u.userType, u.borrow_period_days
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    JOIN users u ON t.userId = u.userId
+                    ORDER BY t.borrowDate DESC
+                ");
+            }
+
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting transactions with user details: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get fine transactions with user details (for fines report)
+     */
+    public function getFineTransactionsWithUserDetails($startDate = null, $endDate = null)
+    {
+        try {
+            if ($startDate && $endDate) {
+                $stmt = $this->db->prepare("
+                    SELECT t.tid, t.userId, t.isbn, t.borrowDate, t.returnDate,
+                           t.fineAmount, t.fineStatus, t.finePaymentDate, t.finePaymentMethod,
+                           b.bookName, b.authorName,
+                           u.username, u.emailId, u.userType
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    JOIN users u ON t.userId = u.userId
+                    WHERE t.fineAmount > 0
+                    AND t.borrowDate BETWEEN ? AND ?
+                    ORDER BY t.fineAmount DESC
+                ");
+                $stmt->bind_param("ss", $startDate, $endDate);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT t.tid, t.userId, t.isbn, t.borrowDate, t.returnDate,
+                           t.fineAmount, t.fineStatus, t.finePaymentDate, t.finePaymentMethod,
+                           b.bookName, b.authorName,
+                           u.username, u.emailId, u.userType
+                    FROM transactions t
+                    JOIN books b ON t.isbn = b.isbn
+                    JOIN users u ON t.userId = u.userId
+                    WHERE t.fineAmount > 0
+                    ORDER BY t.fineAmount DESC
+                ");
+            }
+
+            if (!$stmt) {
+                throw new \Exception("Prepare failed: " . $this->db->error);
+            }
+
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result->fetch_all(MYSQLI_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error getting fine transactions with user details: " . $e->getMessage());
+            return [];
         }
     }
 }

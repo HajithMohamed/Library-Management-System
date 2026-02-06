@@ -9,7 +9,7 @@ global $mysqli;
 $statusFilter = $_GET['status'] ?? '';
 $userTypeFilter = $_GET['userType'] ?? '';
 
-// Build query - Updated to use books_borrowed table
+// Build query - Using books_borrowed table
 $sql = "SELECT 
     bb.id,
     bb.userId,
@@ -18,26 +18,26 @@ $sql = "SELECT
     bb.dueDate,
     bb.returnDate,
     bb.status,
-    bb.notes,
-    bb.addedBy,
-    u.username,
-    u.emailId,
-    u.userType,
-    b.bookName,
-    b.authorName,
-    b.barcode,
-    DATEDIFF(CURDATE(), bb.dueDate) as daysOverdue
+    COALESCE(bb.notes, '') as notes,
+    COALESCE(bb.addedBy, '') as addedBy,
+    COALESCE(u.username, 'Unknown') as username,
+    COALESCE(u.emailId, '') as emailId,
+    COALESCE(u.userType, 'Unknown') as userType,
+    COALESCE(b.bookName, 'Unknown Book') as bookName,
+    COALESCE(b.authorName, 'Unknown Author') as authorName,
+    COALESCE(b.barcode, '') as barcode,
+    CASE WHEN bb.status != 'Returned' AND bb.dueDate < CURDATE() THEN DATEDIFF(CURDATE(), bb.dueDate) ELSE 0 END as daysOverdue
 FROM books_borrowed bb
 LEFT JOIN users u ON bb.userId = u.userId
 LEFT JOIN books b ON bb.isbn = b.isbn
 WHERE 1=1";
 
 if ($statusFilter) {
-    $sql .= " AND bb.status = '$statusFilter'";
+    $sql .= " AND bb.status = '" . $mysqli->real_escape_string($statusFilter) . "'";
 }
 
 if ($userTypeFilter) {
-    $sql .= " AND u.userType = '$userTypeFilter'";
+    $sql .= " AND u.userType = '" . $mysqli->real_escape_string($userTypeFilter) . "'";
 }
 
 $sql .= " ORDER BY bb.borrowDate DESC";
@@ -48,9 +48,9 @@ while ($row = $result->fetch_assoc()) {
     $borrowedBooks[] = $row;
 }
 
-// Get statistics - Updated to use books_borrowed table
+// Get statistics - Using books_borrowed table
 $statsQuery = "SELECT 
-    COUNT(bb.id) as total,
+    COUNT(*) as total,
     SUM(CASE WHEN bb.status = 'Active' THEN 1 ELSE 0 END) as active,
     SUM(CASE WHEN bb.status = 'Returned' THEN 1 ELSE 0 END) as returned,
     SUM(CASE WHEN bb.status = 'Overdue' THEN 1 ELSE 0 END) as overdue,
@@ -703,6 +703,17 @@ while ($row = $booksResult->fetch_assoc()) {
                     <tbody>
                         <?php if (!empty($borrowedBooks)): ?>
                             <?php foreach ($borrowedBooks as $item): ?>
+                                <?php
+                                    // Ensure no null values reach htmlspecialchars
+                                    $item['id'] = $item['id'] ?? '';
+                                    $item['username'] = $item['username'] ?? 'Unknown';
+                                    $item['userId'] = $item['userId'] ?? '';
+                                    $item['userType'] = $item['userType'] ?? 'Unknown';
+                                    $item['bookName'] = $item['bookName'] ?? 'Unknown Book';
+                                    $item['authorName'] = $item['authorName'] ?? 'Unknown Author';
+                                    $item['status'] = $item['status'] ?? 'Active';
+                                    $item['daysOverdue'] = $item['daysOverdue'] ?? 0;
+                                ?>
                                 <tr>
                                     <td><?= htmlspecialchars($item['id']) ?></td>
                                     <td>
@@ -718,10 +729,10 @@ while ($row = $booksResult->fetch_assoc()) {
                                         <strong><?= htmlspecialchars($item['bookName']) ?></strong><br>
                                         <small class="text-muted"><?= htmlspecialchars($item['authorName']) ?></small>
                                     </td>
-                                    <td><?= date('M j, Y', strtotime($item['borrowDate'])) ?></td>
-                                    <td><?= date('M j, Y', strtotime($item['dueDate'])) ?></td>
+                                    <td><?= date('M j, Y', strtotime($item['borrowDate'] ?? 'now')) ?></td>
+                                    <td><?= date('M j, Y', strtotime($item['dueDate'] ?? 'now')) ?></td>
                                     <td>
-                                        <?php if ($item['returnDate']): ?>
+                                        <?php if (!empty($item['returnDate'])): ?>
                                             <?= date('M j, Y', strtotime($item['returnDate'])) ?>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
@@ -730,7 +741,7 @@ while ($row = $booksResult->fetch_assoc()) {
                                     <td>
                                         <span class="status-badge <?= strtolower($item['status']) ?>">
                                             <?= htmlspecialchars($item['status']) ?>
-                                            <?php if ($item['daysOverdue'] > 0 && !$item['returnDate']): ?>
+                                            <?php if ($item['daysOverdue'] > 0 && empty($item['returnDate'])): ?>
                                                 (+<?= $item['daysOverdue'] ?> days)
                                             <?php endif; ?>
                                         </span>
@@ -739,7 +750,7 @@ while ($row = $booksResult->fetch_assoc()) {
                                         <div class="action-buttons">
                                             <?php if ($item['status'] !== 'Returned'): ?>
                                                 <button class="btn-action" style="background: #d1fae5; color: #065f46;" 
-                                                        onclick="markAsReturned(<?= $item['id'] ?>)" 
+                                                        onclick="markAsReturned('<?= htmlspecialchars($item['id']) ?>')" 
                                                         title="Mark as Returned">
                                                     <i class="fas fa-check-circle"></i>
                                                 </button>
@@ -747,7 +758,7 @@ while ($row = $booksResult->fetch_assoc()) {
                                             <button class="btn-action btn-edit" onclick='editItem(<?= json_encode($item) ?>)'>
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button class="btn-action btn-delete" onclick="deleteItem(<?= $item['id'] ?>)">
+                                            <button class="btn-action btn-delete" onclick="deleteItem('<?= htmlspecialchars($item['id']) ?>')">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -1006,6 +1017,144 @@ function applyFilters() {
         row.style.display = (matchSearch && matchStatus && matchUserType) ? '' : 'none';
     });
 }
+
+// ========== REAL-TIME AUTO-REFRESH ==========
+let refreshInterval = null;
+let refreshSeconds = 15; // Refresh every 15 seconds
+let isPaused = false;
+let lastRefresh = new Date();
+
+// Create refresh indicator
+const refreshIndicator = document.createElement('div');
+refreshIndicator.id = 'refreshIndicator';
+refreshIndicator.innerHTML = `
+    <div style="position:fixed;bottom:20px;right:20px;background:#1e293b;color:white;padding:10px 16px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;z-index:9999;box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+        <span id="refreshDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite;"></span>
+        <span>Live</span>
+        <span id="refreshCountdown" style="color:#94a3b8;">15s</span>
+        <button id="refreshToggle" onclick="toggleAutoRefresh()" style="background:none;border:1px solid #475569;color:white;padding:2px 8px;border-radius:6px;cursor:pointer;font-size:12px;" title="Pause/Resume">⏸</button>
+    </div>
+`;
+document.body.appendChild(refreshIndicator);
+
+// Add pulse animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+    #refreshDot.paused { background:#f59e0b!important; animation:none!important; }
+`;
+document.head.appendChild(style);
+
+function toggleAutoRefresh() {
+    isPaused = !isPaused;
+    const dot = document.getElementById('refreshDot');
+    const btn = document.getElementById('refreshToggle');
+    if (isPaused) {
+        dot.classList.add('paused');
+        btn.textContent = '▶';
+        btn.title = 'Resume auto-refresh';
+    } else {
+        dot.classList.remove('paused');
+        btn.textContent = '⏸';
+        btn.title = 'Pause auto-refresh';
+        lastRefresh = new Date();
+        fetchLiveData();
+    }
+}
+
+function fetchLiveData() {
+    if (isPaused) return;
+    
+    fetch('<?= BASE_URL ?>admin/borrowed-books/api')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                updateTableData(data.borrowedBooks);
+                updateStatsData(data.stats);
+                lastRefresh = new Date();
+            }
+        })
+        .catch(err => console.warn('Auto-refresh failed:', err));
+}
+
+function updateStatsData(stats) {
+    const statCards = document.querySelectorAll('.stat-card');
+    if (statCards.length >= 4) {
+        const values = statCards[0].querySelectorAll('.stat-value, h3');
+        if (values.length > 0) values[0].textContent = stats.total || 0;
+        const values1 = statCards[1].querySelectorAll('.stat-value, h3');
+        if (values1.length > 0) values1[0].textContent = stats.total_active || stats.active || 0;
+        const values2 = statCards[2].querySelectorAll('.stat-value, h3');
+        if (values2.length > 0) values2[0].textContent = stats.total_returned || stats.returned || 0;
+        const values3 = statCards[3].querySelectorAll('.stat-value, h3');
+        if (values3.length > 0) values3[0].textContent = stats.total_overdue || stats.overdue || 0;
+    }
+}
+
+function updateTableData(books) {
+    const tbody = document.querySelector('.table tbody');
+    if (!tbody) return;
+    
+    if (!books || books.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:3rem;">
+            <i class="fas fa-inbox" style="font-size:3rem;color:#cbd5e1;"></i>
+            <p style="margin-top:1rem;color:#64748b;">No borrowed books found</p>
+        </td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = books.map(item => {
+        const borrowDate = new Date(item.borrowDate).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+        const dueDate = new Date(item.dueDate).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+        const returnDate = item.returnDate ? new Date(item.returnDate).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '<span class="text-muted">-</span>';
+        const statusLower = (item.status || 'active').toLowerCase();
+        const overdueText = item.daysOverdue > 0 && !item.returnDate ? ` (+${item.daysOverdue} days)` : '';
+        const returnBtn = item.status !== 'Returned' ? 
+            `<button class="btn-action" style="background:#d1fae5;color:#065f46;" onclick="markAsReturned('${item.id}')" title="Mark as Returned"><i class="fas fa-check-circle"></i></button>` : '';
+        
+        return `<tr>
+            <td>${escapeHtml(item.id)}</td>
+            <td><strong>${escapeHtml(item.username)}</strong><br><small class="text-muted">${escapeHtml(item.userId)}</small></td>
+            <td><span class="user-type-badge ${(item.userType||'').toLowerCase()}">${escapeHtml(item.userType)}</span></td>
+            <td><strong>${escapeHtml(item.bookName)}</strong><br><small class="text-muted">${escapeHtml(item.authorName)}</small></td>
+            <td>${borrowDate}</td>
+            <td>${dueDate}</td>
+            <td>${returnDate}</td>
+            <td><span class="status-badge ${statusLower}">${escapeHtml(item.status)}${overdueText}</span></td>
+            <td><div class="action-buttons">
+                ${returnBtn}
+                <button class="btn-action btn-edit" onclick='editItem(${JSON.stringify(item).replace(/'/g, "&apos;")})'><i class="fas fa-edit"></i></button>
+                <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')"><i class="fas fa-trash"></i></button>
+            </div></td>
+        </tr>`;
+    }).join('');
+    
+    // Re-apply active filters
+    applyFilters();
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
+// Countdown timer
+setInterval(() => {
+    if (isPaused) return;
+    const elapsed = Math.floor((new Date() - lastRefresh) / 1000);
+    const remaining = Math.max(0, refreshSeconds - elapsed);
+    const countdown = document.getElementById('refreshCountdown');
+    if (countdown) countdown.textContent = remaining + 's';
+    
+    if (remaining <= 0) {
+        fetchLiveData();
+    }
+}, 1000);
+
+// Initial fetch after page load
+setTimeout(fetchLiveData, refreshSeconds * 1000);
 </script>
 </body>
 </html>

@@ -108,7 +108,7 @@ class FacultyController extends BaseController
         ];
         
         // Get total books borrowed
-        $sql = "SELECT COUNT(DISTINCT isbn) as total FROM transactions WHERE userId = ?";
+        $sql = "SELECT COUNT(DISTINCT isbn) as total FROM books_borrowed WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('s', $userId);
         $stmt->execute();
@@ -130,9 +130,9 @@ class FacultyController extends BaseController
         
         // Get category distribution
         $sql = "SELECT b.category, COUNT(*) as borrow_count 
-                FROM transactions t 
-                JOIN books b ON t.isbn = b.isbn 
-                WHERE t.userId = ? AND b.category IS NOT NULL 
+                FROM books_borrowed bb 
+                JOIN books b ON bb.isbn = b.isbn 
+                WHERE bb.userId = ? AND b.category IS NOT NULL 
                 GROUP BY b.category 
                 ORDER BY borrow_count DESC 
                 LIMIT 6";
@@ -143,7 +143,7 @@ class FacultyController extends BaseController
         
         // Get monthly trend (last 6 months)
         $sql = "SELECT DATE_FORMAT(borrowDate, '%Y-%m') as month, COUNT(*) as count 
-                FROM transactions 
+                FROM books_borrowed 
                 WHERE userId = ? AND borrowDate >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
                 GROUP BY month 
                 ORDER BY month ASC";
@@ -596,7 +596,68 @@ class FacultyController extends BaseController
     {
         $this->requireLogin(['Faculty']);
         $userId = $_SESSION['userId'];
-        $history = $this->borrowModel->getBorrowHistory($userId);
+        
+        global $mysqli;
+        
+        // Get user's borrow period
+        $privileges = $this->userModel->getUserPrivileges($userId);
+        $borrowPeriodDays = $privileges['borrow_period_days'] ?? 30; // Faculty default 30 days
+        
+        // Query from books_borrowed table (the primary borrow management table)
+        $sql = "SELECT 
+                    bb.id,
+                    bb.userId,
+                    bb.isbn,
+                    bb.borrowDate,
+                    bb.dueDate,
+                    bb.returnDate,
+                    bb.status,
+                    COALESCE(b.bookName, 'Unknown Book') as bookName,
+                    COALESCE(b.authorName, 'Unknown Author') as authorName
+                FROM books_borrowed bb
+                LEFT JOIN books b ON bb.isbn = b.isbn
+                WHERE bb.userId = ?
+                ORDER BY bb.borrowDate DESC";
+        
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $history = [];
+        while ($row = $result->fetch_assoc()) {
+            $dueDate = $row['dueDate'];
+            $status = $row['status'];
+            
+            // Auto-detect overdue
+            if ($status === 'Active' && strtotime($dueDate) < time()) {
+                $status = 'Overdue';
+            }
+            
+            // Calculate fine for overdue unreturned books
+            $fineAmount = 0;
+            $fineStatus = 'Paid';
+            
+            if (!$row['returnDate'] && strtotime($dueDate) < time()) {
+                $daysOverdue = (int)((time() - strtotime($dueDate)) / 86400);
+                $fineAmount = $daysOverdue * 5;
+                $fineStatus = 'Unpaid';
+            }
+            
+            $history[] = [
+                'id' => $row['id'],
+                'isbn' => $row['isbn'],
+                'bookName' => $row['bookName'],
+                'authorName' => $row['authorName'],
+                'borrowDate' => $row['borrowDate'],
+                'returnDate' => $row['returnDate'],
+                'dueDate' => $dueDate,
+                'status' => $status,
+                'fineAmount' => $fineAmount,
+                'fineStatus' => $fineStatus
+            ];
+        }
+        $stmt->close();
 
         // Add renewal info for active borrows
         foreach ($history as &$item) {

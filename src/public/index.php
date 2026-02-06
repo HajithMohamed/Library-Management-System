@@ -715,9 +715,14 @@ $router->addRoute('GET', '/admin/borrow-requests', 'AdminController', 'borrowReq
 $router->addRoute('POST', '/admin/borrow-requests/handle', 'AdminController', 'handleBorrowRequest');
 $router->addRoute('POST', '/admin/borrow-requests-handle', 'AdminController', 'handleBorrowRequest');
 
+// Admin Renewal Requests
+$router->addRoute('GET', '/admin/renewal-requests', 'AdminController', 'renewalRequests');
+$router->addRoute('POST', '/admin/renewal-requests/handle', 'AdminController', 'handleRenewalRequest');
+
 // Admin Borrowed Books
 $router->addRoute('GET', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
 $router->addRoute('POST', '/admin/borrowed-books', 'AdminController', 'booksBorrowed');
+$router->addRoute('GET', '/admin/borrowed-books/api', 'AdminController', 'borrowedBooksApi');
 
 // Admin Transactions (redirect to borrowed books)
 $router->addRoute('GET', '/admin/transactions', 'AdminController', 'booksBorrowed');

@@ -434,7 +434,7 @@ body::-webkit-scrollbar {
                         <tbody>
                             <?php foreach ($borrowHistory as $transaction): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($transaction['bookName']); ?></td>
+                                    <td><?php echo htmlspecialchars($transaction['bookName'] ?? 'Unknown Book'); ?></td>
                                     <td><?php echo htmlspecialchars($transaction['authorName'] ?? 'N/A'); ?></td>
                                     <td><?php echo date('M d, Y', strtotime($transaction['borrowDate'])); ?></td>
                                     <td>
@@ -457,21 +457,54 @@ body::-webkit-scrollbar {
                                     <td>
                                         <?php if (!$transaction['returnDate']): ?>
                                             <?php
-                                            $renewalInfo = $transaction['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 1, 'isOverdue' => false];
-                                            $canRenew = $renewalInfo['canRenew'] ?? false;
-                                            $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
-                                            $maxRenewals = $renewalInfo['maxRenewals'] ?? 1;
+                                            // Check renewal status from renewal_requests table
+                                            global $mysqli;
+                                            $privileges = null;
+                                            $privStmt = $mysqli->prepare("SELECT max_renewals, borrow_period_days FROM users WHERE userId = ?");
+                                            $privStmt->bind_param("s", $_SESSION['userId']);
+                                            $privStmt->execute();
+                                            $privileges = $privStmt->get_result()->fetch_assoc();
+                                            $privStmt->close();
+                                            $maxRenewals = (int)($privileges['max_renewals'] ?? 1);
+                                            $borrowPeriod = (int)($privileges['borrow_period_days'] ?? 14);
+
+                                            // Count approved renewals
+                                            $rrStmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM renewal_requests WHERE tid = ? AND status = 'Approved'");
+                                            $rrStmt->bind_param("s", $transaction['id']);
+                                            $rrStmt->execute();
+                                            $approvedRenewals = (int)($rrStmt->get_result()->fetch_assoc()['cnt'] ?? 0);
+                                            $rrStmt->close();
+
+                                            // Check for pending request
+                                            $pendStmt = $mysqli->prepare("SELECT id FROM renewal_requests WHERE tid = ? AND userId = ? AND status = 'Pending'");
+                                            $pendStmt->bind_param("ss", $transaction['id'], $_SESSION['userId']);
+                                            $pendStmt->execute();
+                                            $hasPendingRequest = $pendStmt->get_result()->fetch_assoc();
+                                            $pendStmt->close();
+
+                                            $dueDate = date('Y-m-d', strtotime($transaction['borrowDate'] . " + {$borrowPeriod} days"));
+                                            $isOverdue = strtotime($dueDate) < time();
+                                            $canRenew = ($approvedRenewals < $maxRenewals) && !$isOverdue && !$hasPendingRequest;
                                             ?>
-                                            <?php if ($canRenew): ?>
+                                            <?php if ($hasPendingRequest): ?>
+                                                <span class="badge badge-warning" title="Waiting for admin approval">
+                                                    ⏳ Pending Approval
+                                                </span>
+                                            <?php elseif ($canRenew): ?>
                                                 <form method="POST" action="<?= BASE_URL ?><?= ($_SESSION['userType'] ?? 'Student') === 'Faculty' ? 'faculty' : 'user' ?>/renew" style="display:inline;">
                                                     <input type="hidden" name="borrow_id" value="<?= $transaction['id'] ?>">
-                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>">
-                                                        🔄 Renew (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
+                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $approvedRenewals ?>/<?= $maxRenewals ?>"
+                                                            onclick="return confirm('Submit renewal request? Admin approval is required.')">
+                                                        📋 Request Renewal (<?= $approvedRenewals ?>/<?= $maxRenewals ?>)
                                                     </button>
                                                 </form>
+                                            <?php elseif ($isOverdue): ?>
+                                                <span class="badge badge-danger" title="Overdue - cannot renew">
+                                                    ⚠ Overdue
+                                                </span>
                                             <?php else: ?>
-                                                <span class="badge badge-warning" title="<?= !empty($renewalInfo['isOverdue']) ? 'Overdue - cannot renew' : 'Max renewals reached' ?>">
-                                                    <?= !empty($renewalInfo['isOverdue']) ? '⚠ Overdue' : "Renewed {$renewalsUsed}/{$maxRenewals}" ?>
+                                                <span class="badge badge-warning" title="Max renewals reached">
+                                                    Renewed <?= $approvedRenewals ?>/<?= $maxRenewals ?>
                                                 </span>
                                             <?php endif; ?>
                                         <?php elseif ($transaction['returnDate'] && $_SESSION['userType'] === 'Student'): ?>
@@ -486,7 +519,7 @@ body::-webkit-scrollbar {
                                             
                                             <?php if (!$hasReview): ?>
                                                 <button class="btn-small btn-primary" 
-                                                        onclick="showReviewModal('<?php echo $transaction['isbn']; ?>', '<?php echo htmlspecialchars(addslashes($transaction['bookName'])); ?>')">
+                                                        onclick="showReviewModal('<?php echo $transaction['isbn']; ?>', '<?php echo htmlspecialchars(addslashes($transaction['bookName'] ?? 'Unknown Book')); ?>')">
                                                     ⭐ Rate & Review
                                                 </button>
                                             <?php else: ?>

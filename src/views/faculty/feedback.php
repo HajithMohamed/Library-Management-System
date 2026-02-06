@@ -12,9 +12,9 @@ require_once __DIR__ . '/../partials/header.php';
 // Query for borrowed books for the form
 $stmt = $pdo->prepare("
     SELECT DISTINCT b.isbn, b.bookName 
-    FROM transactions t
-    JOIN books b ON t.isbn = b.isbn
-    WHERE t.userId = ? AND t.returnDate IS NOT NULL
+    FROM books_borrowed bb
+    JOIN books b ON bb.isbn = b.isbn
+    WHERE bb.userId = ? AND bb.returnDate IS NOT NULL
     ORDER BY b.bookName
 ");
 $stmt->execute([$_SESSION['userId']]);
