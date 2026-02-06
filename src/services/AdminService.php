@@ -683,7 +683,7 @@ class AdminService
                     DATE_FORMAT(borrowDate, '%Y-%m') as month,
                     COUNT(*) as issues,
                     SUM(CASE WHEN returnDate IS NOT NULL THEN 1 ELSE 0 END) as returns
-                FROM transactions
+                FROM books_borrowed
                 WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                 GROUP BY month
                 ORDER BY month ASC";
@@ -723,11 +723,11 @@ class AdminService
         $sql = "SELECT
                         'Transaction' as type,
                         CONCAT(COALESCE(u.emailId, 'Unknown User'), ' borrowed ', COALESCE(b.bookName, 'Unknown Book')) as description,
-                        t.borrowDate as timestamp
-                    FROM transactions t
-                    LEFT JOIN users u ON t.userId = u.userId
-                    LEFT JOIN books b ON t.isbn = b.isbn
-                    WHERE t.borrowDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        bb.borrowDate as timestamp
+                    FROM books_borrowed bb
+                    LEFT JOIN users u ON bb.userId = u.userId
+                    LEFT JOIN books b ON bb.isbn = b.isbn
+                    WHERE bb.borrowDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
 
                     UNION ALL
 
@@ -743,15 +743,15 @@ class AdminService
                     ORDER BY timestamp DESC
                     LIMIT 20";
       } else {
-        // If borrow_requests table doesn't exist, only get transactions
+        // If borrow_requests table doesn't exist, only get borrows
         $sql = "SELECT
                         'Transaction' as type,
                         CONCAT(COALESCE(u.emailId, 'Unknown User'), ' borrowed ', COALESCE(b.bookName, 'Unknown Book')) as description,
-                        t.borrowDate as timestamp
-                    FROM transactions t
-                    LEFT JOIN users u ON t.userId = u.userId
-                    LEFT JOIN books b ON t.isbn = b.isbn
-                    WHERE t.borrowDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                        bb.borrowDate as timestamp
+                    FROM books_borrowed bb
+                    LEFT JOIN users u ON bb.userId = u.userId
+                    LEFT JOIN books b ON bb.isbn = b.isbn
+                    WHERE bb.borrowDate >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                     ORDER BY timestamp DESC
                     LIMIT 20";
       }
@@ -777,7 +777,7 @@ class AdminService
   }
 
   /**
-   * Get all borrowed books with filters - FIXED WITH NULL SAFETY
+   * Get all borrowed books with filters - Uses books_borrowed table
    */
   public function getAllBorrowedBooks($status = null, $userId = null, $isbn = null)
   {
@@ -800,7 +800,7 @@ class AdminService
             COALESCE(b.bookName, 'Unknown Book') as bookName,
             COALESCE(b.authorName, 'Unknown Author') as authorName,
             COALESCE(b.barcode, '') as barcode,
-            DATEDIFF(CURDATE(), bb.dueDate) as daysOverdue
+            CASE WHEN bb.status != 'Returned' AND bb.dueDate < CURDATE() THEN DATEDIFF(CURDATE(), bb.dueDate) ELSE 0 END as daysOverdue
         FROM books_borrowed bb
         LEFT JOIN users u ON bb.userId = u.userId
         LEFT JOIN books b ON bb.isbn = b.isbn
@@ -838,7 +838,6 @@ class AdminService
     
     $borrowedBooks = [];
     while ($row = $result->fetch_assoc()) {
-        // CRITICAL FIX: Force string conversion with proper null handling
         $row['id'] = (int)($row['id'] ?? 0);
         $row['userId'] = strval($row['userId'] ?? '');
         $row['isbn'] = strval($row['isbn'] ?? '');
@@ -871,7 +870,7 @@ class AdminService
       global $mysqli;
       
       $sql = "SELECT 
-          COUNT(bb.id) as total,
+          COUNT(*) as total,
           SUM(CASE WHEN bb.status = 'Active' THEN 1 ELSE 0 END) as total_active,
           SUM(CASE WHEN bb.status = 'Returned' THEN 1 ELSE 0 END) as total_returned,
           SUM(CASE WHEN bb.status = 'Overdue' THEN 1 ELSE 0 END) as total_overdue,
@@ -915,7 +914,7 @@ class AdminService
               throw new \Exception('Book is not available for borrowing');
           }
           
-          // Check if user already has this book borrowed
+          // Check if user already has this book actively borrowed
           $stmt = $mysqli->prepare("SELECT id FROM books_borrowed WHERE userId = ? AND isbn = ? AND status = 'Active'");
           $stmt->bind_param("ss", $userId, $isbn);
           $stmt->execute();
@@ -925,7 +924,7 @@ class AdminService
           }
           $stmt->close();
           
-          // Insert borrowed book record
+          // Insert into books_borrowed table
           $stmt = $mysqli->prepare("INSERT INTO books_borrowed (userId, isbn, borrowDate, dueDate, status, notes, addedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'Active', ?, ?, NOW(), NOW())");
           $stmt->bind_param("ssssss", $userId, $isbn, $borrowDate, $dueDate, $notes, $addedBy);
           $stmt->execute();
@@ -936,6 +935,13 @@ class AdminService
           $stmt->bind_param("s", $isbn);
           $stmt->execute();
           $stmt->close();
+          
+          // Notify user
+          $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (?, 'Book Borrowed', ?, 'system', 'medium', NOW())");
+          $message = "A book (ISBN: {$isbn}) has been issued to your account on {$borrowDate}. Due date: {$dueDate}.";
+          $notifStmt->bind_param("ss", $userId, $message);
+          $notifStmt->execute();
+          $notifStmt->close();
           
           $mysqli->commit();
           
@@ -1014,7 +1020,7 @@ class AdminService
           $stmt->close();
           
           // Update books table - increment available, decrement borrowed
-          $stmt = $mysqli->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ?");
+          $stmt = $mysqli->prepare("UPDATE books SET available = available + 1, borrowed = GREATEST(borrowed - 1, 0) WHERE isbn = ?");
           $stmt->bind_param("s", $isbn);
           $stmt->execute();
           $stmt->close();
@@ -1022,7 +1028,7 @@ class AdminService
           // Create notification for user
           $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority, createdAt) VALUES (?, 'Book Returned', ?, 'system', 'medium', NOW())");
           $message = "Your borrowed book (ISBN: {$isbn}) has been successfully returned on {$returnDate}.";
-          $notifStmt->bind_param("ssi", $borrowedBook['userId'], $message, $id);
+          $notifStmt->bind_param("ss", $borrowedBook['userId'], $message);
           $notifStmt->execute();
           $notifStmt->close();
           
@@ -1065,8 +1071,8 @@ class AdminService
           }
           
           // If book was not returned, update book availability
-          if ($borrowedBook['status'] === 'Active' && !$borrowedBook['returnDate']) {
-              $stmt = $mysqli->prepare("UPDATE books SET available = available + 1, borrowed = borrowed - 1 WHERE isbn = ?");
+          if ($borrowedBook['status'] === 'Active' || $borrowedBook['status'] === 'Overdue') {
+              $stmt = $mysqli->prepare("UPDATE books SET available = available + 1, borrowed = GREATEST(borrowed - 1, 0) WHERE isbn = ?");
               $stmt->bind_param("s", $borrowedBook['isbn']);
               $stmt->execute();
               $stmt->close();
@@ -1178,11 +1184,12 @@ class AdminService
           $privStmt->close();
       }
 
-      // Create transaction
-      $tid = 'TXN' . time() . rand(100, 999);
+      // Create borrow record in books_borrowed
       $borrowDate = date('Y-m-d');
-      $stmt = $conn->prepare("INSERT INTO transactions (tid, userId, isbn, borrowDate) VALUES (?, ?, ?, ?)");
-      $stmt->bind_param("ssss", $tid, $request['userId'], $request['isbn'], $borrowDate);
+      $dueDate = date('Y-m-d', strtotime("+{$borrowPeriod} days"));
+      $adminId2 = $_SESSION['userId'] ?? 'ADM001';
+      $stmt = $conn->prepare("INSERT INTO books_borrowed (userId, isbn, borrowDate, dueDate, status, addedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'Active', ?, NOW(), NOW())");
+      $stmt->bind_param("sssss", $request['userId'], $request['isbn'], $borrowDate, $dueDate, $adminId2);
       $stmt->execute();
 
       // Update book availability
@@ -1310,7 +1317,7 @@ class AdminService
       ];
 
       // Get overdue books count
-      $result = $conn->query("SELECT COUNT(*) as count FROM transactions t LEFT JOIN users u ON t.userId = u.userId WHERE t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)");
+      $result = $conn->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Active' AND dueDate < CURDATE()");
       $health['overdue_books'] = $result->fetch_assoc()['count'] ?? 0;
 
       // Get low stock books count
@@ -1706,7 +1713,7 @@ class AdminService
       $count = 0;
 
       // Update popular books count
-      $conn->query("UPDATE books b SET b.borrowCount = (SELECT COUNT(*) FROM transactions t WHERE t.isbn = b.isbn)");
+      $conn->query("UPDATE books b SET b.borrowCount = (SELECT COUNT(*) FROM books_borrowed bb WHERE bb.isbn = b.isbn)");
       $count += $conn->affected_rows;
 
       $this->logMaintenanceActivity('Update Statistics', "Updated statistics for {$count} books", 'success');
@@ -1785,7 +1792,7 @@ class AdminService
       $stats['total_transactions'] = $result->fetch_assoc()['total'] ?? 0;
 
       // Active borrowings
-      $result = $conn->query("SELECT COUNT(*) as total FROM transactions WHERE returnDate IS NULL");
+      $result = $conn->query("SELECT COUNT(*) as total FROM books_borrowed WHERE status = 'Active'");
       $stats['active_borrowings'] = $result->fetch_assoc()['total'] ?? 0;
 
       // Total fines
@@ -1808,7 +1815,7 @@ class AdminService
 
     try {
       $sql = "SELECT DATE(borrowDate) as date, COUNT(*) as count
-              FROM transactions
+              FROM books_borrowed
               WHERE borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
               GROUP BY DATE(borrowDate)
               ORDER BY date ASC";
@@ -1914,11 +1921,11 @@ class AdminService
 
     try {
       $sql = "SELECT u.userType,
-                COUNT(DISTINCT t.userId) as activeUsers,
-                COUNT(t.tid) as transactions
-                FROM transactions t
-                JOIN users u ON t.userId = u.userId
-                WHERE t.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                COUNT(DISTINCT bb.userId) as activeUsers,
+                COUNT(bb.id) as transactions
+                FROM books_borrowed bb
+                JOIN users u ON bb.userId = u.userId
+                WHERE bb.borrowDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                 GROUP BY u.userType";
 
       $result = $conn->query($sql);

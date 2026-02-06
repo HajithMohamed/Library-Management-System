@@ -49,41 +49,38 @@ class UserController extends BaseController
         global $mysqli;
         
         try {
-            // Get count of currently borrowed books (not returned)
-            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userid = ? AND returnDate IS NULL");
+            // Get user privileges (role-based limits)
+            $privileges = $this->userModel->getUserPrivileges($userId);
+            $maxBooks = $privileges['max_borrow_limit'] ?? 3;
+            $borrowPeriodDays = $privileges['borrow_period_days'] ?? 14;
+            $maxRenewals = $privileges['max_renewals'] ?? 1;
+            
+            // Get count of currently borrowed books from books_borrowed table
+            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND status = 'Active'");
             $stmt->bind_param("s", $userId);
             $stmt->execute();
             $borrowedCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
             $stmt->close();
             
-            // Get count of overdue books (dueDate passed and not returned)
-            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
+            // Get count of overdue books
+            $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND status = 'Active' AND dueDate < CURDATE()");
             $stmt->bind_param("s", $userId);
             $stmt->execute();
             $overdueCount = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
             $stmt->close();
             
-            // Calculate total fines (LKR5 per day for overdue books)
-            $stmt = $mysqli->prepare("SELECT isbn, dueDate FROM books_borrowed WHERE userid = ? AND returnDate IS NULL AND dueDate < CURDATE()");
+            // Calculate total fines from overdue books
+            $stmt = $mysqli->prepare("SELECT dueDate FROM books_borrowed WHERE userId = ? AND status = 'Active' AND dueDate < CURDATE()");
             $stmt->bind_param("s", $userId);
             $stmt->execute();
             $result = $stmt->get_result();
             
             $totalFines = 0;
             while ($row = $result->fetch_assoc()) {
-                $dueDate = new \DateTime($row['dueDate']);
-                $today = new \DateTime();
-                $interval = $today->diff($dueDate);
-                $daysOverdue = $interval->days;
+                $daysOverdue = max(0, (int)((time() - strtotime($row['dueDate'])) / 86400));
                 $totalFines += $daysOverdue * 5; // LKR5 per day
             }
             $stmt->close();
-            
-            // Get user privileges (role-based limits)
-            $privileges = $this->userModel->getUserPrivileges($userId);
-            $maxBooks = $privileges['max_borrow_limit'] ?? 3;
-            $borrowPeriodDays = $privileges['borrow_period_days'] ?? 14;
-            $maxRenewals = $privileges['max_renewals'] ?? 1;
             
             // Get user statistics
             $userStats = [
@@ -96,17 +93,17 @@ class UserController extends BaseController
                 'remaining_slots' => max(0, $maxBooks - $borrowedCount)
             ];
             
-            // Get recent activity (last 5 transactions)
+            // Get recent activity (last 5 borrow records)
             $stmt = $mysqli->prepare("
                 SELECT 
                     bb.borrowDate as borrow_date,
                     bb.returnDate as return_date,
                     bb.dueDate as due_date,
-                    b.bookName as title,
-                    b.authorName as author
+                    COALESCE(b.bookName, 'Unknown Book') as title,
+                    COALESCE(b.authorName, 'Unknown Author') as author
                 FROM books_borrowed bb
                 LEFT JOIN books b ON bb.isbn = b.isbn
-                WHERE bb.userid = ?
+                WHERE bb.userId = ?
                 ORDER BY bb.borrowDate DESC
                 LIMIT 5
             ");
@@ -950,10 +947,16 @@ class UserController extends BaseController
             // Check borrow limit before allowing reservation
             $privileges = $this->userModel->getUserPrivileges($userId);
             $maxLimit = $privileges['max_borrow_limit'] ?? 3;
-            $currentBorrows = $this->borrowModel->getActiveBorrowCount($userId);
             
-            // Also count pending/approved requests
-            $pendingStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM borrow_requests WHERE userId = ? AND status IN ('Pending','Approved')");
+            // Count active borrows from books_borrowed table
+            $borrowCountStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND status = 'Active'");
+            $borrowCountStmt->bind_param("s", $userId);
+            $borrowCountStmt->execute();
+            $currentBorrows = (int)($borrowCountStmt->get_result()->fetch_assoc()['count'] ?? 0);
+            $borrowCountStmt->close();
+            
+            // Only count pending requests for books the user does NOT already have borrowed
+            $pendingStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM borrow_requests br WHERE br.userId = ? AND br.status = 'Pending' AND NOT EXISTS (SELECT 1 FROM books_borrowed bb WHERE bb.userId = br.userId AND bb.isbn = br.isbn AND bb.status = 'Active')");
             $pendingCount = 0;
             if ($pendingStmt) {
                 $pendingStmt->bind_param("s", $userId);
@@ -1133,22 +1136,24 @@ class UserController extends BaseController
         global $mysqli;
         $userId = $_SESSION['userId'];
         
-        // Query from books_borrowed table with correct column names
+        // Get user's borrow period
+        $privileges = $this->userModel->getUserPrivileges($userId);
+        $borrowPeriodDays = $privileges['borrow_period_days'] ?? 14;
+        
+        // Query from books_borrowed table (the primary borrow management table)
         $sql = "SELECT 
                     bb.id,
-                    bb.userid,
+                    bb.userId as userid,
                     bb.isbn,
                     bb.borrowDate,
                     bb.dueDate,
                     bb.returnDate,
                     bb.status,
-                    bb.notes,
-                    bb.addedBy,
-                    b.bookName,
-                    b.authorName
+                    COALESCE(b.bookName, 'Unknown Book') as bookName,
+                    COALESCE(b.authorName, 'Unknown Author') as authorName
                 FROM books_borrowed bb
                 LEFT JOIN books b ON bb.isbn = b.isbn
-                WHERE bb.userid = ?
+                WHERE bb.userId = ?
                 ORDER BY bb.borrowDate DESC";
         
         $stmt = $mysqli->prepare($sql);
@@ -1158,37 +1163,41 @@ class UserController extends BaseController
         
         $borrowHistory = [];
         while ($row = $result->fetch_assoc()) {
-            // Map to format expected by the view
+            $dueDate = $row['dueDate'];
+            $status = $row['status'];
+            
+            // Auto-detect overdue
+            if ($status === 'Active' && strtotime($dueDate) < time()) {
+                $status = 'Overdue';
+            }
+            
+            // Calculate fine for overdue unreturned books
+            $fineAmount = 0;
+            $fineStatus = 'Paid';
+            
+            if (!$row['returnDate'] && strtotime($dueDate) < time()) {
+                $daysOverdue = (int)((time() - strtotime($dueDate)) / 86400);
+                $fineAmount = $daysOverdue * 5; // LKR5 per day
+                $fineStatus = 'Unpaid';
+            }
+            
             $borrowHistory[] = [
                 'id' => $row['id'],
                 'isbn' => $row['isbn'],
-                'bookName' => $row['bookName'] ?? 'Unknown',
-                'authorName' => $row['authorName'] ?? 'N/A',
+                'bookName' => $row['bookName'],
+                'authorName' => $row['authorName'],
                 'borrowDate' => $row['borrowDate'],
                 'returnDate' => $row['returnDate'],
-                'dueDate' => $row['dueDate'],
-                'status' => $row['status'],
-                'fineAmount' => 0, // Calculate fine if needed
-                'fineStatus' => 'Paid' // Default value
+                'dueDate' => $dueDate,
+                'status' => $status,
+                'fineAmount' => $fineAmount,
+                'fineStatus' => $fineStatus
             ];
         }
         $stmt->close();
         
-        // Calculate fines for overdue books and get renewal info
+        // Add renewal info for active borrows
         foreach ($borrowHistory as &$record) {
-            if (!$record['returnDate'] && $record['dueDate']) {
-                $dueDate = new \DateTime($record['dueDate']);
-                $today = new \DateTime();
-                
-                if ($today > $dueDate) {
-                    $interval = $today->diff($dueDate);
-                    $daysOverdue = $interval->days;
-                    $record['fineAmount'] = $daysOverdue * 5; // LKR5 per day
-                    $record['fineStatus'] = 'Unpaid';
-                }
-            }
-
-            // Add renewal info for active borrows
             if (!$record['returnDate']) {
                 $record['renewalInfo'] = $this->borrowModel->getRenewalInfo($record['id'], $userId);
             }
@@ -1260,7 +1269,7 @@ class UserController extends BaseController
     }
     
     /**
-     * Renew (extend) a borrowed book's due date
+     * Request renewal of a borrowed book (requires admin approval)
      */
     public function renew()
     {
@@ -1271,22 +1280,112 @@ class UserController extends BaseController
             return;
         }
 
-        $borrowId = intval($_POST['borrow_id'] ?? 0);
+        global $mysqli;
         $userId = $_SESSION['userId'];
+        $tid = trim($_POST['borrow_id'] ?? '');
 
-        if ($borrowId <= 0) {
+        if (empty($tid)) {
             $_SESSION['error'] = 'Invalid borrow record.';
             $this->redirect('user/borrow-history');
             return;
         }
 
-        $result = $this->borrowModel->renewBook($borrowId, $userId);
+        // Ensure renewal_requests table exists
+        $mysqli->query("CREATE TABLE IF NOT EXISTS `renewal_requests` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `tid` varchar(255) NOT NULL,
+            `userId` varchar(255) NOT NULL,
+            `isbn` varchar(13) NOT NULL,
+            `currentDueDate` date NOT NULL,
+            `requestedDueDate` date NOT NULL,
+            `reason` text NULL,
+            `status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+            `adminId` varchar(255) NULL,
+            `adminNote` text NULL,
+            `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_tid` (`tid`),
+            KEY `idx_userId` (`userId`),
+            KEY `idx_status` (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        if ($result['success']) {
-            $_SESSION['success'] = $result['message'];
-        } else {
-            $_SESSION['error'] = $result['message'];
+        // Get the borrow record from books_borrowed table
+        $stmt = $mysqli->prepare("SELECT bb.*, u.borrow_period_days, u.max_renewals 
+                                  FROM books_borrowed bb 
+                                  JOIN users u ON bb.userId = u.userId 
+                                  WHERE bb.id = ? AND bb.userId = ? AND bb.status = 'Active'");
+        $stmt->bind_param("is", $tid, $userId);
+        $stmt->execute();
+        $transaction = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$transaction) {
+            $_SESSION['error'] = 'Borrow record not found or book already returned.';
+            $this->redirect('user/borrow-history');
+            return;
         }
+
+        $borrowPeriod = (int)($transaction['borrow_period_days'] ?? 14);
+        $maxRenewals = (int)($transaction['max_renewals'] ?? 1);
+        $currentDueDate = $transaction['dueDate'];
+
+        // Check if book is overdue
+        if (strtotime($currentDueDate) < time()) {
+            $_SESSION['error'] = 'Cannot renew an overdue book. Please return it and pay any fines first.';
+            $this->redirect('user/borrow-history');
+            return;
+        }
+
+        // Check if there's already a pending renewal request for this transaction
+        $stmt = $mysqli->prepare("SELECT id FROM renewal_requests WHERE tid = ? AND userId = ? AND status = 'Pending'");
+        $stmt->bind_param("ss", $tid, $userId);
+        $stmt->execute();
+        $existingRequest = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($existingRequest) {
+            $_SESSION['error'] = 'You already have a pending renewal request for this book. Please wait for admin approval.';
+            $this->redirect('user/borrow-history');
+            return;
+        }
+
+        // Count how many approved renewals this transaction has had
+        $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM renewal_requests WHERE tid = ? AND status = 'Approved'");
+        $stmt->bind_param("s", $tid);
+        $stmt->execute();
+        $approvedCount = (int)($stmt->get_result()->fetch_assoc()['count'] ?? 0);
+        $stmt->close();
+
+        if ($approvedCount >= $maxRenewals) {
+            $_SESSION['error'] = "Maximum renewals reached ({$approvedCount}/{$maxRenewals}). Cannot renew further.";
+            $this->redirect('user/borrow-history');
+            return;
+        }
+
+        // Calculate new requested due date
+        $requestedDueDate = date('Y-m-d', strtotime($currentDueDate . " + {$borrowPeriod} days"));
+        $reason = trim($_POST['reason'] ?? '');
+
+        // Insert renewal request
+        $stmt = $mysqli->prepare("INSERT INTO renewal_requests (tid, userId, isbn, currentDueDate, requestedDueDate, reason, status) 
+                                  VALUES (?, ?, ?, ?, ?, ?, 'Pending')");
+        $stmt->bind_param("ssssss", $tid, $userId, $transaction['isbn'], $currentDueDate, $requestedDueDate, $reason);
+
+        if ($stmt->execute()) {
+            // Send notification to admin
+            $notifStmt = $mysqli->prepare("INSERT INTO notifications (userId, title, message, type, priority) 
+                                           VALUES (NULL, 'Renewal Request', ?, 'renewal', 'medium')");
+            $notifMessage = "User {$userId} has requested a renewal for book ISBN: {$transaction['isbn']}. Current due: {$currentDueDate}. Requested new due: {$requestedDueDate}.";
+            $notifStmt->bind_param("s", $notifMessage);
+            $notifStmt->execute();
+            $notifStmt->close();
+
+            $_SESSION['success'] = 'Renewal request submitted successfully! Please wait for admin approval.';
+        } else {
+            $_SESSION['error'] = 'Failed to submit renewal request. Please try again.';
+        }
+        $stmt->close();
 
         $this->redirect('user/borrow-history');
     }

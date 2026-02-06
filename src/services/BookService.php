@@ -243,16 +243,16 @@ class BookService
         global $mysqli;  // Changed from $conn to $mysqli
 
         try {
-            // Check if book has active transactions
-            $checkQuery = "SELECT COUNT(*) as count FROM transactions WHERE isbn = ? AND returnDate IS NULL";
-            $checkStmt = $mysqli->prepare($checkQuery);  // Changed to use $mysqli
+            // Check if book has active borrows
+            $checkQuery = "SELECT COUNT(*) as count FROM books_borrowed WHERE isbn = ? AND status = 'Active'";
+            $checkStmt = $mysqli->prepare($checkQuery);
             $checkStmt->bind_param("s", $isbn);
             $checkStmt->execute();
             $result = $checkStmt->get_result();
             $row = $result->fetch_assoc();
 
             if ($row['count'] > 0) {
-                return false; // Cannot delete book with active transactions
+                return false; // Cannot delete book with active borrows
             }
 
             // Delete the book

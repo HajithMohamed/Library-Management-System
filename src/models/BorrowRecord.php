@@ -9,8 +9,9 @@ class BorrowRecord extends BaseModel
     public function getActiveBorrowCount($userId)
     {
         try {
-            $sql = "SELECT COUNT(*) as count FROM {$this->table} 
-                    WHERE userId = ? AND returnDate IS NULL";
+            // Count from books_borrowed table (the primary borrow management table)
+            $sql = "SELECT COUNT(*) as count FROM books_borrowed 
+                    WHERE userId = ? AND status = 'Active'";
             $stmt = $this->db->prepare($sql);
             if (!$stmt) {
                 error_log("Failed to prepare statement in getActiveBorrowCount: " . $this->db->error);
@@ -376,7 +377,7 @@ class BorrowRecord extends BaseModel
                                         JOIN users u ON bb.userId = u.userId 
                                         WHERE bb.id = ? AND bb.userId = ?");
             if (!$stmt) {
-                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
             }
             $stmt->bind_param('is', $borrowId, $userId);
             $stmt->execute();
@@ -384,7 +385,7 @@ class BorrowRecord extends BaseModel
             $stmt->close();
 
             if (!$result) {
-                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
             }
 
             $renewalCount = (int)($result['renewalCount'] ?? 0);
@@ -393,7 +394,25 @@ class BorrowRecord extends BaseModel
             
             // Can renew if under limit and not overdue
             $isOverdue = !empty($result['dueDate']) && strtotime($result['dueDate']) < time();
-            $canRenew = ($remaining > 0) && !$isOverdue;
+            
+            // Check if within 2-day renewal window (due date is within next 2 days)
+            $withinRenewalWindow = false;
+            if (!empty($result['dueDate']) && !$isOverdue) {
+                $daysUntilDue = (strtotime($result['dueDate']) - time()) / 86400;
+                $withinRenewalWindow = ($daysUntilDue <= 2);
+            }
+            
+            // Check for pending renewal request
+            $hasPendingRequest = false;
+            $pendStmt = $this->db->prepare("SELECT id FROM renewal_requests WHERE tid = ? AND userId = ? AND status = 'Pending'");
+            if ($pendStmt) {
+                $pendStmt->bind_param('is', $borrowId, $userId);
+                $pendStmt->execute();
+                $hasPendingRequest = (bool)$pendStmt->get_result()->fetch_assoc();
+                $pendStmt->close();
+            }
+            
+            $canRenew = ($remaining > 0) && !$isOverdue && !$hasPendingRequest && $withinRenewalWindow;
 
             return [
                 'renewalCount' => $renewalCount,
@@ -401,11 +420,14 @@ class BorrowRecord extends BaseModel
                 'remainingRenewals' => $remaining,
                 'canRenew' => $canRenew,
                 'lastRenewalDate' => $result['lastRenewalDate'],
-                'isOverdue' => $isOverdue
+                'isOverdue' => $isOverdue,
+                'withinRenewalWindow' => $withinRenewalWindow,
+                'hasPendingRequest' => $hasPendingRequest,
+                'dueDate' => $result['dueDate'] ?? null
             ];
         } catch (\Exception $e) {
             error_log("Error in getRenewalInfo: " . $e->getMessage());
-            return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+            return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
         }
     }
 }

@@ -7,293 +7,370 @@ include APP_ROOT . '/views/layouts/header.php';
 ?>
 
 <style>
-.borrow-history-bg {
+body {
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+body::-webkit-scrollbar {
+    display: none;
+}
+
+.history-modern-bg {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 3rem 0;
+    padding: 4rem 2rem;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
+    position: relative;
+    overflow: hidden;
 }
-.borrow-history-card {
-    background: #fff;
-    border-radius: 36px;
-    box-shadow: 0 24px 64px rgba(102, 126, 234, 0.18);
-    max-width: 1100px;
-    width: 100%;
+.history-modern-bg::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: float 20s infinite ease-in-out;
+}
+.history-modern-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: float 25s infinite ease-in-out reverse;
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
+    33% { transform: translateY(-30px) translateX(30px) rotate(120deg); }
+    66% { transform: translateY(30px) translateX(-30px) rotate(240deg); }
+}
+
+.history-modern-card {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    border-radius: 32px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+    max-width: 1600px;
+    width: 95%;
     margin: 0 auto;
     overflow: hidden;
-    animation: fadeInModern 0.7s cubic-bezier(.4,0,.2,1);
+    animation: slideUpFade 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
-@keyframes fadeInModern {
-    from { opacity: 0; transform: translateY(50px);}
-    to { opacity: 1; transform: translateY(0);}
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(50px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.borrow-history-header {
+
+.history-modern-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
-    padding: 2.7rem 3.2rem 2.2rem 3.2rem;
-    border-radius: 36px 36px 0 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
+    padding: 2.5rem 3rem;
+    border-radius: 32px 32px 0 0;
     position: relative;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.10);
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
+    text-align: center;
 }
-.borrow-history-header h1 {
+.history-modern-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+.history-header-content {
+    position: relative;
+    z-index: 1;
+}
+.history-modern-header h1 {
     font-size: 2.2rem;
     font-weight: 900;
+    margin: 0 0 0.5rem 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    letter-spacing: -0.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.history-modern-header p {
+    font-size: 1rem;
+    opacity: 0.95;
     margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 1.1rem;
-    letter-spacing: 0.02em;
+    font-weight: 500;
 }
-.borrow-history-header p {
-    font-size: 1.08rem;
-    opacity: 0.97;
-    margin: 0.6rem 0 0 0;
+
+.history-modern-body {
+    padding: 2.5rem 3rem;
 }
-.borrow-history-header .back-button {
-    background: rgba(255,255,255,0.12);
-    border: 2px solid #fff;
-    color: #fff;
-    border-radius: 14px;
-    padding: 0.8rem 1.7rem;
-    font-weight: 700;
-    font-size: 1.05rem;
-    text-decoration: none;
-    transition: all 0.2s;
-    margin-left: auto;
-    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.08);
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 20px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-.borrow-history-header .back-button:hover {
-    background: #fff;
-    color: #667eea;
+.table-wrapper::-webkit-scrollbar {
+    display: none;
 }
-.borrow-history-body {
-    padding: 2.7rem 3.2rem 3.2rem 3.2rem;
-}
-.borrow-history-table {
+
+.history-table {
     width: 100%;
     border-collapse: separate;
-    border-spacing: 0 14px;
-    margin-top: 1.7rem;
-    table-layout: fixed;
+    border-spacing: 0;
 }
-.borrow-history-table th, .borrow-history-table td {
-    padding: 1.2rem 1.1rem;
+.history-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.history-table th {
+    padding: 1.25rem 1rem;
     text-align: left;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-.borrow-history-table th:nth-child(1), .borrow-history-table td:nth-child(1) { width: 25%; }
-.borrow-history-table th:nth-child(2), .borrow-history-table td:nth-child(2) { width: 18%; }
-.borrow-history-table th:nth-child(3), .borrow-history-table td:nth-child(3) { width: 12%; }
-.borrow-history-table th:nth-child(4), .borrow-history-table td:nth-child(4) { width: 12%; }
-.borrow-history-table th:nth-child(5), .borrow-history-table td:nth-child(5) { width: 13%; }
-.borrow-history-table th:nth-child(6), .borrow-history-table td:nth-child(6) { width: 20%; }
-.borrow-history-table th {
-    background: #f3f4f6;
-    color: #667eea;
-    font-weight: 900;
-    font-size: 1.08rem;
-    text-transform: uppercase;
-    border-radius: 12px 12px 0 0;
-    letter-spacing: 0.07em;
-    border-bottom: 2px solid #e5e7eb;
-}
-.borrow-history-table tr {
-    background: #f9fafb;
-    border-radius: 16px;
-    transition: box-shadow 0.2s, background 0.2s;
-}
-.borrow-history-table tr:hover {
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.10);
-    background: #f1f5f9;
-}
-.status-badge-modern {
-    padding: 0.6rem 1.5rem;
-    border-radius: 22px;
+    color: white;
     font-weight: 800;
-    font-size: 1.05rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    white-space: nowrap;
+}
+.history-table th:first-child {
+    border-radius: 20px 0 0 0;
+}
+.history-table th:last-child {
+    border-radius: 0 20px 0 0;
+}
+.history-table tbody tr {
+    background: white;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f3f4f6;
+}
+.history-table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.1);
+    transform: scale(1.01);
+}
+.history-table td {
+    padding: 1.25rem 1rem;
+    font-weight: 600;
+    color: #374151;
+    border: none;
+}
+
+.badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.85rem;
     display: inline-block;
-    letter-spacing: 0.04em;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.07);
 }
-.status-badge-modern.Returned {
-    background: #d1fae5;
+.badge-warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+.badge-success {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     color: #065f46;
-    border-color: #6ee7b7;
 }
-.status-badge-modern.Borrowed, .status-badge-modern.Active {
-    background: #fef3c7;
-    color: #b45309;
-    border-color: #fde68a;
-}
-.status-badge-modern.Overdue {
-    background: #fee2e2;
+.badge-danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
     color: #991b1b;
-    border-color: #fca5a5;
 }
-.extend-btn {
-    padding: 0.5rem 1.3rem;
+.badge-info {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    color: #0369a1;
+}
+.badge-secondary {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    color: #4b5563;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
     border-radius: 10px;
     border: none;
     font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.13);
-    font-size: 0.98rem;
-    cursor: pointer;
 }
-.extend-btn:disabled {
-    background: #e5e7eb;
-    color: #a1a1aa;
-    cursor: not-allowed;
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
 }
-.extend-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    transform: translateY(-2px) scale(1.03);
-}
-.empty-modern-state {
+
+.empty-state {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 5rem 2rem;
     color: #9ca3af;
 }
-.empty-modern-state i {
-    font-size: 3.7rem;
-    margin-bottom: 20px;
-    opacity: 0.5;
-}
-.empty-modern-state h4 {
-    font-size: 1.8rem;
-    font-weight: 900;
-    margin-bottom: 0.7rem;
-}
-.empty-modern-state p {
-    font-size: 1.13rem;
-    margin-bottom: 2.2rem;
-}
-.browse-modern-btn {
-    padding: 1.1rem 2.1rem;
-    border-radius: 14px;
-    border: none;
-    font-weight: 800;
+.empty-state i {
+    font-size: 5rem;
+    margin-bottom: 2rem;
+    opacity: 0.4;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.8rem;
-    transition: all 0.3s;
-    box-shadow: 0 12px 28px rgba(102, 126, 234, 0.25);
-    font-size: 1.08rem;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
-.browse-modern-btn:hover {
-    transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 18px 40px rgba(102, 126, 234, 0.32);
-    color: white;
+.empty-state h4 {
+    font-size: 2rem;
+    font-weight: 900;
+    margin-bottom: 1rem;
+    color: #1f2937;
+}
+.empty-state p {
+    font-size: 1.2rem;
+    margin-bottom: 2.5rem;
+    color: #6b7280;
+}
+
+@media (max-width: 768px) {
+    .history-modern-header,
+    .history-modern-body {
+        padding: 2rem 1.5rem;
+    }
+    .history-table th,
+    .history-table td {
+        padding: 1rem 0.75rem;
+        font-size: 0.9rem;
+    }
 }
 </style>
 
-<div class="borrow-history-bg">
-    <div class="borrow-history-card">
-        <div class="borrow-history-header">
-            <div>
-                <h1><i class="fas fa-history"></i> Borrow History</h1>
-                <p>Below is your complete borrow history. You can request to extend due dates for active borrows.</p>
+<div class="history-modern-bg">
+    <div class="history-modern-card">
+        <div class="history-modern-header">
+            <div class="history-header-content">
+                <h1>
+                    <i class="fas fa-history"></i>
+                    Borrow History
+                </h1>
+                <p>Track all your past and current book borrowings</p>
             </div>
-            <a href="<?= BASE_URL ?>faculty/dashboard" class="back-button">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </a>
         </div>
-        <div class="borrow-history-body">
+
+        <div class="history-modern-body">
             <?php if (!empty($history)): ?>
-                <div style="overflow-x:auto;">
-                <table class="borrow-history-table">
-                    <thead>
-                        <tr>
-                            <th>Book Name</th>
-                            <th>Author</th>
-                            <th>Borrow Date</th>
-                            <th>Return Date</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($history as $item): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($item['bookName'] ?? $item['title'] ?? 'Unknown') ?></td>
-                            <td><?= htmlspecialchars($item['authorName'] ?? $item['author'] ?? 'Unknown') ?></td>
-                            <td><?= !empty($item['borrowDate']) ? date('M d, Y', strtotime($item['borrowDate'])) : '-' ?></td>
-                            <td>
-                                <?php if (!empty($item['returnDate'])): ?>
-                                    <?= date('M d, Y', strtotime($item['returnDate'])) ?>
-                                <?php else: ?>
-                                    <span class="status-badge-modern Borrowed">Borrowed</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if (!empty($item['returnDate'])): ?>
-                                    <span class="status-badge-modern Returned">Returned</span>
-                                <?php elseif (!empty($item['dueDate']) && strtotime($item['dueDate']) < time()): ?>
-                                    <span class="status-badge-modern Overdue">Overdue</span>
-                                <?php else: ?>
-                                    <span class="status-badge-modern Active">Active</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <!-- Action Section: Renew Book -->
-                                <?php if (empty($item['returnDate'])): ?>
-                                    <?php
-                                    $renewalInfo = $item['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 2, 'isOverdue' => false];
-                                    $canRenew = $renewalInfo['canRenew'] ?? false;
-                                    $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
-                                    $maxRenewals = $renewalInfo['maxRenewals'] ?? 2;
-                                    ?>
-                                    <div style="display:flex; flex-direction:column; gap:8px;">
-                                        <?php if ($canRenew): ?>
-                                            <form method="POST" action="<?= BASE_URL ?>faculty/renew" style="display:inline;">
-                                                <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($item['id'] ?? '') ?>">
-                                                <button type="submit" class="extend-btn" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>">
-                                                    <i class="fas fa-sync-alt"></i>
-                                                    Renew (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
-                                                </button>
-                                            </form>
+                <div class="table-wrapper">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-book"></i> Book Name</th>
+                                <th><i class="fas fa-user-edit"></i> Author</th>
+                                <th><i class="fas fa-calendar-plus"></i> Borrow Date</th>
+                                <th><i class="fas fa-calendar-times"></i> Due Date</th>
+                                <th><i class="fas fa-calendar-check"></i> Return Date</th>
+                                <th><i class="fas fa-money-bill-wave"></i> Fine</th>
+                                <th><i class="fas fa-star"></i> Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($history as $item): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($item['bookName'] ?? $item['title'] ?? 'Unknown') ?></td>
+                                    <td><?= htmlspecialchars($item['authorName'] ?? $item['author'] ?? 'Unknown') ?></td>
+                                    <td><?= !empty($item['borrowDate']) ? date('M d, Y', strtotime($item['borrowDate'])) : '-' ?></td>
+                                    <td>
+                                        <?php if (!empty($item['dueDate']) && empty($item['returnDate'])): ?>
+                                            <?php $daysLeft = (strtotime($item['dueDate']) - time()) / 86400; ?>
+                                            <?php if ($daysLeft < 0): ?>
+                                                <span class="badge badge-danger"><?= date('M d, Y', strtotime($item['dueDate'])) ?></span>
+                                            <?php elseif ($daysLeft <= 2): ?>
+                                                <span class="badge badge-warning"><?= date('M d, Y', strtotime($item['dueDate'])) ?></span>
+                                            <?php else: ?>
+                                                <?= date('M d, Y', strtotime($item['dueDate'])) ?>
+                                            <?php endif; ?>
+                                        <?php elseif (!empty($item['dueDate'])): ?>
+                                            <?= date('M d, Y', strtotime($item['dueDate'])) ?>
                                         <?php else: ?>
-                                            <button class="extend-btn" disabled title="<?= !empty($renewalInfo['isOverdue']) ? 'Overdue - cannot renew' : 'Max renewals reached' ?>">
-                                                <i class="fas fa-ban"></i>
-                                                <?= !empty($renewalInfo['isOverdue']) ? 'Overdue' : "Renewed {$renewalsUsed}/{$maxRenewals}" ?>
-                                            </button>
+                                            -
                                         <?php endif; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <span style="color:#a1a1aa;">-</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($item['returnDate'])): ?>
+                                            <?= date('M d, Y', strtotime($item['returnDate'])) ?>
+                                        <?php else: ?>
+                                            <span class="badge badge-warning">Not Returned</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (($item['fineAmount'] ?? 0) > 0): ?>
+                                            <span class="fine-amount">LKR <?= number_format($item['fineAmount'], 2) ?></span>
+                                            <span class="badge <?= ($item['fineStatus'] ?? '') === 'Paid' ? 'badge-success' : 'badge-danger' ?>">
+                                                <?= htmlspecialchars($item['fineStatus'] ?? 'Unpaid') ?>
+                                            </span>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (empty($item['returnDate'])): ?>
+                                            <?php
+                                            $renewalInfo = $item['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 2, 'isOverdue' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
+                                            $canRenew = $renewalInfo['canRenew'] ?? false;
+                                            $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
+                                            $maxRenewals = $renewalInfo['maxRenewals'] ?? 2;
+                                            $isOverdue = !empty($renewalInfo['isOverdue']);
+                                            $hasPendingRequest = !empty($renewalInfo['hasPendingRequest']);
+                                            $withinWindow = !empty($renewalInfo['withinRenewalWindow']);
+                                            ?>
+                                            <?php if ($hasPendingRequest): ?>
+                                                <span class="badge badge-warning" title="Waiting for admin approval">
+                                                    ⏳ Pending Approval
+                                                </span>
+                                            <?php elseif ($canRenew): ?>
+                                                <form method="POST" action="<?= BASE_URL ?>faculty/renew" style="display:inline;">
+                                                    <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($item['id'] ?? '') ?>">
+                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>"
+                                                            onclick="return confirm('Submit renewal request? Admin approval is required.')">
+                                                        <i class="fas fa-sync-alt"></i> Request Renewal (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
+                                                    </button>
+                                                </form>
+                                            <?php elseif ($isOverdue): ?>
+                                                <span class="badge badge-danger" title="Overdue - cannot renew">
+                                                    ⚠ Overdue
+                                                </span>
+                                            <?php elseif ($renewalsUsed >= $maxRenewals): ?>
+                                                <span class="badge badge-secondary" title="Max renewals reached">
+                                                    Renewed <?= $renewalsUsed ?>/<?= $maxRenewals ?>
+                                                </span>
+                                            <?php elseif (!$withinWindow): ?>
+                                                <span class="badge badge-info" title="Renewal available within 2 days of due date">
+                                                    <i class="fas fa-clock"></i> Renew opens near due date
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span style="color:#a1a1aa;">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             <?php else: ?>
-                <div class="empty-modern-state">
+                <div class="empty-state">
                     <i class="fas fa-history"></i>
                     <h4>No Borrow History</h4>
-                    <p>You have not borrowed any books yet.</p>
-                    <a href="<?= BASE_URL ?>faculty/books" class="browse-modern-btn">
+                    <p>You haven't borrowed any books yet</p>
+                    <a href="<?= BASE_URL ?>faculty/books" class="btn-small btn-primary" style="padding: 1rem 2rem; font-size: 1rem; text-decoration: none;">
                         <i class="fas fa-book"></i> Browse Books
                     </a>
                 </div>
@@ -301,6 +378,5 @@ include APP_ROOT . '/views/layouts/header.php';
         </div>
     </div>
 </div>
-
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>

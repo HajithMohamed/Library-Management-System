@@ -126,8 +126,8 @@ if ($action === 'mark_borrowed') {
         $limitStmt->close();
     }
 
-    // Count current active borrows
-    $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND returnDate IS NULL");
+    // Count current active borrows from books_borrowed table
+    $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND status = 'Active'");
     $currentBorrows = 0;
     if ($countStmt) {
         $countStmt->bind_param("s", $request['userId']);

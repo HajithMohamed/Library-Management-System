@@ -32,7 +32,7 @@ class HomeController
         $availableBooks = $availableBooksResult->fetch_assoc()['count'] ?? 0;
         
         // Fetch borrowed books count
-        $borrowedBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+        $borrowedBooksResult = $mysqli->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Active'");
         $activeBorrowings = $borrowedBooksResult->fetch_assoc()['count'];
         
         // Pass data to view

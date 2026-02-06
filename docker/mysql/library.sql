@@ -1708,6 +1708,28 @@ INSERT IGNORE INTO `notifications` (`userId`, `title`, `message`, `type`, `prior
 (NULL, 'Library Announcement', 'New books added to Computer Science collection. Check out the latest titles!', 'system', 'medium', 0, NULL, '2025-10-15 10:00:00');
 
 -- ====================================================================
+-- Renewal Requests Table
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS `renewal_requests` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tid` varchar(255) NOT NULL COMMENT 'Transaction ID from transactions table',
+  `userId` varchar(255) NOT NULL,
+  `isbn` varchar(13) NOT NULL,
+  `currentDueDate` date NOT NULL,
+  `requestedDueDate` date NOT NULL,
+  `reason` text NULL,
+  `status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+  `adminId` varchar(255) NULL COMMENT 'Admin who handled the request',
+  `adminNote` text NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_tid` (`tid`),
+  KEY `idx_userId` (`userId`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ====================================================================
 -- Re-enable foreign key checks
 -- ====================================================================
 SET FOREIGN_KEY_CHECKS = 1;

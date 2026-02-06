@@ -600,15 +600,15 @@ class User extends BaseModel
             if ($startDate && $endDate) {
                 $stmt = $this->db->prepare("
                     SELECT COUNT(DISTINCT userId) as count 
-                    FROM transactions 
+                    FROM books_borrowed 
                     WHERE borrowDate BETWEEN ? AND ?
                 ");
                 $stmt->bind_param("ss", $startDate, $endDate);
             } else {
                 $stmt = $this->db->prepare("
                     SELECT COUNT(DISTINCT userId) as count 
-                    FROM transactions 
-                    WHERE returnDate IS NULL
+                    FROM books_borrowed 
+                    WHERE status = 'Active'
                 ");
             }
             

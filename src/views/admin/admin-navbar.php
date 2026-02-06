@@ -510,6 +510,31 @@
                         <?php endif; ?>
                     </a>
                 </div>
+
+                <div class="nav-item">
+                    <a href="<?= BASE_URL ?>admin/renewal-requests"
+                        class="nav-link <?= $currentPage === 'renewal-requests' ? 'active' : '' ?>"
+                        data-title="Renewal Requests">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Renewal Requests</span>
+                        <?php
+                        // Get pending renewal requests count
+                        $pendingRenewalCount = 0;
+                        if (isset($mysqli)) {
+                            $rrCheck = $mysqli->query("SHOW TABLES LIKE 'renewal_requests'");
+                            if ($rrCheck && $rrCheck->num_rows > 0) {
+                                $rrResult = $mysqli->query("SELECT COUNT(*) as count FROM renewal_requests WHERE status = 'Pending'");
+                                if ($rrResult) {
+                                    $pendingRenewalCount = $rrResult->fetch_assoc()['count'];
+                                }
+                            }
+                        }
+                        if ($pendingRenewalCount > 0):
+                            ?>
+                            <span class="nav-badge"><?= $pendingRenewalCount ?></span>
+                        <?php endif; ?>
+                    </a>
+                </div>
             </div>
 
             <!-- User Management Section -->

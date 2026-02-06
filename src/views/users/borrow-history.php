@@ -224,6 +224,16 @@ body::-webkit-scrollbar {
     color: #991b1b;
 }
 
+.badge-info {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    color: #0369a1;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    color: #4b5563;
+}
+
 .btn-small {
     padding: 0.5rem 1rem;
     border-radius: 10px;
@@ -426,6 +436,7 @@ body::-webkit-scrollbar {
                                 <th><i class="fas fa-book"></i> Book Name</th>
                                 <th><i class="fas fa-user-edit"></i> Author</th>
                                 <th><i class="fas fa-calendar-plus"></i> Borrow Date</th>
+                                <th><i class="fas fa-calendar-times"></i> Due Date</th>
                                 <th><i class="fas fa-calendar-check"></i> Return Date</th>
                                 <th><i class="fas fa-money-bill-wave"></i> Fine</th>
                                 <th><i class="fas fa-star"></i> Actions</th>
@@ -434,9 +445,26 @@ body::-webkit-scrollbar {
                         <tbody>
                             <?php foreach ($borrowHistory as $transaction): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($transaction['bookName']); ?></td>
+                                    <td><?php echo htmlspecialchars($transaction['bookName'] ?? 'Unknown Book'); ?></td>
                                     <td><?php echo htmlspecialchars($transaction['authorName'] ?? 'N/A'); ?></td>
                                     <td><?php echo date('M d, Y', strtotime($transaction['borrowDate'])); ?></td>
+                                    <td>
+                                        <?php if (!empty($transaction['dueDate']) && !$transaction['returnDate']): ?>
+                                            <?php
+                                            $daysLeft = (strtotime($transaction['dueDate']) - time()) / 86400;
+                                            if ($daysLeft < 0): ?>
+                                                <span class="badge badge-danger"><?= date('M d, Y', strtotime($transaction['dueDate'])) ?></span>
+                                            <?php elseif ($daysLeft <= 2): ?>
+                                                <span class="badge badge-warning"><?= date('M d, Y', strtotime($transaction['dueDate'])) ?></span>
+                                            <?php else: ?>
+                                                <?= date('M d, Y', strtotime($transaction['dueDate'])) ?>
+                                            <?php endif; ?>
+                                        <?php elseif (!empty($transaction['dueDate'])): ?>
+                                            <?= date('M d, Y', strtotime($transaction['dueDate'])) ?>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?php if ($transaction['returnDate']): ?>
                                             <?php echo date('M d, Y', strtotime($transaction['returnDate'])); ?>
@@ -446,7 +474,7 @@ body::-webkit-scrollbar {
                                     </td>
                                     <td>
                                         <?php if ($transaction['fineAmount'] > 0): ?>
-                                            <span class="fine-amount">₹<?php echo number_format($transaction['fineAmount'], 2); ?></span>
+                                            <span class="fine-amount">LKR <?php echo number_format($transaction['fineAmount'], 2); ?></span>
                                             <span class="badge <?php echo $transaction['fineStatus'] === 'Paid' ? 'badge-success' : 'badge-danger'; ?>">
                                                 <?php echo $transaction['fineStatus']; ?>
                                             </span>
@@ -457,21 +485,37 @@ body::-webkit-scrollbar {
                                     <td>
                                         <?php if (!$transaction['returnDate']): ?>
                                             <?php
-                                            $renewalInfo = $transaction['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 1, 'isOverdue' => false];
+                                            $renewalInfo = $transaction['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 1, 'isOverdue' => false, 'withinRenewalWindow' => false, 'hasPendingRequest' => false];
                                             $canRenew = $renewalInfo['canRenew'] ?? false;
                                             $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
                                             $maxRenewals = $renewalInfo['maxRenewals'] ?? 1;
+                                            $isOverdue = !empty($renewalInfo['isOverdue']);
+                                            $hasPendingRequest = !empty($renewalInfo['hasPendingRequest']);
+                                            $withinWindow = !empty($renewalInfo['withinRenewalWindow']);
                                             ?>
-                                            <?php if ($canRenew): ?>
-                                                <form method="POST" action="<?= BASE_URL ?><?= ($_SESSION['userType'] ?? 'Student') === 'Faculty' ? 'faculty' : 'user' ?>/renew" style="display:inline;">
+                                            <?php if ($hasPendingRequest): ?>
+                                                <span class="badge badge-warning" title="Waiting for admin approval">
+                                                    ⏳ Pending Approval
+                                                </span>
+                                            <?php elseif ($canRenew): ?>
+                                                <form method="POST" action="<?= BASE_URL ?>user/renew" style="display:inline;">
                                                     <input type="hidden" name="borrow_id" value="<?= $transaction['id'] ?>">
-                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>">
-                                                        🔄 Renew (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
+                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>"
+                                                            onclick="return confirm('Submit renewal request? Admin approval is required.')">
+                                                        <i class="fas fa-sync-alt"></i> Request Renewal (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
                                                     </button>
                                                 </form>
-                                            <?php else: ?>
-                                                <span class="badge badge-warning" title="<?= !empty($renewalInfo['isOverdue']) ? 'Overdue - cannot renew' : 'Max renewals reached' ?>">
-                                                    <?= !empty($renewalInfo['isOverdue']) ? '⚠ Overdue' : "Renewed {$renewalsUsed}/{$maxRenewals}" ?>
+                                            <?php elseif ($isOverdue): ?>
+                                                <span class="badge badge-danger" title="Overdue - cannot renew">
+                                                    ⚠ Overdue
+                                                </span>
+                                            <?php elseif ($renewalsUsed >= $maxRenewals): ?>
+                                                <span class="badge badge-secondary" title="Max renewals reached">
+                                                    Renewed <?= $renewalsUsed ?>/<?= $maxRenewals ?>
+                                                </span>
+                                            <?php elseif (!$withinWindow): ?>
+                                                <span class="badge badge-info" title="Renewal available within 2 days of due date">
+                                                    <i class="fas fa-clock"></i> Renew opens near due date
                                                 </span>
                                             <?php endif; ?>
                                         <?php elseif ($transaction['returnDate'] && $_SESSION['userType'] === 'Student'): ?>
@@ -486,7 +530,7 @@ body::-webkit-scrollbar {
                                             
                                             <?php if (!$hasReview): ?>
                                                 <button class="btn-small btn-primary" 
-                                                        onclick="showReviewModal('<?php echo $transaction['isbn']; ?>', '<?php echo htmlspecialchars(addslashes($transaction['bookName'])); ?>')">
+                                                        onclick="showReviewModal('<?php echo $transaction['isbn']; ?>', '<?php echo htmlspecialchars(addslashes($transaction['bookName'] ?? 'Unknown Book')); ?>')">
                                                     ⭐ Rate & Review
                                                 </button>
                                             <?php else: ?>

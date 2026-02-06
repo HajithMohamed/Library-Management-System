@@ -61,16 +61,15 @@ class AdminController
     $totalTransactions = $totalTransactionsResult->fetch_assoc()['count'];
 
     // Fetch active borrowings (not returned yet)
-    $activeBorrowingsResult = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
+    $activeBorrowingsResult = $conn->query("SELECT COUNT(*) as count FROM books_borrowed WHERE status = 'Active'");
     $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
 
-    // Fetch overdue books (borrowed longer than user's borrow period, not returned)
+    // Fetch overdue books
     $overdueBooksResult = $conn->query("
             SELECT COUNT(*) as count
-            FROM transactions t
-            LEFT JOIN users u ON t.userId = u.userId
-            WHERE t.returnDate IS NULL
-            AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)
+            FROM books_borrowed
+            WHERE status = 'Active'
+            AND dueDate < CURDATE()
         ");
     $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
 
@@ -902,6 +901,153 @@ class AdminController
   }
 
   /**
+   * View Renewal Requests
+   */
+  public function renewalRequests()
+  {
+    $this->authHelper->requireAdmin();
+
+    global $conn;
+
+    // Ensure renewal_requests table exists
+    $conn->query("CREATE TABLE IF NOT EXISTS `renewal_requests` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `tid` varchar(255) NOT NULL,
+        `userId` varchar(255) NOT NULL,
+        `isbn` varchar(13) NOT NULL,
+        `currentDueDate` date NOT NULL,
+        `requestedDueDate` date NOT NULL,
+        `reason` text NULL,
+        `status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+        `adminId` varchar(255) NULL,
+        `adminNote` text NULL,
+        `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `idx_tid` (`tid`),
+        KEY `idx_userId` (`userId`),
+        KEY `idx_status` (`status`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $status = $_GET['status'] ?? 'Pending';
+
+    // Fetch renewal requests with user and book info
+    if ($status === 'all') {
+        $sql = "SELECT rr.*, u.username, u.emailId, u.userType, b.bookName, b.authorName
+                FROM renewal_requests rr
+                LEFT JOIN users u ON rr.userId = u.userId
+                LEFT JOIN books b ON rr.isbn = b.isbn
+                ORDER BY rr.createdAt DESC";
+        $result = $conn->query($sql);
+    } else {
+        $stmt = $conn->prepare("SELECT rr.*, u.username, u.emailId, u.userType, b.bookName, b.authorName
+                FROM renewal_requests rr
+                LEFT JOIN users u ON rr.userId = u.userId
+                LEFT JOIN books b ON rr.isbn = b.isbn
+                WHERE rr.status = ?
+                ORDER BY rr.createdAt DESC");
+        $stmt->bind_param("s", $status);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    }
+
+    $requests = [];
+    while ($row = $result->fetch_assoc()) {
+        $requests[] = $row;
+    }
+
+    // Get counts per status
+    $statusCounts = ['Pending' => 0, 'Approved' => 0, 'Rejected' => 0, 'all' => 0];
+    $countResult = $conn->query("SELECT status, COUNT(*) as cnt FROM renewal_requests GROUP BY status");
+    if ($countResult) {
+        while ($row = $countResult->fetch_assoc()) {
+            $statusCounts[$row['status']] = (int)$row['cnt'];
+        }
+    }
+    $totalResult = $conn->query("SELECT COUNT(*) as cnt FROM renewal_requests");
+    $statusCounts['all'] = (int)($totalResult->fetch_assoc()['cnt'] ?? 0);
+
+    $this->render('admin/renewal-requests', [
+        'requests' => $requests,
+        'currentStatus' => $status,
+        'statusCounts' => $statusCounts
+    ]);
+  }
+
+  /**
+   * Handle Renewal Request (approve/reject)
+   */
+  public function handleRenewalRequest()
+  {
+    $this->authHelper->requireAdmin();
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $this->redirect('/admin/renewal-requests');
+        return;
+    }
+
+    global $conn;
+    $requestId = intval($_POST['requestId'] ?? 0);
+    $action = $_POST['action'] ?? '';
+    $adminId = $_SESSION['userId'];
+    $adminNote = trim($_POST['adminNote'] ?? '');
+
+    if ($requestId <= 0 || !in_array($action, ['approve', 'reject'])) {
+        $_SESSION['error'] = 'Invalid request.';
+        $this->redirect('/admin/renewal-requests');
+        return;
+    }
+
+    // Fetch the renewal request
+    $stmt = $conn->prepare("SELECT rr.*, u.borrow_period_days FROM renewal_requests rr JOIN users u ON rr.userId = u.userId WHERE rr.id = ? AND rr.status = 'Pending'");
+    $stmt->bind_param("i", $requestId);
+    $stmt->execute();
+    $request = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$request) {
+        $_SESSION['error'] = 'Renewal request not found or already processed.';
+        $this->redirect('/admin/renewal-requests');
+        return;
+    }
+
+    if ($action === 'approve') {
+        // Update renewal request status
+        $stmt = $conn->prepare("UPDATE renewal_requests SET status = 'Approved', adminId = ?, adminNote = ?, updatedAt = NOW() WHERE id = ?");
+        $stmt->bind_param("ssi", $adminId, $adminNote, $requestId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Notify user
+        $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority) VALUES (?, 'Renewal Approved', ?, 'approval', 'high')");
+        $notifMessage = "Your renewal request for book '{$request['isbn']}' has been approved! New due date: {$request['requestedDueDate']}.";
+        $stmt->bind_param("ss", $request['userId'], $notifMessage);
+        $stmt->execute();
+        $stmt->close();
+
+        $_SESSION['success'] = "Renewal request approved. New due date: {$request['requestedDueDate']}.";
+    } else {
+        // Reject
+        $stmt = $conn->prepare("UPDATE renewal_requests SET status = 'Rejected', adminId = ?, adminNote = ?, updatedAt = NOW() WHERE id = ?");
+        $stmt->bind_param("ssi", $adminId, $adminNote, $requestId);
+        $stmt->execute();
+        $stmt->close();
+
+        // Notify user  
+        $stmt = $conn->prepare("INSERT INTO notifications (userId, title, message, type, priority) VALUES (?, 'Renewal Rejected', ?, 'rejection', 'high')");
+        $reason = $adminNote ? "Reason: {$adminNote}" : "No reason provided.";
+        $notifMessage = "Your renewal request for book '{$request['isbn']}' has been rejected. {$reason}";
+        $stmt->bind_param("ss", $request['userId'], $notifMessage);
+        $stmt->execute();
+        $stmt->close();
+
+        $_SESSION['success'] = 'Renewal request rejected.';
+    }
+
+    $this->redirect('/admin/renewal-requests');
+  }
+
+  /**
    * Reports
    */
   public function reports()
@@ -946,7 +1092,8 @@ class AdminController
                 'total_borrowings' => $transactionModel->getTotalTransactionsCount($startDate, $endDate),
                 'returned_books' => $transactionModel->getReturnedBooksCount($startDate, $endDate),
                 'active_loans' => $transactionModel->getActiveBorrowingCount(),
-                'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate)
+                'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate),
+                'transactions' => $transactionModel->getTransactionsWithUserDetails($startDate, $endDate)
             ];
             break;
             
@@ -956,7 +1103,8 @@ class AdminController
                 'collected_fines' => $transactionModel->getCollectedFinesAmount($startDate, $endDate),
                 'pending_fines' => $transactionModel->getPendingFinesAmount($startDate, $endDate),
                 'overdue_books' => $transactionModel->getOverdueBooksCount($startDate, $endDate),
-                'period' => date('M d', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate))
+                'period' => date('M d', strtotime($startDate)) . ' - ' . date('M d, Y', strtotime($endDate)),
+                'fine_details' => $transactionModel->getFineTransactionsWithUserDetails($startDate, $endDate)
             ];
             break;
             
@@ -1122,13 +1270,13 @@ class AdminController
           break;
 
         case 'mark_returned':
-          $id = $_POST['id'] ?? '';
+          $id = $_POST['id'] ?? $_POST['tid'] ?? '';
           $result = $this->adminService->markBookAsReturned($id);
           $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
           break;
 
         case 'delete':
-          $id = $_POST['id'] ?? '';
+          $id = $_POST['id'] ?? $_POST['tid'] ?? '';
           $result = $this->adminService->deleteBorrowedBook($id);
           $_SESSION[$result['success'] ? 'success' : 'error'] = $result['message'];
           break;
@@ -1180,6 +1328,31 @@ class AdminController
   {
     // Redirect to main page - form is now a modal
     $this->redirect('/admin/borrowed-books');
+  }
+
+  /**
+   * API: Get real-time borrowed books data as JSON
+   */
+  public function borrowedBooksApi()
+  {
+    $this->authHelper->requireAdmin();
+    
+    header('Content-Type: application/json');
+    
+    $status = $_GET['status'] ?? null;
+    $userId = $_GET['userId'] ?? null;
+    $isbn = $_GET['isbn'] ?? null;
+    
+    $borrowedBooks = $this->adminService->getAllBorrowedBooks($status, $userId, $isbn);
+    $stats = $this->adminService->getBorrowedBooksStats();
+    
+    echo json_encode([
+        'success' => true,
+        'borrowedBooks' => $borrowedBooks,
+        'stats' => $stats,
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    exit;
   }
 
   /**

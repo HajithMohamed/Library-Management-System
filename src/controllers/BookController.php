@@ -449,7 +449,7 @@ class BookController
             }
             
             // Check if book has active borrowings
-            $checkStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM transactions WHERE isbn = ? AND returnDate IS NULL");
+            $checkStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE isbn = ? AND status = 'Active'");
             if (!$checkStmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
