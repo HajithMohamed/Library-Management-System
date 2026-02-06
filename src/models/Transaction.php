@@ -11,6 +11,28 @@ class Transaction
         global $mysqli;
         $this->db = $mysqli;
     }
+
+    /**
+     * Get borrow period for a specific user (role-based)
+     */
+    private function getUserBorrowPeriod($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+            if ($stmt) {
+                $stmt->bind_param("s", $userId);
+                $stmt->execute();
+                $result = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if ($result && isset($result['borrow_period_days'])) {
+                    return (int)$result['borrow_period_days'];
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("Error getting user borrow period: " . $e->getMessage());
+        }
+        return 14; // default fallback
+    }
     
     /**
      * Create a new transaction
@@ -73,7 +95,7 @@ class Transaction
                 $row['title'] = $row['bookName'];
                 $row['author'] = $row['authorName'];
                 $row['image'] = $row['bookImage'];
-                $row['dueDate'] = $row['returnDate'] ?? date('Y-m-d', strtotime($row['borrowDate'] . ' + 14 days'));
+                $row['dueDate'] = $row['returnDate'] ?? date('Y-m-d', strtotime($row['borrowDate'] . ' + ' . $this->getUserBorrowPeriod($userId) . ' days'));
                 $row['transactionId'] = $row['tid'];
                 $books[] = $row;
             }
@@ -86,18 +108,31 @@ class Transaction
     }
     
     /**
-     * Get overdue books for a user
+     * Get overdue books for a user (role-aware)
      */
     public function getOverdueBooks($userId)
     {
         try {
+            // Get user's borrow period from their privileges
+            $periodStmt = $this->db->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+            $borrowPeriod = 14; // default
+            if ($periodStmt) {
+                $periodStmt->bind_param("s", $userId);
+                $periodStmt->execute();
+                $periodResult = $periodStmt->get_result()->fetch_assoc();
+                if ($periodResult && isset($periodResult['borrow_period_days'])) {
+                    $borrowPeriod = (int)$periodResult['borrow_period_days'];
+                }
+                $periodStmt->close();
+            }
+
             $stmt = $this->db->prepare("
                 SELECT t.*, b.bookName, b.authorName, b.bookImage
                 FROM transactions t
                 JOIN books b ON t.isbn = b.isbn
                 WHERE t.userId = ? 
                 AND t.returnDate IS NULL 
-                AND DATE_ADD(t.borrowDate, INTERVAL 14 DAY) < CURDATE()
+                AND DATE_ADD(t.borrowDate, INTERVAL ? DAY) < CURDATE()
                 ORDER BY t.borrowDate ASC
             ");
             
@@ -105,7 +140,7 @@ class Transaction
                 throw new \Exception("Prepare failed: " . $this->db->error);
             }
             
-            $stmt->bind_param("s", $userId);
+            $stmt->bind_param("si", $userId, $borrowPeriod);
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -160,6 +195,9 @@ class Transaction
     public function getFinesByUserId($userId)
     {
         try {
+            // Get user's borrow period
+            $borrowPeriod = $this->getUserBorrowPeriod($userId);
+
             // Query to get ALL transactions with fines (paid or unpaid)
             $stmt = $this->db->prepare("
                 SELECT t.*, b.bookName, b.isbn, b.authorName
@@ -168,7 +206,7 @@ class Transaction
                 WHERE t.userId = ? 
                 AND (
                     t.fineAmount > 0 
-                    OR (t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > 14)
+                    OR (t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > ?)
                     OR t.fineStatus IS NOT NULL
                 )
                 ORDER BY 
@@ -183,7 +221,7 @@ class Transaction
                 throw new \Exception("Prepare failed: " . $this->db->error);
             }
             
-            $stmt->bind_param("s", $userId);
+            $stmt->bind_param("si", $userId, $borrowPeriod);
             $stmt->execute();
             $result = $stmt->get_result();
             
@@ -195,10 +233,10 @@ class Transaction
                     $currentDate = new \DateTime();
                     $interval = $borrowDate->diff($currentDate);
                     $totalDays = $interval->days;
-                    $daysOverdue = max(0, $totalDays - 14); // 14 day borrow period
+                    $daysOverdue = max(0, $totalDays - $borrowPeriod); // role-based borrow period
                     
                     if ($daysOverdue > 0) {
-                        $calculatedFine = $daysOverdue * 5; // ₹5 per day
+                        $calculatedFine = $daysOverdue * 5; // LKR5 per day
                         // Use the higher of database fine or calculated fine
                         $row['fineAmount'] = max($row['fineAmount'] ?? 0, $calculatedFine);
                     }
@@ -367,17 +405,17 @@ class Transaction
     }
 
     /**
-     * Get overdue transactions
+     * Get overdue transactions (role-aware)
      */
     public function getOverdueTransactions()
     {
         try {
-            $sql = "SELECT t.*, b.bookName, b.authorName, u.emailId, u.userType
+            $sql = "SELECT t.*, b.bookName, b.authorName, u.emailId, u.userType, u.borrow_period_days
                     FROM transactions t
                     JOIN books b ON t.isbn = b.isbn
                     JOIN users u ON t.userId = u.userId
                     WHERE t.returnDate IS NULL 
-                    AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+                    AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)
                     ORDER BY t.borrowDate ASC";
             
             $result = $this->db->query($sql);
@@ -653,18 +691,20 @@ class Transaction
             if ($startDate && $endDate) {
                 $stmt = $this->db->prepare("
                     SELECT COUNT(*) as count
-                    FROM transactions 
-                    WHERE returnDate IS NULL 
-                    AND DATE_ADD(borrowDate, INTERVAL 14 DAY) < CURDATE()
-                    AND borrowDate BETWEEN ? AND ?
+                    FROM transactions t
+                    LEFT JOIN users u ON t.userId = u.userId
+                    WHERE t.returnDate IS NULL 
+                    AND DATE_ADD(t.borrowDate, INTERVAL COALESCE(u.borrow_period_days, 14) DAY) < CURDATE()
+                    AND t.borrowDate BETWEEN ? AND ?
                 ");
                 $stmt->bind_param("ss", $startDate, $endDate);
             } else {
                 $stmt = $this->db->prepare("
                     SELECT COUNT(*) as count
-                    FROM transactions 
-                    WHERE returnDate IS NULL 
-                    AND DATE_ADD(borrowDate, INTERVAL 14 DAY) < CURDATE()
+                    FROM transactions t
+                    LEFT JOIN users u ON t.userId = u.userId
+                    WHERE t.returnDate IS NULL 
+                    AND DATE_ADD(t.borrowDate, INTERVAL COALESCE(u.borrow_period_days, 14) DAY) < CURDATE()
                 ");
             }
             

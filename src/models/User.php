@@ -334,11 +334,18 @@ class User extends BaseModel
         // Generate a unique user ID (e.g., STU2024001, FAC2024001)
         $userId = $this->generateUserId($data['userType']);
         
+        // Get privilege defaults based on user type
+        $privileges = self::getPrivilegeDefaults($data['userType']);
+        $maxBorrowLimit = $privileges['max_borrow_limit'];
+        $borrowPeriodDays = $privileges['borrow_period_days'];
+        $maxRenewals = $privileges['max_renewals'];
+        
         $stmt = $mysqli->prepare("
             INSERT INTO users (
                 userId, username, password, userType, gender, dob, 
-                emailId, phoneNumber, address, isVerified, otp, otpExpiry
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                emailId, phoneNumber, address, isVerified, otp, otpExpiry,
+                max_borrow_limit, borrow_period_days, max_renewals
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         if (!$stmt) {
@@ -347,7 +354,7 @@ class User extends BaseModel
         }
         
         $stmt->bind_param(
-            "ssssssssssss",
+            "ssssssssssssiis",
             $userId,
             $data['username'],
             $data['password'],
@@ -359,7 +366,10 @@ class User extends BaseModel
             $data['address'],
             $data['isVerified'],
             $data['otp'],
-            $data['otpExpiry']
+            $data['otpExpiry'],
+            $maxBorrowLimit,
+            $borrowPeriodDays,
+            $maxRenewals
         );
         
         $result = $stmt->execute();
@@ -809,6 +819,190 @@ class User extends BaseModel
     public function getLastError()
     {
         return $this->lastError;
+    }
+
+    // ====================================================================
+    // Privilege Differentiation Methods
+    // ====================================================================
+
+    /**
+     * Get maximum borrow limit for a user
+     */
+    public function getMaxBorrowLimit($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT max_borrow_limit FROM users WHERE userId = ?");
+            if (!$stmt) {
+                return $this->getDefaultBorrowLimit($userId);
+            }
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $stmt->close();
+                return (int)$row['max_borrow_limit'];
+            }
+            $stmt->close();
+            return $this->getDefaultBorrowLimit($userId);
+        } catch (\Exception $e) {
+            error_log("Error getting max borrow limit: " . $e->getMessage());
+            return $this->getDefaultBorrowLimit($userId);
+        }
+    }
+
+    /**
+     * Get borrow period in days for a user
+     */
+    public function getBorrowPeriodDays($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+            if (!$stmt) {
+                return $this->getDefaultBorrowPeriod($userId);
+            }
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $stmt->close();
+                return (int)$row['borrow_period_days'];
+            }
+            $stmt->close();
+            return $this->getDefaultBorrowPeriod($userId);
+        } catch (\Exception $e) {
+            error_log("Error getting borrow period: " . $e->getMessage());
+            return $this->getDefaultBorrowPeriod($userId);
+        }
+    }
+
+    /**
+     * Get maximum renewals allowed for a user
+     */
+    public function getMaxRenewals($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT max_renewals FROM users WHERE userId = ?");
+            if (!$stmt) {
+                return $this->getDefaultMaxRenewals($userId);
+            }
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $stmt->close();
+                return (int)$row['max_renewals'];
+            }
+            $stmt->close();
+            return $this->getDefaultMaxRenewals($userId);
+        } catch (\Exception $e) {
+            error_log("Error getting max renewals: " . $e->getMessage());
+            return $this->getDefaultMaxRenewals($userId);
+        }
+    }
+
+    /**
+     * Get all privilege info for a user in one call
+     */
+    public function getUserPrivileges($userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT userType, max_borrow_limit, borrow_period_days, max_renewals FROM users WHERE userId = ?");
+            if (!$stmt) {
+                return $this->getDefaultPrivileges($userId);
+            }
+            $stmt->bind_param('s', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $stmt->close();
+                return [
+                    'userType' => $row['userType'],
+                    'max_borrow_limit' => (int)$row['max_borrow_limit'],
+                    'borrow_period_days' => (int)$row['borrow_period_days'],
+                    'max_renewals' => (int)$row['max_renewals']
+                ];
+            }
+            $stmt->close();
+            return $this->getDefaultPrivileges($userId);
+        } catch (\Exception $e) {
+            error_log("Error getting user privileges: " . $e->getMessage());
+            return $this->getDefaultPrivileges($userId);
+        }
+    }
+
+    /**
+     * Fallback: get default borrow limit based on userType
+     */
+    private function getDefaultBorrowLimit($userId)
+    {
+        $user = $this->findById($userId);
+        $type = strtolower($user['userType'] ?? 'student');
+        switch ($type) {
+            case 'admin': case 'librarian': return 999;
+            case 'faculty': return 10;
+            default: return 3;
+        }
+    }
+
+    /**
+     * Fallback: get default borrow period based on userType
+     */
+    private function getDefaultBorrowPeriod($userId)
+    {
+        $user = $this->findById($userId);
+        $type = strtolower($user['userType'] ?? 'student');
+        switch ($type) {
+            case 'admin': case 'librarian': return 365;
+            case 'faculty': return 60;
+            default: return 14;
+        }
+    }
+
+    /**
+     * Fallback: get default max renewals based on userType
+     */
+    private function getDefaultMaxRenewals($userId)
+    {
+        $user = $this->findById($userId);
+        $type = strtolower($user['userType'] ?? 'student');
+        switch ($type) {
+            case 'admin': case 'librarian': return 999;
+            case 'faculty': return 2;
+            default: return 1;
+        }
+    }
+
+    /**
+     * Fallback: get default privileges based on userType
+     */
+    private function getDefaultPrivileges($userId)
+    {
+        $user = $this->findById($userId);
+        $type = strtolower($user['userType'] ?? 'student');
+        switch ($type) {
+            case 'admin': case 'librarian':
+                return ['userType' => $user['userType'] ?? 'Admin', 'max_borrow_limit' => 999, 'borrow_period_days' => 365, 'max_renewals' => 999];
+            case 'faculty':
+                return ['userType' => 'Faculty', 'max_borrow_limit' => 10, 'borrow_period_days' => 60, 'max_renewals' => 2];
+            default:
+                return ['userType' => 'Student', 'max_borrow_limit' => 3, 'borrow_period_days' => 14, 'max_renewals' => 1];
+        }
+    }
+
+    /**
+     * Set privilege values for a user based on their role
+     */
+    public static function getPrivilegeDefaults($userType)
+    {
+        $type = strtolower($userType);
+        switch ($type) {
+            case 'admin': case 'librarian':
+                return ['max_borrow_limit' => 999, 'borrow_period_days' => 365, 'max_renewals' => 999];
+            case 'faculty':
+                return ['max_borrow_limit' => 10, 'borrow_period_days' => 60, 'max_renewals' => 2];
+            default:
+                return ['max_borrow_limit' => 3, 'borrow_period_days' => 14, 'max_renewals' => 1];
+        }
     }
 }
 ?>

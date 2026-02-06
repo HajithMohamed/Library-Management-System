@@ -34,8 +34,20 @@ if ($action === 'approve') {
         exit;
     }
 
-    // Use dueDate from form or default to 14 days from now
-    $dueDate = $_POST['dueDate'] ?? date('Y-m-d', strtotime('+14 days'));
+    // Use dueDate from form, or calculate based on user's role privileges
+    $userId = $request['userId'];
+    $borrowPeriodDays = 14; // default
+    $userStmt = $conn->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+    if ($userStmt) {
+        $userStmt->bind_param("s", $userId);
+        $userStmt->execute();
+        $userResult = $userStmt->get_result()->fetch_assoc();
+        if ($userResult && isset($userResult['borrow_period_days'])) {
+            $borrowPeriodDays = (int)$userResult['borrow_period_days'];
+        }
+        $userStmt->close();
+    }
+    $dueDate = $_POST['dueDate'] ?? date('Y-m-d', strtotime("+{$borrowPeriodDays} days"));
 
     // Update request status to Approved (do not create transaction or update book yet)
     $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved', approvedBy = ?, dueDate = ? WHERE id = ?");
@@ -84,6 +96,52 @@ if ($action === 'mark_borrowed') {
 
     $borrowDate = $_POST['borrowDate'] ?? date('Y-m-d');
     $dueDate = $request['dueDate'];
+    
+    // If dueDate not set, calculate from user's role-based borrow period
+    if (empty($dueDate)) {
+        $borrowPeriodDays = 14;
+        $userPrivStmt = $conn->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+        if ($userPrivStmt) {
+            $userPrivStmt->bind_param("s", $request['userId']);
+            $userPrivStmt->execute();
+            $privResult = $userPrivStmt->get_result()->fetch_assoc();
+            if ($privResult && isset($privResult['borrow_period_days'])) {
+                $borrowPeriodDays = (int)$privResult['borrow_period_days'];
+            }
+            $userPrivStmt->close();
+        }
+        $dueDate = date('Y-m-d', strtotime($borrowDate . " +{$borrowPeriodDays} days"));
+    }
+
+    // Check user's borrow limit before allowing
+    $limitStmt = $conn->prepare("SELECT max_borrow_limit FROM users WHERE userId = ?");
+    $maxLimit = 3;
+    if ($limitStmt) {
+        $limitStmt->bind_param("s", $request['userId']);
+        $limitStmt->execute();
+        $limitResult = $limitStmt->get_result()->fetch_assoc();
+        if ($limitResult && isset($limitResult['max_borrow_limit'])) {
+            $maxLimit = (int)$limitResult['max_borrow_limit'];
+        }
+        $limitStmt->close();
+    }
+
+    // Count current active borrows
+    $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE userId = ? AND returnDate IS NULL");
+    $currentBorrows = 0;
+    if ($countStmt) {
+        $countStmt->bind_param("s", $request['userId']);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result()->fetch_assoc();
+        $currentBorrows = (int)($countResult['count'] ?? 0);
+        $countStmt->close();
+    }
+
+    if ($currentBorrows >= $maxLimit) {
+        $_SESSION['error'] = "User has reached their borrowing limit ({$currentBorrows}/{$maxLimit} books). Cannot issue more books.";
+        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
 
     // Insert into books_borrowed
     $stmt = $conn->prepare("INSERT INTO books_borrowed (userId, isbn, borrowDate, dueDate, status, addedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'Active', ?, NOW(), NOW())");

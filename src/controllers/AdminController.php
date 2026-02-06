@@ -64,12 +64,13 @@ class AdminController
     $activeBorrowingsResult = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL");
     $activeBorrowings = $activeBorrowingsResult->fetch_assoc()['count'];
 
-    // Fetch overdue books (borrowed more than 14 days ago, not returned)
+    // Fetch overdue books (borrowed longer than user's borrow period, not returned)
     $overdueBooksResult = $conn->query("
             SELECT COUNT(*) as count
-            FROM transactions
-            WHERE returnDate IS NULL
-            AND DATEDIFF(CURDATE(), borrowDate) > 14
+            FROM transactions t
+            LEFT JOIN users u ON t.userId = u.userId
+            WHERE t.returnDate IS NULL
+            AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)
         ");
     $overdueBooks = $overdueBooksResult->fetch_assoc()['count'];
 
@@ -220,22 +221,30 @@ class AdminController
         }
         $checkStmt->close();
 
+        // Get privilege defaults based on the (possibly new) userType
+        $privileges = \App\Models\User::getPrivilegeDefaults($userType);
+        $maxBorrowLimit = $privileges['max_borrow_limit'];
+        $borrowPeriodDays = $privileges['borrow_period_days'];
+        $maxRenewals = $privileges['max_renewals'];
+
         // Update user (without password if not provided)
         if (!empty($newPassword)) {
           $hashedPassword = $this->authHelper->hashPassword($newPassword);
           $updateStmt = $conn->prepare("
             UPDATE users 
-            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, password = ?, updatedAt = NOW()
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, password = ?, 
+                max_borrow_limit = ?, borrow_period_days = ?, max_renewals = ?, updatedAt = NOW()
             WHERE userId = ?
           ");
-          $updateStmt->bind_param("ssssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $hashedPassword, $userId);
+          $updateStmt->bind_param("sssssssssiiis", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $hashedPassword, $maxBorrowLimit, $borrowPeriodDays, $maxRenewals, $userId);
         } else {
           $updateStmt = $conn->prepare("
             UPDATE users 
-            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, updatedAt = NOW()
+            SET username = ?, emailId = ?, phoneNumber = ?, userType = ?, gender = ?, dob = ?, address = ?, isVerified = ?, 
+                max_borrow_limit = ?, borrow_period_days = ?, max_renewals = ?, updatedAt = NOW()
             WHERE userId = ?
           ");
-          $updateStmt->bind_param("sssssssss", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $userId);
+          $updateStmt->bind_param("ssssssssiiis", $username, $emailId, $phoneNumber, $userType, $gender, $dob, $address, $isVerified, $maxBorrowLimit, $borrowPeriodDays, $maxRenewals, $userId);
         }
 
         if ($updateStmt->execute()) {
@@ -294,12 +303,18 @@ class AdminController
         
         $userId = $prefix . $currentYear . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
 
-        // Insert new user
+        // Get privilege defaults based on user type
+        $privileges = \App\Models\User::getPrivilegeDefaults($userType);
+        $maxBorrowLimit = $privileges['max_borrow_limit'];
+        $borrowPeriodDays = $privileges['borrow_period_days'];
+        $maxRenewals = $privileges['max_renewals'];
+
+        // Insert new user with privilege columns
         $insertStmt = $conn->prepare("
-          INSERT INTO users (userId, username, emailId, phoneNumber, password, userType, gender, dob, address, isVerified, createdAt) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+          INSERT INTO users (userId, username, emailId, phoneNumber, password, userType, gender, dob, address, isVerified, max_borrow_limit, borrow_period_days, max_renewals, createdAt) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
-        $insertStmt->bind_param("sssssssssi", $userId, $username, $emailId, $phoneNumber, $hashedPassword, $userType, $gender, $dob, $address, $isVerified);
+        $insertStmt->bind_param("sssssssssiiiii", $userId, $username, $emailId, $phoneNumber, $hashedPassword, $userType, $gender, $dob, $address, $isVerified, $maxBorrowLimit, $borrowPeriodDays, $maxRenewals);
 
         if ($insertStmt->execute()) {
           // ADDED: Send email to Faculty user with credentials
@@ -1634,15 +1649,15 @@ class AdminController
       global $conn;
       
       try {
-        // Get overdue books (borrowed more than 14 days ago, not returned)
+        // Get overdue books (borrowed longer than user's borrow period, not returned)
         $sql = "SELECT t.tid, t.userId, t.isbn, t.borrowDate, 
                        u.username, u.emailId, b.bookName,
-                       DATEDIFF(CURDATE(), t.borrowDate) as daysOverdue
+                       DATEDIFF(CURDATE(), t.borrowDate) - COALESCE(u.borrow_period_days, 14) as daysOverdue
                 FROM transactions t
                 LEFT JOIN users u ON t.userId = u.userId
                 LEFT JOIN books b ON t.isbn = b.isbn
                 WHERE t.returnDate IS NULL 
-                AND DATEDIFF(CURDATE(), t.borrowDate) > 14
+                AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)
                 AND NOT EXISTS (
                   SELECT 1 FROM notifications n 
                   WHERE n.userId = t.userId 

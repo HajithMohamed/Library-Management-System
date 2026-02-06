@@ -278,4 +278,134 @@ class BorrowRecord extends BaseModel
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
+
+    /**
+     * Renew a borrowed book (extend due date based on user's role privileges)
+     * 
+     * @param int $borrowId The books_borrowed record ID
+     * @param string $userId The user requesting the renewal
+     * @return array ['success' => bool, 'message' => string, 'newDueDate' => string|null]
+     */
+    public function renewBook($borrowId, $userId)
+    {
+        try {
+            // Get the borrow record
+            $stmt = $this->db->prepare("SELECT * FROM {$this->table} WHERE id = ? AND userId = ? AND returnDate IS NULL");
+            if (!$stmt) {
+                return ['success' => false, 'message' => 'Database error.', 'newDueDate' => null];
+            }
+            $stmt->bind_param('is', $borrowId, $userId);
+            $stmt->execute();
+            $borrowRecord = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$borrowRecord) {
+                return ['success' => false, 'message' => 'Borrow record not found or book already returned.', 'newDueDate' => null];
+            }
+
+            // Get user's max renewals and borrow period
+            $privStmt = $this->db->prepare("SELECT max_renewals, borrow_period_days FROM users WHERE userId = ?");
+            $maxRenewals = 1;
+            $borrowPeriod = 14;
+            if ($privStmt) {
+                $privStmt->bind_param('s', $userId);
+                $privStmt->execute();
+                $privResult = $privStmt->get_result()->fetch_assoc();
+                if ($privResult) {
+                    $maxRenewals = (int)($privResult['max_renewals'] ?? 1);
+                    $borrowPeriod = (int)($privResult['borrow_period_days'] ?? 14);
+                }
+                $privStmt->close();
+            }
+
+            // Check renewal count
+            $currentRenewals = (int)($borrowRecord['renewalCount'] ?? 0);
+            if ($currentRenewals >= $maxRenewals) {
+                return ['success' => false, 'message' => "Maximum renewals reached ({$currentRenewals}/{$maxRenewals}). Cannot renew further.", 'newDueDate' => null];
+            }
+
+            // Check if book is overdue — don't allow renewal for overdue books
+            $today = new \DateTime();
+            $dueDate = new \DateTime($borrowRecord['dueDate']);
+            if ($today > $dueDate) {
+                return ['success' => false, 'message' => 'Cannot renew an overdue book. Please return it and pay any fines first.', 'newDueDate' => null];
+            }
+
+            // Calculate new due date (extend from current due date)
+            $newDueDate = clone $dueDate;
+            $newDueDate->add(new \DateInterval("P{$borrowPeriod}D"));
+            $newDueDateStr = $newDueDate->format('Y-m-d');
+
+            // Update the record
+            $newCount = $currentRenewals + 1;
+            $todayStr = $today->format('Y-m-d');
+            $updateStmt = $this->db->prepare("UPDATE {$this->table} SET dueDate = ?, renewalCount = ?, lastRenewalDate = ?, updatedAt = NOW() WHERE id = ?");
+            if (!$updateStmt) {
+                return ['success' => false, 'message' => 'Database error during renewal.', 'newDueDate' => null];
+            }
+            $updateStmt->bind_param('sisi', $newDueDateStr, $newCount, $todayStr, $borrowId);
+            
+            if ($updateStmt->execute()) {
+                $updateStmt->close();
+                $remainingRenewals = $maxRenewals - $newCount;
+                return [
+                    'success' => true, 
+                    'message' => "Book renewed successfully! New due date: {$newDueDateStr}. Remaining renewals: {$remainingRenewals}.", 
+                    'newDueDate' => $newDueDateStr,
+                    'renewalCount' => $newCount,
+                    'remainingRenewals' => $remainingRenewals
+                ];
+            } else {
+                $updateStmt->close();
+                return ['success' => false, 'message' => 'Failed to renew book. Please try again.', 'newDueDate' => null];
+            }
+        } catch (\Exception $e) {
+            error_log("Error in renewBook: " . $e->getMessage());
+            return ['success' => false, 'message' => 'An error occurred during renewal.', 'newDueDate' => null];
+        }
+    }
+
+    /**
+     * Get renewal info for a borrow record
+     */
+    public function getRenewalInfo($borrowId, $userId)
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT bb.renewalCount, bb.lastRenewalDate, bb.dueDate, u.max_renewals 
+                                        FROM {$this->table} bb 
+                                        JOIN users u ON bb.userId = u.userId 
+                                        WHERE bb.id = ? AND bb.userId = ?");
+            if (!$stmt) {
+                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+            }
+            $stmt->bind_param('is', $borrowId, $userId);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$result) {
+                return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+            }
+
+            $renewalCount = (int)($result['renewalCount'] ?? 0);
+            $maxRenewals = (int)($result['max_renewals'] ?? 1);
+            $remaining = max(0, $maxRenewals - $renewalCount);
+            
+            // Can renew if under limit and not overdue
+            $isOverdue = !empty($result['dueDate']) && strtotime($result['dueDate']) < time();
+            $canRenew = ($remaining > 0) && !$isOverdue;
+
+            return [
+                'renewalCount' => $renewalCount,
+                'maxRenewals' => $maxRenewals,
+                'remainingRenewals' => $remaining,
+                'canRenew' => $canRenew,
+                'lastRenewalDate' => $result['lastRenewalDate'],
+                'isOverdue' => $isOverdue
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in getRenewalInfo: " . $e->getMessage());
+            return ['renewalCount' => 0, 'maxRenewals' => 1, 'remainingRenewals' => 1, 'canRenew' => true];
+        }
+    }
 }

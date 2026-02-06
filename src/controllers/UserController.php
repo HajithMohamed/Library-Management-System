@@ -79,12 +79,21 @@ class UserController extends BaseController
             }
             $stmt->close();
             
+            // Get user privileges (role-based limits)
+            $privileges = $this->userModel->getUserPrivileges($userId);
+            $maxBooks = $privileges['max_borrow_limit'] ?? 3;
+            $borrowPeriodDays = $privileges['borrow_period_days'] ?? 14;
+            $maxRenewals = $privileges['max_renewals'] ?? 1;
+            
             // Get user statistics
             $userStats = [
                 'borrowed_books' => $borrowedCount,
                 'overdue_books' => $overdueCount,
                 'total_fines' => $totalFines,
-                'max_books' => $userType === 'Faculty' ? 5 : 3
+                'max_books' => $maxBooks,
+                'borrow_period_days' => $borrowPeriodDays,
+                'max_renewals' => $maxRenewals,
+                'remaining_slots' => max(0, $maxBooks - $borrowedCount)
             ];
             
             // Get recent activity (last 5 transactions)
@@ -118,7 +127,10 @@ class UserController extends BaseController
                 'borrowed_books' => 0,
                 'overdue_books' => 0,
                 'total_fines' => 0,
-                'max_books' => $userType === 'Faculty' ? 5 : 3
+                'max_books' => $userType === 'Faculty' ? 10 : 3,
+                'borrow_period_days' => $userType === 'Faculty' ? 60 : 14,
+                'max_renewals' => $userType === 'Faculty' ? 2 : 1,
+                'remaining_slots' => $userType === 'Faculty' ? 10 : 3
             ];
             $recentActivity = [];
         }
@@ -935,6 +947,29 @@ class UserController extends BaseController
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Processing POST reservation request");
             
+            // Check borrow limit before allowing reservation
+            $privileges = $this->userModel->getUserPrivileges($userId);
+            $maxLimit = $privileges['max_borrow_limit'] ?? 3;
+            $currentBorrows = $this->borrowModel->getActiveBorrowCount($userId);
+            
+            // Also count pending/approved requests
+            $pendingStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM borrow_requests WHERE userId = ? AND status IN ('Pending','Approved')");
+            $pendingCount = 0;
+            if ($pendingStmt) {
+                $pendingStmt->bind_param("s", $userId);
+                $pendingStmt->execute();
+                $pendingResult = $pendingStmt->get_result()->fetch_assoc();
+                $pendingCount = (int)($pendingResult['count'] ?? 0);
+                $pendingStmt->close();
+            }
+            
+            if (($currentBorrows + $pendingCount) >= $maxLimit) {
+                error_log("User has reached borrow limit: {$currentBorrows} borrowed + {$pendingCount} pending >= {$maxLimit}");
+                $_SESSION['error'] = "You have reached your borrowing limit ({$currentBorrows}/{$maxLimit} books borrowed" . ($pendingCount > 0 ? ", {$pendingCount} pending requests" : "") . "). Please return some books before requesting new ones.";
+                header('Location: ' . BASE_URL . 'user/books');
+                exit;
+            }
+            
             // Check if already has a pending/approved request for this book
             $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
             $stmt->bind_param("ss", $userId, $isbn);
@@ -1139,7 +1174,7 @@ class UserController extends BaseController
         }
         $stmt->close();
         
-        // Calculate fines for overdue books
+        // Calculate fines for overdue books and get renewal info
         foreach ($borrowHistory as &$record) {
             if (!$record['returnDate'] && $record['dueDate']) {
                 $dueDate = new \DateTime($record['dueDate']);
@@ -1151,6 +1186,11 @@ class UserController extends BaseController
                     $record['fineAmount'] = $daysOverdue * 5; // LKR5 per day
                     $record['fineStatus'] = 'Unpaid';
                 }
+            }
+
+            // Add renewal info for active borrows
+            if (!$record['returnDate']) {
+                $record['renewalInfo'] = $this->borrowModel->getRenewalInfo($record['id'], $userId);
             }
         }
         
@@ -1219,6 +1259,38 @@ class UserController extends BaseController
         $this->redirect('user/borrow-history');
     }
     
+    /**
+     * Renew (extend) a borrowed book's due date
+     */
+    public function renew()
+    {
+        $this->requireLogin();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('user/borrow-history');
+            return;
+        }
+
+        $borrowId = intval($_POST['borrow_id'] ?? 0);
+        $userId = $_SESSION['userId'];
+
+        if ($borrowId <= 0) {
+            $_SESSION['error'] = 'Invalid borrow record.';
+            $this->redirect('user/borrow-history');
+            return;
+        }
+
+        $result = $this->borrowModel->renewBook($borrowId, $userId);
+
+        if ($result['success']) {
+            $_SESSION['success'] = $result['message'];
+        } else {
+            $_SESSION['error'] = $result['message'];
+        }
+
+        $this->redirect('user/borrow-history');
+    }
+
     /**
      * Show all books returned by the user
      */

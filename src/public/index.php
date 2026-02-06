@@ -610,6 +610,7 @@ $router->addRoute('GET', '/user/reserve/{isbn}', 'UserController', 'reserve');
 $router->addRoute('POST', '/user/reserve/{isbn}', 'UserController', 'reserve');
 $router->addRoute('GET', '/user/reserved-books', 'UserController', 'reservedBooks');
 $router->addRoute('GET', '/user/borrow-history', 'UserController', 'borrowHistory');
+$router->addRoute('POST', '/user/renew', 'UserController', 'renew');
 $router->addRoute('POST', '/user/submit-review', 'UserController', 'submitReview');
 $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
@@ -661,6 +662,7 @@ $router->addRoute('GET', '/faculty/reserve/{isbn}', 'FacultyController', 'reserv
 $router->addRoute('POST', '/faculty/reserve/{isbn}', 'FacultyController', 'reserve');
 $router->addRoute('GET', '/faculty/reserved-books', 'FacultyController', 'reservedBooks');
 $router->addRoute('GET', '/faculty/borrow-history', 'FacultyController', 'borrowHistory');
+$router->addRoute('POST', '/faculty/renew', 'FacultyController', 'renew');
 
 // Faculty Return
 $router->addRoute('GET', '/faculty/return', 'FacultyController', 'returnBook');

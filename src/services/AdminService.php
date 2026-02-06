@@ -1165,6 +1165,19 @@ class AdminService
       $stmt->bind_param("si", $adminId, $requestId);
       $stmt->execute();
 
+      // Get user's role-based borrow period for due date calculation
+      $borrowPeriod = 14; // default
+      $privStmt = $conn->prepare("SELECT borrow_period_days FROM users WHERE userId = ?");
+      if ($privStmt) {
+          $privStmt->bind_param("s", $request['userId']);
+          $privStmt->execute();
+          $privResult = $privStmt->get_result()->fetch_assoc();
+          if ($privResult && isset($privResult['borrow_period_days'])) {
+              $borrowPeriod = (int)$privResult['borrow_period_days'];
+          }
+          $privStmt->close();
+      }
+
       // Create transaction
       $tid = 'TXN' . time() . rand(100, 999);
       $borrowDate = date('Y-m-d');
@@ -1297,7 +1310,7 @@ class AdminService
       ];
 
       // Get overdue books count
-      $result = $conn->query("SELECT COUNT(*) as count FROM transactions WHERE returnDate IS NULL AND DATEDIFF(CURDATE(), borrowDate) > 14");
+      $result = $conn->query("SELECT COUNT(*) as count FROM transactions t LEFT JOIN users u ON t.userId = u.userId WHERE t.returnDate IS NULL AND DATEDIFF(CURDATE(), t.borrowDate) > COALESCE(u.borrow_period_days, 14)");
       $health['overdue_books'] = $result->fetch_assoc()['count'] ?? 0;
 
       // Get low stock books count

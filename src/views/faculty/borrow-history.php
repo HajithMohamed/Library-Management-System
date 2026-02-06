@@ -255,15 +255,29 @@ include APP_ROOT . '/views/layouts/header.php';
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <!-- Action Section: Extend Due Date -->
+                                <!-- Action Section: Renew Book -->
                                 <?php if (empty($item['returnDate'])): ?>
+                                    <?php
+                                    $renewalInfo = $item['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 2, 'isOverdue' => false];
+                                    $canRenew = $renewalInfo['canRenew'] ?? false;
+                                    $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
+                                    $maxRenewals = $renewalInfo['maxRenewals'] ?? 2;
+                                    ?>
                                     <div style="display:flex; flex-direction:column; gap:8px;">
-                                        <button class="extend-btn"
-                                            onclick="openExtendModal('<?= htmlspecialchars($item['id'] ?? '') ?>', '<?= htmlspecialchars($item['bookName'] ?? '') ?>', '<?= htmlspecialchars($item['dueDate'] ?? '') ?>')"
-                                            <?= !empty($item['extend_requested']) && $item['extend_requested'] ? 'disabled title="Already requested"' : '' ?>>
-                                            <i class="fas fa-clock"></i>
-                                            <?= !empty($item['extend_requested']) && $item['extend_requested'] ? 'Requested' : 'Extend Due Date' ?>
-                                        </button>
+                                        <?php if ($canRenew): ?>
+                                            <form method="POST" action="<?= BASE_URL ?>faculty/renew" style="display:inline;">
+                                                <input type="hidden" name="borrow_id" value="<?= htmlspecialchars($item['id'] ?? '') ?>">
+                                                <button type="submit" class="extend-btn" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>">
+                                                    <i class="fas fa-sync-alt"></i>
+                                                    Renew (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <button class="extend-btn" disabled title="<?= !empty($renewalInfo['isOverdue']) ? 'Overdue - cannot renew' : 'Max renewals reached' ?>">
+                                                <i class="fas fa-ban"></i>
+                                                <?= !empty($renewalInfo['isOverdue']) ? 'Overdue' : "Renewed {$renewalsUsed}/{$maxRenewals}" ?>
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 <?php else: ?>
                                     <span style="color:#a1a1aa;">-</span>
@@ -288,54 +302,5 @@ include APP_ROOT . '/views/layouts/header.php';
     </div>
 </div>
 
-<!-- Extend Due Date Modal -->
-<div id="extendDueModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:20px; max-width:400px; margin:auto; padding:2rem; position:relative;">
-        <button onclick="closeExtendModal()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; color:#888; cursor:pointer;">&times;</button>
-        <h3 style="margin-bottom:1rem;">Request Due Date Extension</h3>
-        <form id="extendDueForm" method="POST" action="<?= BASE_URL ?>faculty/borrow-history">
-            <input type="hidden" name="tid" id="extend_tid">
-            <div style="margin-bottom:1rem;">
-                <label>Book</label>
-                <input type="text" id="extend_book" class="form-control" readonly>
-            </div>
-            <div style="margin-bottom:1rem;">
-                <label>Current Due Date</label>
-                <input type="text" id="extend_due" class="form-control" readonly>
-            </div>
-            <div style="margin-bottom:1rem;">
-                <label>Reason for Extension <span style="color:red;">*</span></label>
-                <textarea name="reason" class="form-control" required placeholder="Why do you need an extension?" maxlength="200"></textarea>
-            </div>
-            <button type="submit" class="extend-btn" style="width:100%;">
-                <i class="fas fa-paper-plane"></i> Submit Request
-            </button>
-        </form>
-    </div>
-</div>
-
-<script>
-function openExtendModal(tid, book, due) {
-    document.getElementById('extendDueModal').style.display = 'flex';
-    document.getElementById('extend_tid').value = tid;
-    document.getElementById('extend_book').value = book;
-    document.getElementById('extend_due').value = due;
-}
-function closeExtendModal() {
-    document.getElementById('extendDueModal').style.display = 'none';
-}
-</script>
 
 <?php include APP_ROOT . '/views/layouts/footer.php'; ?>
-
-<?php
-// --- Handle Extend Due Date Request (Controller logic suggestion) ---
-// In FacultyController::borrowHistory():
-// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tid'], $_POST['reason'])) {
-//     // Insert into a new table 'due_extension_requests' with status 'Pending'
-//     // Notify admin for approval
-//     // Show success message to user
-// }
-// In admin panel, show pending extension requests for approval.
-// On approval, update due date in transactions and notify user.
-?>

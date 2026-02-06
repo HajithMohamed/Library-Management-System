@@ -455,7 +455,26 @@ body::-webkit-scrollbar {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($transaction['returnDate'] && $_SESSION['userType'] === 'Student'): ?>
+                                        <?php if (!$transaction['returnDate']): ?>
+                                            <?php
+                                            $renewalInfo = $transaction['renewalInfo'] ?? ['canRenew' => false, 'renewalCount' => 0, 'maxRenewals' => 1, 'isOverdue' => false];
+                                            $canRenew = $renewalInfo['canRenew'] ?? false;
+                                            $renewalsUsed = $renewalInfo['renewalCount'] ?? 0;
+                                            $maxRenewals = $renewalInfo['maxRenewals'] ?? 1;
+                                            ?>
+                                            <?php if ($canRenew): ?>
+                                                <form method="POST" action="<?= BASE_URL ?><?= ($_SESSION['userType'] ?? 'Student') === 'Faculty' ? 'faculty' : 'user' ?>/renew" style="display:inline;">
+                                                    <input type="hidden" name="borrow_id" value="<?= $transaction['id'] ?>">
+                                                    <button type="submit" class="btn-small btn-primary" title="Renewals used: <?= $renewalsUsed ?>/<?= $maxRenewals ?>">
+                                                        🔄 Renew (<?= $renewalsUsed ?>/<?= $maxRenewals ?>)
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge badge-warning" title="<?= !empty($renewalInfo['isOverdue']) ? 'Overdue - cannot renew' : 'Max renewals reached' ?>">
+                                                    <?= !empty($renewalInfo['isOverdue']) ? '⚠ Overdue' : "Renewed {$renewalsUsed}/{$maxRenewals}" ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php elseif ($transaction['returnDate'] && $_SESSION['userType'] === 'Student'): ?>
                                             <?php
                                             global $mysqli;
                                             $stmt = $mysqli->prepare("SELECT id FROM book_reviews WHERE userId = ? AND isbn = ?");
