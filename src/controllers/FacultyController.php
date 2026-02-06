@@ -31,11 +31,15 @@ class FacultyController extends BaseController
         $userId = $_SESSION['userId'];
         
         // Get faculty statistics
+        $privileges = $this->userModel->getUserPrivileges($userId);
         $userStats = [
             'borrowed_books' => $this->borrowModel->getActiveBorrowCount($userId),
             'overdue_books' => $this->borrowModel->getOverdueCount($userId),
             'total_fines' => $this->borrowModel->getTotalFines($userId),
-            'max_books' => 5
+            'max_books' => $privileges['max_borrow_limit'] ?? 10,
+            'borrow_period_days' => $privileges['borrow_period_days'] ?? 60,
+            'max_renewals' => $privileges['max_renewals'] ?? 2,
+            'remaining_slots' => max(0, ($privileges['max_borrow_limit'] ?? 10) - $this->borrowModel->getActiveBorrowCount($userId))
         ];
         
         // Get recent activity
@@ -334,6 +338,28 @@ class FacultyController extends BaseController
         global $mysqli;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Check borrow limit before allowing reservation
+            $privileges = $this->userModel->getUserPrivileges($userId);
+            $maxLimit = $privileges['max_borrow_limit'] ?? 10;
+            $currentBorrows = $this->borrowModel->getActiveBorrowCount($userId);
+            
+            // Also count pending/approved requests
+            $pendingStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM borrow_requests WHERE userId = ? AND status IN ('Pending','Approved')");
+            $pendingCount = 0;
+            if ($pendingStmt) {
+                $pendingStmt->bind_param("s", $userId);
+                $pendingStmt->execute();
+                $pendingResult = $pendingStmt->get_result()->fetch_assoc();
+                $pendingCount = (int)($pendingResult['count'] ?? 0);
+                $pendingStmt->close();
+            }
+            
+            if (($currentBorrows + $pendingCount) >= $maxLimit) {
+                $_SESSION['error'] = "You have reached your borrowing limit ({$currentBorrows}/{$maxLimit} books borrowed" . ($pendingCount > 0 ? ", {$pendingCount} pending requests" : "") . "). Please return some books before requesting new ones.";
+                header('Location: ' . BASE_URL . 'faculty/books');
+                exit;
+            }
+
             // Check if already has a pending/approved request for this book
             $stmt = $mysqli->prepare("SELECT * FROM borrow_requests WHERE userId = ? AND isbn = ? AND status IN ('Pending','Approved') AND dueDate >= CURDATE()");
             $stmt->bind_param("ss", $userId, $isbn);
@@ -571,8 +597,49 @@ class FacultyController extends BaseController
         $this->requireLogin(['Faculty']);
         $userId = $_SESSION['userId'];
         $history = $this->borrowModel->getBorrowHistory($userId);
+
+        // Add renewal info for active borrows
+        foreach ($history as &$item) {
+            if (empty($item['returnDate'])) {
+                $item['renewalInfo'] = $this->borrowModel->getRenewalInfo($item['id'] ?? 0, $userId);
+            }
+        }
+        unset($item);
+
         $this->data['history'] = $history;
         $this->view('faculty/borrow-history', $this->data);
+    }
+
+    /**
+     * Renew (extend) a borrowed book's due date
+     */
+    public function renew()
+    {
+        $this->requireLogin(['Faculty']);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('faculty/borrow-history');
+            return;
+        }
+
+        $borrowId = intval($_POST['borrow_id'] ?? 0);
+        $userId = $_SESSION['userId'];
+
+        if ($borrowId <= 0) {
+            $_SESSION['error'] = 'Invalid borrow record.';
+            $this->redirect('faculty/borrow-history');
+            return;
+        }
+
+        $result = $this->borrowModel->renewBook($borrowId, $userId);
+
+        if ($result['success']) {
+            $_SESSION['success'] = $result['message'];
+        } else {
+            $_SESSION['error'] = $result['message'];
+        }
+
+        $this->redirect('faculty/borrow-history');
     }
 
     public function profile()

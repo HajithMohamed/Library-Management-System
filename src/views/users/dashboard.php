@@ -7,7 +7,10 @@ $userStats = $userStats ?? [
     'borrowed_books' => 0,
     'overdue_books' => 0,
     'total_fines' => 0,
-    'max_books' => $_SESSION['userType'] === 'Faculty' ? 5 : 3
+    'max_books' => 3,
+    'borrow_period_days' => 14,
+    'max_renewals' => 1,
+    'remaining_slots' => 3
 ];
 
 $recentActivity = $recentActivity ?? [];
@@ -697,7 +700,7 @@ $recentActivity = $recentActivity ?? [];
         <div class="stats-grid">
             <div class="stat-card primary">
                 <div class="stat-info">
-                    <h4><?= $userStats['borrowed_books'] ?></h4>
+                    <h4><?= $userStats['borrowed_books'] ?>/<?= $userStats['max_books'] ?></h4>
                     <p>Books Borrowed</p>
                 </div>
                 <div class="stat-icon">
@@ -727,11 +730,31 @@ $recentActivity = $recentActivity ?? [];
 
             <div class="stat-card info">
                 <div class="stat-info">
-                    <h4><?= $userStats['max_books'] ?></h4>
-                    <p>Max Books Allowed</p>
+                    <h4><?= $userStats['borrow_period_days'] ?? 14 ?> days</h4>
+                    <p>Borrow Period</p>
                 </div>
                 <div class="stat-icon">
-                    <i class="fas fa-bookmark"></i>
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+            </div>
+
+            <div class="stat-card" style="--card-color-1: #10b981; --card-color-2: #059669;">
+                <div class="stat-info">
+                    <h4><?= $userStats['remaining_slots'] ?? max(0, $userStats['max_books'] - $userStats['borrowed_books']) ?></h4>
+                    <p>Remaining Slots</p>
+                </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.12)); color: #10b981;">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+            </div>
+
+            <div class="stat-card" style="--card-color-1: #8b5cf6; --card-color-2: #7c3aed;">
+                <div class="stat-info">
+                    <h4><?= $userStats['max_renewals'] ?? 1 ?></h4>
+                    <p>Max Renewals / Book</p>
+                </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(124, 58, 237, 0.12)); color: #8b5cf6;">
+                    <i class="fas fa-sync-alt"></i>
                 </div>
             </div>
         </div>

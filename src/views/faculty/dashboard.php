@@ -665,7 +665,7 @@ include APP_ROOT . '/views/layouts/header.php';
                     <i class="fas fa-book-open"></i>
                 </div>
                 <div class="stat-label">Books Borrowed</div>
-                <div class="stat-value"><?= count($borrowedBooks ?? []) ?></div>
+                <div class="stat-value"><?= count($borrowedBooks ?? []) ?>/<?= $userStats['max_books'] ?? 10 ?></div>
             </div>
 
             <div class="stat-card warning">
@@ -678,18 +678,18 @@ include APP_ROOT . '/views/layouts/header.php';
 
             <div class="stat-card success">
                 <div class="stat-icon">
-                    <i class="fas fa-bookmark"></i>
+                    <i class="fas fa-calendar-alt"></i>
                 </div>
-                <div class="stat-label">Reserved Books</div>
-                <div class="stat-value"><?= count($reservedBooks ?? []) ?></div>
+                <div class="stat-label">Borrow Period</div>
+                <div class="stat-value"><?= $userStats['borrow_period_days'] ?? 60 ?> <span style="font-size: 1rem;">days</span></div>
             </div>
 
             <div class="stat-card info">
                 <div class="stat-icon">
-                    <i class="fas fa-bell"></i>
+                    <i class="fas fa-sync-alt"></i>
                 </div>
-                <div class="stat-label">Notifications</div>
-                <div class="stat-value"><?= count($notifications ?? []) ?></div>
+                <div class="stat-label">Max Renewals / Book</div>
+                <div class="stat-value"><?= $userStats['max_renewals'] ?? 2 ?></div>
             </div>
         </div>
 
