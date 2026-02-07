@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Book;
 use App\Models\BorrowRecord;
 use App\Models\Transaction;
+use App\Services\AuthService;
 use App\Helpers\ValidationHelper;
 
 class UserController extends BaseController
@@ -14,6 +15,7 @@ class UserController extends BaseController
     private $bookModel;
     private $borrowModel;
     private $transactionModel;
+    private $authService;
 
     public function __construct()
     {
@@ -22,6 +24,7 @@ class UserController extends BaseController
         $this->bookModel = new Book();
         $this->borrowModel = new BorrowRecord();
         $this->transactionModel = new Transaction();
+        $this->authService = new AuthService();
     }
 
     /**
@@ -252,14 +255,29 @@ class UserController extends BaseController
     }
 
     /**
-     * Change password
+     * Show password change form (GET)
+     */
+    public function changePasswordForm()
+    {
+        $this->requireLogin();
+        
+        $userId = $_SESSION['userId'];
+        $user = $this->userModel->findById($userId);
+        
+        $this->data['user'] = $user;
+        $this->data['pageTitle'] = 'Change Password';
+        $this->view('users/change-password', $this->data);
+    }
+
+    /**
+     * Change password (POST) - validates then sends OTP for verification
      */
     public function changePassword()
     {
         $this->requireLogin();
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('user/profile');
+            $this->redirect('user/change-password');
             return;
         }
         
@@ -268,19 +286,487 @@ class UserController extends BaseController
         $newPassword = $_POST['new_password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
         
-        if ($newPassword !== $confirmPassword) {
-            $_SESSION['error'] = 'New passwords do not match';
-            $this->redirect('user/profile');
+        // Determine redirect path based on source
+        $redirectPath = $_POST['redirect_to'] ?? 'user/change-password';
+        
+        // Check rate limiting (5 failed attempts = 30 min lockout)
+        if ($this->userModel->isPasswordChangeLocked($userId)) {
+            $remainingMinutes = $this->userModel->getLockoutRemainingMinutes($userId);
+            $_SESSION['error'] = "Too many failed attempts. Please try again in {$remainingMinutes} minute(s).";
+            $this->redirect($redirectPath);
             return;
         }
         
-        if ($this->userModel->changePassword($userId, $currentPassword, $newPassword)) {
-            $_SESSION['success'] = 'Password changed successfully';
-        } else {
-            $_SESSION['error'] = 'Current password is incorrect';
+        // Validate all fields are present
+        if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+            $_SESSION['error'] = 'All password fields are required.';
+            $this->redirect($redirectPath);
+            return;
         }
         
-        $this->redirect('user/profile');
+        // Confirm passwords match
+        if ($newPassword !== $confirmPassword) {
+            $_SESSION['error'] = 'New passwords do not match.';
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // Validate password strength
+        $strengthErrors = $this->validatePasswordStrength($newPassword, $userId);
+        if (!empty($strengthErrors)) {
+            $_SESSION['error'] = implode('<br>', $strengthErrors);
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // Verify current password before proceeding
+        $user = $this->userModel->findById($userId);
+        if (!$user || !password_verify($currentPassword, $user['password'])) {
+            // Record failed attempt
+            $this->userModel->recordFailedPasswordAttempt($userId, 'wrong_current_password');
+            $_SESSION['error'] = 'Current password is incorrect.';
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // Check password history
+        if ($this->userModel->isPasswordInHistory($userId, $newPassword)) {
+            $_SESSION['error'] = 'You cannot reuse any of your last 3 passwords. Please choose a different password.';
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // Check new password is not same as current
+        if (password_verify($newPassword, $user['password'])) {
+            $_SESSION['error'] = 'New password cannot be the same as your current password.';
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // All validations passed - generate OTP and send to email
+        $otp = rand(100000, 999999);
+        $otpExpiry = time() + (15 * 60); // 15 minutes
+        
+        // Store pending password change data in session
+        $_SESSION['pw_change_otp'] = $otp;
+        $_SESSION['pw_change_otp_expiry'] = $otpExpiry;
+        $_SESSION['pw_change_new_password'] = $newPassword;
+        $_SESSION['pw_change_redirect'] = $redirectPath;
+        $_SESSION['pw_change_user_id'] = $userId;
+        $_SESSION['pw_change_otp_attempts'] = 0;
+        
+        // Send OTP email
+        $email = $user['emailId'] ?? '';
+        $username = $user['username'] ?? 'User';
+        
+        if (!empty($email)) {
+            $this->sendPasswordOtpEmail($email, $username, $otp);
+            
+            // Mask email for display
+            $maskedEmail = $this->maskEmail($email);
+            $_SESSION['pw_change_masked_email'] = $maskedEmail;
+            $_SESSION['success'] = "A 6-digit verification code has been sent to {$maskedEmail}. Please enter it below to confirm your password change.";
+        } else {
+            $_SESSION['error'] = 'No email address found on your account. Please contact support.';
+            $this->redirect($redirectPath);
+            return;
+        }
+        
+        // Redirect to OTP verification page
+        $userType = strtolower($_SESSION['userType'] ?? 'user');
+        if ($userType === 'student') $userType = 'user';
+        $this->redirect($userType . '/verify-password-otp');
+    }
+
+    /**
+     * Show OTP verification form for password change (GET)
+     */
+    public function verifyPasswordOtpForm()
+    {
+        $this->requireLogin();
+        
+        // Must have pending OTP
+        if (!isset($_SESSION['pw_change_otp'])) {
+            $userType = strtolower($_SESSION['userType'] ?? 'user');
+            if ($userType === 'student') $userType = 'user';
+            $_SESSION['error'] = 'No pending password change. Please start the password change process again.';
+            $this->redirect($userType . '/change-password');
+            return;
+        }
+        
+        // Check if OTP has expired
+        if (time() > $_SESSION['pw_change_otp_expiry']) {
+            $this->clearPendingPasswordChange();
+            $userType = strtolower($_SESSION['userType'] ?? 'user');
+            if ($userType === 'student') $userType = 'user';
+            $_SESSION['error'] = 'Verification code has expired. Please start the password change process again.';
+            $this->redirect($userType . '/change-password');
+            return;
+        }
+        
+        $this->data['pageTitle'] = 'Verify Password Change';
+        $this->data['maskedEmail'] = $_SESSION['pw_change_masked_email'] ?? 'your email';
+        $this->data['otpExpiry'] = $_SESSION['pw_change_otp_expiry'] ?? 0;
+        $this->view('users/verify-password-otp', $this->data);
+    }
+
+    /**
+     * Verify OTP and complete password change (POST)
+     */
+    public function verifyPasswordOtp()
+    {
+        $this->requireLogin();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->verifyPasswordOtpForm();
+            return;
+        }
+        
+        $userType = strtolower($_SESSION['userType'] ?? 'user');
+        if ($userType === 'student') $userType = 'user';
+        $otpRedirect = $userType . '/verify-password-otp';
+        $changeRedirect = $userType . '/change-password';
+        
+        // Must have pending OTP
+        if (!isset($_SESSION['pw_change_otp'])) {
+            $_SESSION['error'] = 'No pending password change. Please start the process again.';
+            $this->redirect($changeRedirect);
+            return;
+        }
+        
+        // Check if OTP has expired
+        if (time() > $_SESSION['pw_change_otp_expiry']) {
+            $this->clearPendingPasswordChange();
+            $_SESSION['error'] = 'Verification code has expired. Please start the password change process again.';
+            $this->redirect($changeRedirect);
+            return;
+        }
+        
+        $enteredOtp = trim($_POST['otp'] ?? '');
+        
+        if (empty($enteredOtp)) {
+            $_SESSION['error'] = 'Please enter the verification code.';
+            $this->redirect($otpRedirect);
+            return;
+        }
+        
+        // Track OTP attempts
+        $_SESSION['pw_change_otp_attempts'] = ($_SESSION['pw_change_otp_attempts'] ?? 0) + 1;
+        
+        if ($_SESSION['pw_change_otp_attempts'] > 5) {
+            $this->clearPendingPasswordChange();
+            $_SESSION['error'] = 'Too many incorrect attempts. Please start the password change process again.';
+            $this->redirect($changeRedirect);
+            return;
+        }
+        
+        // Verify OTP
+        if ((string)$enteredOtp !== (string)$_SESSION['pw_change_otp']) {
+            $remaining = 5 - $_SESSION['pw_change_otp_attempts'];
+            $_SESSION['error'] = "Invalid verification code. You have {$remaining} attempt(s) remaining.";
+            $this->redirect($otpRedirect);
+            return;
+        }
+        
+        // OTP verified! Now actually change the password
+        $userId = $_SESSION['pw_change_user_id'];
+        $newPassword = $_SESSION['pw_change_new_password'];
+        $redirectPath = $_SESSION['pw_change_redirect'] ?? $changeRedirect;
+        
+        // Verify user session still matches
+        if ($userId !== $_SESSION['userId']) {
+            $this->clearPendingPasswordChange();
+            $_SESSION['error'] = 'Session mismatch. Please start the password change process again.';
+            $this->redirect($changeRedirect);
+            return;
+        }
+        
+        // Hash and update password
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        global $conn;
+        $stmt = $conn->prepare("UPDATE users SET password = ?, password_changed = 1, password_changed_at = NOW(), updatedAt = NOW() WHERE userId = ?");
+        $stmt->bind_param("ss", $hashedPassword, $userId);
+        
+        if ($stmt->execute()) {
+            // Store in password history
+            $this->userModel->addPasswordToHistory($userId, $hashedPassword);
+            
+            // Log the password change
+            $this->userModel->logPasswordChange($userId, 'voluntary');
+            
+            // Clear any failed attempts
+            $this->userModel->clearFailedPasswordAttempts($userId);
+            
+            // Send password changed confirmation email
+            $this->sendPasswordChangeEmail($userId);
+            
+            // Create in-app notification
+            $this->createNotification(
+                $userId,
+                'Password Changed',
+                'Your password was changed successfully on ' . date('M j, Y \a\t g:i A') . '. If you did not make this change, please contact library support immediately.',
+                'security'
+            );
+            
+            // Clear pending password change session data
+            $this->clearPendingPasswordChange();
+            
+            // Invalidate session - force re-login with new password
+            $_SESSION['success'] = 'Password changed successfully! A confirmation email has been sent. Please log in with your new password.';
+            
+            // Destroy current session and redirect to login
+            $this->destroySessionAndRedirect();
+            return;
+        } else {
+            $this->clearPendingPasswordChange();
+            $_SESSION['error'] = 'Failed to update password. Please try again.';
+            $this->redirect($redirectPath);
+        }
+        $stmt->close();
+    }
+
+    /**
+     * Resend OTP for password change
+     */
+    public function resendPasswordOtp()
+    {
+        $this->requireLogin();
+        
+        $userType = strtolower($_SESSION['userType'] ?? 'user');
+        if ($userType === 'student') $userType = 'user';
+        $otpRedirect = $userType . '/verify-password-otp';
+        $changeRedirect = $userType . '/change-password';
+        
+        // Must have pending password change
+        if (!isset($_SESSION['pw_change_otp'])) {
+            $_SESSION['error'] = 'No pending password change. Please start the process again.';
+            $this->redirect($changeRedirect);
+            return;
+        }
+        
+        $userId = $_SESSION['pw_change_user_id'] ?? $_SESSION['userId'];
+        $user = $this->userModel->findById($userId);
+        
+        if (!$user || empty($user['emailId'])) {
+            $_SESSION['error'] = 'Unable to send verification code. No email found.';
+            $this->redirect($otpRedirect);
+            return;
+        }
+        
+        // Generate new OTP
+        $otp = rand(100000, 999999);
+        $otpExpiry = time() + (15 * 60); // 15 minutes
+        
+        $_SESSION['pw_change_otp'] = $otp;
+        $_SESSION['pw_change_otp_expiry'] = $otpExpiry;
+        $_SESSION['pw_change_otp_attempts'] = 0;
+        
+        // Send new OTP
+        $this->sendPasswordOtpEmail($user['emailId'], $user['username'] ?? 'User', $otp);
+        
+        $maskedEmail = $this->maskEmail($user['emailId']);
+        $_SESSION['pw_change_masked_email'] = $maskedEmail;
+        $_SESSION['success'] = "A new verification code has been sent to {$maskedEmail}.";
+        $this->redirect($otpRedirect);
+    }
+
+    /**
+     * Cancel pending password change
+     */
+    public function cancelPasswordChange()
+    {
+        $this->requireLogin();
+        
+        $this->clearPendingPasswordChange();
+        
+        $userType = strtolower($_SESSION['userType'] ?? 'user');
+        if ($userType === 'student') $userType = 'user';
+        $_SESSION['info'] = 'Password change has been cancelled.';
+        $this->redirect($userType . '/change-password');
+    }
+
+    /**
+     * Send OTP email for password change verification
+     */
+    private function sendPasswordOtpEmail($email, $username, $otp)
+    {
+        try {
+            $subject = "Password Change Verification - Library System";
+            $body = "Hello {$username},\n\n";
+            $body .= "You have requested to change your password for the Library Management System.\n\n";
+            $body .= "Your verification code is: {$otp}\n\n";
+            $body .= "This code is valid for 15 minutes.\n\n";
+            $body .= "If you did NOT request this password change, please ignore this email and your password will remain unchanged.\n\n";
+            $body .= "Details:\n";
+            $body .= "  Date & Time: " . date('F j, Y \a\t g:i A') . "\n";
+            $body .= "  IP Address: " . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown') . "\n\n";
+            $body .= "Best regards,\nLibrary Management System\n";
+            
+            return $this->authService->sendEmail($email, $subject, $body);
+        } catch (\Exception $e) {
+            error_log("Error sending password OTP email: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Mask email address for display (e.g., jo***@example.com)
+     */
+    private function maskEmail($email)
+    {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return $email;
+        
+        $parts = explode('@', $email);
+        $name = $parts[0];
+        $domain = $parts[1];
+        
+        if (strlen($name) <= 2) {
+            $masked = $name[0] . '***';
+        } else {
+            $masked = substr($name, 0, 2) . str_repeat('*', max(3, strlen($name) - 2));
+        }
+        
+        return $masked . '@' . $domain;
+    }
+
+    /**
+     * Clear all pending password change session data
+     */
+    private function clearPendingPasswordChange()
+    {
+        unset(
+            $_SESSION['pw_change_otp'],
+            $_SESSION['pw_change_otp_expiry'],
+            $_SESSION['pw_change_new_password'],
+            $_SESSION['pw_change_redirect'],
+            $_SESSION['pw_change_user_id'],
+            $_SESSION['pw_change_otp_attempts'],
+            $_SESSION['pw_change_masked_email']
+        );
+    }
+
+    /**
+     * Validate password strength requirements
+     */
+    private function validatePasswordStrength($password, $userId = null)
+    {
+        $errors = [];
+        
+        // Minimum 8 characters
+        if (strlen($password) < 8) {
+            $errors[] = 'Password must be at least 8 characters long.';
+        }
+        
+        // At least one uppercase letter
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'Password must contain at least one uppercase letter.';
+        }
+        
+        // At least one lowercase letter
+        if (!preg_match('/[a-z]/', $password)) {
+            $errors[] = 'Password must contain at least one lowercase letter.';
+        }
+        
+        // At least one number
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'Password must contain at least one number.';
+        }
+        
+        // At least one special character
+        if (!preg_match('/[@$!%*?&#^()_+\-=\[\]{};:\'",.<>\/\\\\|`~]/', $password)) {
+            $errors[] = 'Password must contain at least one special character (@, $, !, %, *, ?, &, etc.).';
+        }
+        
+        // Cannot be same as username or email
+        if ($userId) {
+            $user = $this->userModel->findById($userId);
+            if ($user) {
+                $lowerPassword = strtolower($password);
+                if (!empty($user['username']) && strtolower($user['username']) === $lowerPassword) {
+                    $errors[] = 'Password cannot be the same as your username.';
+                }
+                if (!empty($user['emailId']) && strtolower($user['emailId']) === $lowerPassword) {
+                    $errors[] = 'Password cannot be the same as your email address.';
+                }
+            }
+        }
+        
+        return $errors;
+    }
+
+    /**
+     * Send password change notification email
+     */
+    private function sendPasswordChangeEmail($userId)
+    {
+        try {
+            $user = $this->userModel->findById($userId);
+            if (!$user || empty($user['emailId'])) {
+                return false;
+            }
+            
+            $email = $user['emailId'];
+            $username = $user['username'] ?? 'User';
+            $changeTime = date('F j, Y \a\t g:i A');
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+            
+            $subject = "Password Changed Successfully - Library System";
+            $body = "Hello {$username},\n\n";
+            $body .= "Your password for the Library Management System was changed successfully.\n\n";
+            $body .= "Details:\n";
+            $body .= "  Date & Time: {$changeTime}\n";
+            $body .= "  IP Address: {$ipAddress}\n\n";
+            $body .= "If you made this change, no further action is needed.\n\n";
+            $body .= "If you did NOT make this change, please:\n";
+            $body .= "  1. Contact library support immediately\n";
+            $body .= "  2. Use the 'Forgot Password' feature to secure your account\n\n";
+            $body .= "Best regards,\n";
+            $body .= "Library Management System\n";
+            
+            // Use AuthService to send email
+            return $this->authService->sendEmail($email, $subject, $body);
+        } catch (\Exception $e) {
+            error_log("Error sending password change email: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Destroy session and redirect to login (after password change)
+     */
+    private function destroySessionAndRedirect()
+    {
+        // Store success message before destroying session
+        $successMessage = $_SESSION['success'] ?? 'Password changed successfully! Please log in with your new password.';
+        
+        // Clear all session data
+        $_SESSION = [];
+        
+        // Delete session cookie
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'],
+                $params['domain'],
+                $params['secure'],
+                $params['httponly']
+            );
+        }
+        
+        // Destroy session
+        session_destroy();
+        
+        // Start a new session for the flash message
+        session_start();
+        session_regenerate_id(true);
+        $_SESSION['success'] = $successMessage;
+        
+        // Redirect to login
+        header('Location: ' . BASE_URL);
+        exit;
     }
 
     /**

@@ -251,7 +251,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <?php if (isset($_SESSION['error'])): ?>
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-circle"></i>
-                    <?= htmlspecialchars($_SESSION['error']) ?>
+                    <div><?= $_SESSION['error'] ?></div>
                 </div>
                 <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
@@ -259,7 +259,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <?php if (isset($_SESSION['success'])): ?>
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle"></i>
-                    <?= htmlspecialchars($_SESSION['success']) ?>
+                    <div><?= $_SESSION['success'] ?></div>
                 </div>
                 <?php unset($_SESSION['success']); ?>
             <?php endif; ?>
@@ -268,7 +268,9 @@ include APP_ROOT . '/views/layouts/header.php';
                 <i class="fas fa-shield-alt"></i>
                 <p>
                     Choose a strong password that you haven't used before.
-                    Your temporary password will be replaced permanently.
+                    A verification code (OTP) will be sent to your email for identity confirmation.
+                    After verifying, you will be logged out and must sign in with your new password.
+                    A confirmation email will also be sent.
                 </p>
             </div>
 
@@ -280,15 +282,24 @@ include APP_ROOT . '/views/layouts/header.php';
                     <div class="input-wrapper">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" class="form-input" name="new_password" id="newPassword"
-                            placeholder="Enter your new password" required minlength="6">
+                            placeholder="Enter your new password" required minlength="8" autocomplete="new-password">
                         <button type="button" class="toggle-pw" onclick="togglePassword('newPassword', this)">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
+                    
+                    <!-- Strength Meter -->
+                    <div id="strengthMeterForce" style="display: none; margin-top: 0.5rem;">
+                        <div style="height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin-bottom: 0.25rem;">
+                            <div id="strengthBarForce" style="height: 100%; border-radius: 3px; transition: width 0.3s, background-color 0.3s; width: 0%;"></div>
+                        </div>
+                        <span id="strengthLabelForce" style="font-size: 0.8rem; font-weight: 600;"></span>
+                    </div>
+                    
                     <div class="password-requirements" id="pwRequirements">
                         <p>Password must have:</p>
                         <div class="requirement" id="req-length">
-                            <i class="fas fa-circle" style="font-size: 0.4rem;"></i> At least 6 characters
+                            <i class="fas fa-circle" style="font-size: 0.4rem;"></i> At least 8 characters
                         </div>
                         <div class="requirement" id="req-upper">
                             <i class="fas fa-circle" style="font-size: 0.4rem;"></i> One uppercase letter
@@ -298,6 +309,9 @@ include APP_ROOT . '/views/layouts/header.php';
                         </div>
                         <div class="requirement" id="req-number">
                             <i class="fas fa-circle" style="font-size: 0.4rem;"></i> One number
+                        </div>
+                        <div class="requirement" id="req-special">
+                            <i class="fas fa-circle" style="font-size: 0.4rem;"></i> One special character (@, $, !, %, *, ?, &)
                         </div>
                     </div>
                 </div>
@@ -309,7 +323,7 @@ include APP_ROOT . '/views/layouts/header.php';
                     <div class="input-wrapper">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" class="form-input" name="confirm_password" id="confirmPassword"
-                            placeholder="Re-enter your new password" required minlength="6">
+                            placeholder="Re-enter your new password" required minlength="8" autocomplete="new-password">
                         <button type="button" class="toggle-pw" onclick="togglePassword('confirmPassword', this)">
                             <i class="fas fa-eye"></i>
                         </button>
@@ -318,7 +332,7 @@ include APP_ROOT . '/views/layouts/header.php';
                 </div>
 
                 <button type="submit" class="btn-change-pw" id="submitBtn">
-                    <i class="fas fa-check-circle"></i> Set New Password &amp; Continue
+                    <i class="fas fa-paper-plane"></i> Send Verification Code
                 </button>
             </form>
         </div>
@@ -345,10 +359,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function checkRequirements() {
         const val = newPw.value;
-        setReq('req-length', val.length >= 6);
+        const meter = document.getElementById('strengthMeterForce');
+        const bar = document.getElementById('strengthBarForce');
+        const label = document.getElementById('strengthLabelForce');
+        
+        setReq('req-length', val.length >= 8);
         setReq('req-upper', /[A-Z]/.test(val));
         setReq('req-lower', /[a-z]/.test(val));
         setReq('req-number', /[0-9]/.test(val));
+        setReq('req-special', /[@$!%*?&#^()_+\-=\[\]{};:'",.<>\/\\|`~]/.test(val));
+        
+        // Strength meter
+        if (val.length === 0) {
+            meter.style.display = 'none';
+            return;
+        }
+        meter.style.display = 'block';
+        let score = 0;
+        if (val.length >= 8) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[@$!%*?&#^()_+\-=\[\]{};:'",.<>\/\\|`~]/.test(val)) score++;
+        if (val.length >= 12) score++;
+        if (val.length >= 16) score++;
+        
+        if (score <= 2) {
+            bar.style.width = '25%'; bar.style.background = '#ef4444';
+            label.textContent = 'Weak'; label.style.color = '#ef4444';
+        } else if (score <= 4) {
+            bar.style.width = '50%'; bar.style.background = '#f59e0b';
+            label.textContent = 'Fair'; label.style.color = '#f59e0b';
+        } else if (score <= 5) {
+            bar.style.width = '75%'; bar.style.background = '#3b82f6';
+            label.textContent = 'Good'; label.style.color = '#3b82f6';
+        } else {
+            bar.style.width = '100%'; bar.style.background = '#22c55e';
+            label.textContent = 'Strong'; label.style.color = '#22c55e';
+        }
     }
 
     function setReq(id, met) {
@@ -384,14 +432,19 @@ document.addEventListener('DOMContentLoaded', function() {
     confirmPw.addEventListener('input', checkMatch);
 
     document.getElementById('forceChangePwForm').addEventListener('submit', function(e) {
-        if (newPw.value.length < 6) {
+        const val = newPw.value;
+        let errors = [];
+        
+        if (val.length < 8) errors.push('Password must be at least 8 characters long.');
+        if (!/[A-Z]/.test(val)) errors.push('Password must contain an uppercase letter.');
+        if (!/[a-z]/.test(val)) errors.push('Password must contain a lowercase letter.');
+        if (!/[0-9]/.test(val)) errors.push('Password must contain a number.');
+        if (!/[@$!%*?&#^()_+\-=\[\]{};:'",.<>\/\\|`~]/.test(val)) errors.push('Password must contain a special character.');
+        if (newPw.value !== confirmPw.value) errors.push('Passwords do not match.');
+        
+        if (errors.length > 0) {
             e.preventDefault();
-            alert('Password must be at least 6 characters long.');
-            return;
-        }
-        if (newPw.value !== confirmPw.value) {
-            e.preventDefault();
-            alert('Passwords do not match.');
+            alert(errors.join('\n'));
             return;
         }
     });

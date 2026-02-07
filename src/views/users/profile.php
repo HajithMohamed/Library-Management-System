@@ -637,6 +637,31 @@ include APP_ROOT . '/views/layouts/header.php';
                                 </button>
                             </div>
                         </form>
+                        
+                        <!-- Change Password Section -->
+                        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #f3f4f6;">
+                            <div class="info-box" style="border-left-color: #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(234, 88, 12, 0.05));">
+                                <div class="info-box-content">
+                                    <div class="info-box-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <div class="info-box-text">
+                                        <h5>Password & Security</h5>
+                                        <p>Regularly changing your password helps keep your account secure. We recommend updating it every 90 days.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="<?= BASE_URL ?>user/change-password" 
+                               style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.75rem; 
+                                      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: white; 
+                                      border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 1rem;
+                                      transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(245, 158, 11, 0.25);"
+                               onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 28px rgba(245, 158, 11, 0.35)';"
+                               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(245, 158, 11, 0.25)';">
+                                <i class="fas fa-key"></i>
+                                Change Password
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

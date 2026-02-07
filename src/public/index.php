@@ -586,6 +586,9 @@ $router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword')
 $router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
 $router->addRoute('GET', '/force-change-password', 'AuthController', 'forceChangePassword');
 $router->addRoute('POST', '/force-change-password', 'AuthController', 'forceChangePassword');
+$router->addRoute('GET', '/verify-force-password-otp', 'AuthController', 'verifyForcePasswordOtp');
+$router->addRoute('POST', '/verify-force-password-otp', 'AuthController', 'verifyForcePasswordOtp');
+$router->addRoute('GET', '/resend-force-password-otp', 'AuthController', 'resendForcePasswordOtp');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
 // ============================================================================
@@ -599,7 +602,12 @@ $router->addRoute('GET', '/user/index', 'UserController', 'dashboard');
 // User Profile
 $router->addRoute('GET', '/user/profile', 'UserController', 'profile');
 $router->addRoute('POST', '/user/profile', 'UserController', 'updateProfile');
+$router->addRoute('GET', '/user/change-password', 'UserController', 'changePasswordForm');
 $router->addRoute('POST', '/user/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/user/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/user/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/user/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/user/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // User Books
 $router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
@@ -641,7 +649,12 @@ $router->addRoute('POST', '/user/notifications/mark-read', 'UserController', 'ma
 $router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
 $router->addRoute('GET', '/student/profile', 'UserController', 'profile');
 $router->addRoute('POST', '/student/profile', 'UserController', 'updateProfile');
+$router->addRoute('GET', '/student/change-password', 'UserController', 'changePasswordForm');
 $router->addRoute('POST', '/student/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/student/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/student/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/student/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/student/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // ============================================================================
 // FACULTY ROUTES
@@ -679,6 +692,12 @@ $router->addRoute('POST', '/faculty/payment-form', 'FacultyController', 'payFine
 // Faculty Profile
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
+$router->addRoute('GET', '/faculty/change-password', 'UserController', 'changePasswordForm');
+$router->addRoute('POST', '/faculty/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/faculty/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/faculty/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/faculty/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/faculty/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // Faculty Notifications
 $router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
@@ -767,6 +786,12 @@ $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'creat
 // Admin Profile
 $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
 $router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
+$router->addRoute('GET', '/admin/change-password', 'UserController', 'changePasswordForm');
+$router->addRoute('POST', '/admin/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/admin/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/admin/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/admin/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/admin/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // Admin Faculty Management
 $router->addRoute('GET', '/admin/faculty/add', 'AdminController', 'addFacultyForm');

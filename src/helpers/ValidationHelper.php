@@ -23,11 +23,66 @@ class ValidationHelper
     }
     
     /**
-     * Validate password (minimum 6 characters)
+     * Validate password (minimum 6 characters) - basic check
      */
     public static function validatePassword($password)
     {
         return strlen($password) >= 6;
+    }
+
+    /**
+     * Validate password strength (strong password policy)
+     * Returns array of error messages, empty array if valid
+     */
+    public static function validatePasswordStrength($password, $username = null, $email = null)
+    {
+        $errors = [];
+        
+        if (strlen($password) < 8) {
+            $errors[] = 'Password must be at least 8 characters long.';
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'Password must contain at least one uppercase letter.';
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            $errors[] = 'Password must contain at least one lowercase letter.';
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'Password must contain at least one number.';
+        }
+        if (!preg_match('/[@$!%*?&#^()_+\-=\[\]{};:\'",.<>\/\\\\|`~]/', $password)) {
+            $errors[] = 'Password must contain at least one special character.';
+        }
+        if ($username && strtolower($password) === strtolower($username)) {
+            $errors[] = 'Password cannot be the same as your username.';
+        }
+        if ($email && strtolower($password) === strtolower($email)) {
+            $errors[] = 'Password cannot be the same as your email address.';
+        }
+        
+        return $errors;
+    }
+
+    /**
+     * Calculate password strength score (0-100)
+     */
+    public static function getPasswordStrengthScore($password)
+    {
+        $score = 0;
+        $length = strlen($password);
+        
+        // Length scoring
+        if ($length >= 8) $score += 20;
+        if ($length >= 12) $score += 10;
+        if ($length >= 16) $score += 10;
+        
+        // Character type scoring
+        if (preg_match('/[a-z]/', $password)) $score += 10;
+        if (preg_match('/[A-Z]/', $password)) $score += 15;
+        if (preg_match('/[0-9]/', $password)) $score += 15;
+        if (preg_match('/[@$!%*?&#^()_+\-=\[\]{};:\'",.<>\/\\\\|`~]/', $password)) $score += 20;
+        
+        return min(100, $score);
     }
     
     /**
