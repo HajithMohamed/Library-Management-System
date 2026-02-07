@@ -1,4 +1,6 @@
 <?php
+use App\Helpers\ImageHelper;
+
 $pageTitle = 'Book Details';
 include APP_ROOT . '/views/layouts/header.php';
 
@@ -807,27 +809,7 @@ if (!$book) {
             <!-- Left Side - Book Image -->
             <div class="book-image-section">
                 <div class="book-image-wrapper">
-                    <?php if (!empty($book['bookImage'])): ?>
-                        <img src="<?= BASE_URL ?>uploads/books/<?= htmlspecialchars($book['bookImage']) ?>" 
-                             alt="<?= htmlspecialchars($book['bookName']) ?>" 
-                             class="book-image"
-                             onerror="this.onerror=null; this.src='<?= BASE_URL ?>assets/images/no-book-cover.jpg'; if(this.complete && this.naturalHeight === 0) { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">
-                        <!-- Default SVG Fallback -->
-                        <div class="default-book-cover" style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;">
-                            <i class="fas fa-book" style="font-size: 5rem; color: white; opacity: 0.9;"></i>
-                            <div style="color: white; font-size: 1.2rem; font-weight: 700; text-align: center; opacity: 0.9;">No Cover Available</div>
-                        </div>
-                    <?php else: ?>
-                        <img src="<?= BASE_URL ?>assets/images/no-book-cover.jpg" 
-                             alt="Default book cover" 
-                             class="book-image"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <!-- Default SVG Fallback -->
-                        <div class="default-book-cover" style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;">
-                            <i class="fas fa-book" style="font-size: 5rem; color: white; opacity: 0.9;"></i>
-                            <div style="color: white; font-size: 1.2rem; font-weight: 700; text-align: center; opacity: 0.9;">No Cover Available</div>
-                        </div>
-                    <?php endif; ?>
+                    <?= ImageHelper::renderBookCover($book['bookImage'] ?? null, $book['bookName'] ?? 'Book cover', 'book-image') ?>
                 </div>
                 
                 <!-- ISBN Badge - Below Book Image -->

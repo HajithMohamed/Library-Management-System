@@ -4,6 +4,7 @@
 namespace App\Controllers;
 
 use App\Helpers\BarcodeHelper;
+use App\Helpers\ImageHelper;
 
 class BookController
 {
@@ -167,43 +168,16 @@ class BookController
             }
             $checkStmt->close();
             
-            // Handle image upload
+            // Handle image upload using ImageHelper
             $imagePath = null;
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = APP_ROOT . '/public/uploads/books/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                    error_log("Created upload directory: {$uploadDir}");
-                }
-                
-                $fileExtension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                
-                if (!in_array($fileExtension, $allowedExtensions)) {
-                    $_SESSION['error'] = 'Invalid image format. Only JPG, PNG, GIF, and WebP are allowed.';
+                $uploadResult = ImageHelper::processUpload($_FILES['image']);
+                if (!$uploadResult['success']) {
+                    $_SESSION['error'] = $uploadResult['error'];
                     header('Location: ' . BASE_URL . 'admin/books');
                     exit();
                 }
-                
-                // Check file size (500KB max after compression on client)
-                if ($_FILES['image']['size'] > 1024 * 1024 * 2) { // 2MB hard limit server-side
-                    $_SESSION['error'] = 'Image file is too large. Maximum size is 2MB.';
-                    header('Location: ' . BASE_URL . 'admin/books');
-                    exit();
-                }
-                
-                $fileName = uniqid('book_') . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-                    $imagePath = 'uploads/books/' . $fileName;
-                    error_log("✓ Image uploaded successfully: {$imagePath}");
-                } else {
-                    error_log("✗ Failed to move uploaded file to: {$targetPath}");
-                    $_SESSION['error'] = 'Failed to upload image. Please try again.';
-                    header('Location: ' . BASE_URL . 'admin/books');
-                    exit();
-                }
+                $imagePath = $uploadResult['path'];
             }
             
             // GENERATE BARCODE - TEXT ONLY VERSION (No dependencies required)
@@ -331,32 +305,15 @@ class BookController
             
             $imagePath = $currentBook['bookImage'];
             
-            // Handle new image upload
+            // Handle new image upload using ImageHelper
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                $uploadDir = APP_ROOT . '/public/uploads/books/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-                
-                $fileExtension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                
-                if (!in_array($fileExtension, $allowedExtensions)) {
-                    $_SESSION['error'] = 'Invalid image format. Only JPG, PNG, GIF, and WebP are allowed.';
+                $uploadResult = ImageHelper::processUpload($_FILES['image'], $imagePath);
+                if (!$uploadResult['success']) {
+                    $_SESSION['error'] = $uploadResult['error'];
                     header('Location: ' . BASE_URL . 'admin/books');
                     exit();
                 }
-                
-                $fileName = uniqid('book_') . '.' . $fileExtension;
-                $targetPath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-                    // Delete old image if it exists
-                    if (!empty($imagePath) && file_exists(APP_ROOT . '/public/' . $imagePath)) {
-                        unlink(APP_ROOT . '/public/' . $imagePath);
-                    }
-                    $imagePath = 'uploads/books/' . $fileName;
-                }
+                $imagePath = $uploadResult['path'];
             }
             
             // Update book - UPDATED: Include all fields

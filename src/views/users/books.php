@@ -6,6 +6,8 @@ if (!defined('APP_ROOT')) {
     die('Direct access not permitted');
 }
 
+use App\Helpers\ImageHelper;
+
 $pageTitle = 'Browse Books';
 $currentPage = 'books';
 
@@ -916,13 +918,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <?php foreach ($books as $book): ?>
                 <div class="book-card-modern">
                     <div class="book-image-wrapper">
-                        <?php if (!empty($book['bookImage'])): ?>
-                            <img src="<?= rtrim(BASE_URL, '/') . '/uploads/books/' . htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
-                        <?php else: ?>
-                            <div class="book-placeholder-icon">
-                                <i class="fas fa-book"></i>
-                            </div>
-                        <?php endif; ?>
+                        <?= ImageHelper::renderBookCover($book['bookImage'] ?? null, $book['bookName'] ?? 'Book cover', 'book-cover') ?>
                         
                         <?php if (!empty($book['isTrending'])): ?>
                             <div class="trending-badge">
@@ -1058,11 +1054,12 @@ async function fetchAutocomplete(query) {
 
 function displayAutocomplete(books) {
     const baseUrl = '<?= rtrim(BASE_URL, "/") ?>';
+    const placeholderUrl = '<?= ImageHelper::getPlaceholderUrl() ?>';
     
     autocompleteDropdown.innerHTML = books.slice(0, 8).map(book => {
         const imagePath = book.bookImage 
-            ? `${baseUrl}/uploads/books/${escapeHtml(book.bookImage)}` 
-            : null;
+            ? baseUrl + '/uploads/books/' + book.bookImage.replace(/^\/?(?:uploads\/books\/|assets\/uploads\/books\/)/, '')
+            : placeholderUrl;
         
         const imageHtml = imagePath 
             ? `<img src="${imagePath}" alt="${escapeHtml(book.bookName)}" onerror="this.parentElement.innerHTML='<div style=\\'width:50px;height:50px;background:#667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;\\'><i class=\\'fas fa-book\\'></i></div>'">` 
