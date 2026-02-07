@@ -151,6 +151,9 @@ class Router
         // Remove /index.php if present
         $path = str_replace('/index.php', '', $path);
 
+        // Collapse multiple slashes into one (e.g. //admin -> /admin)
+        $path = preg_replace('#/+#', '/', $path);
+
         // Normalize path - remove trailing slash except for root
         if ($path !== '/' && substr($path, -1) === '/') {
             $path = rtrim($path, '/');
@@ -802,20 +805,35 @@ $router->addRoute('GET', '/admin/faculty/list', 'AdminController', 'listFaculty'
 // E-RESOURCES ROUTES
 // ============================================================================
 
-$router->addRoute('GET', '/e-resources', 'EResourceController', 'index');
-$router->addRoute('GET', '/e-resources/index', 'EResourceController', 'index');
-$router->addRoute('GET', '/e-resources/upload', 'EResourceController', 'showUpload');
-$router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload');
+// Public (all authenticated users)
+$router->addRoute('GET', '/eresources', 'EResourceController', 'browse');
+$router->addRoute('GET', '/eresources/view/{id}', 'EResourceController', 'viewResource');
+$router->addRoute('GET', '/eresources/download/{id}', 'EResourceController', 'download');
+$router->addRoute('GET', '/eresources/save/{id}', 'EResourceController', 'save');
+$router->addRoute('GET', '/my-eresources', 'EResourceController', 'myResources');
 
-// Admin/Faculty Actions
-$router->addRoute('GET', '/e-resources/approve/{id}', 'EResourceController', 'approve');
-$router->addRoute('GET', '/e-resources/reject/{id}', 'EResourceController', 'reject');
-$router->addRoute('GET', '/e-resources/delete/{id}', 'EResourceController', 'delete');
+// Faculty E-Resource Routes
+$router->addRoute('GET', '/faculty/eresources/submit', 'EResourceController', 'submitForm');
+$router->addRoute('POST', '/faculty/eresources/submit', 'EResourceController', 'submitResource');
+$router->addRoute('GET', '/faculty/eresources/my-submissions', 'EResourceController', 'mySubmissions');
+$router->addRoute('GET', '/faculty/eresources/edit/{id}', 'EResourceController', 'editSubmission');
+$router->addRoute('POST', '/faculty/eresources/edit/{id}', 'EResourceController', 'updateSubmission');
+$router->addRoute('GET', '/faculty/eresources/library', 'EResourceController', 'myResources');
 
-// User Actions
-$router->addRoute('GET', '/e-resources/obtain/{id}', 'EResourceController', 'obtain');
+// Admin E-Resource Routes
+$router->addRoute('GET', '/admin/eresources/manage', 'EResourceController', 'adminManage');
+$router->addRoute('GET', '/admin/eresources/add', 'EResourceController', 'adminAddForm');
+$router->addRoute('POST', '/admin/eresources/add', 'EResourceController', 'adminAdd');
+$router->addRoute('GET', '/admin/eresources/edit/{id}', 'EResourceController', 'adminEditForm');
+$router->addRoute('POST', '/admin/eresources/edit/{id}', 'EResourceController', 'adminEdit');
+$router->addRoute('GET', '/admin/eresources/approvals', 'EResourceController', 'approvals');
+$router->addRoute('POST', '/admin/eresources/approve/{id}', 'EResourceController', 'approve');
+$router->addRoute('POST', '/admin/eresources/reject/{id}', 'EResourceController', 'rejectResource');
+$router->addRoute('POST', '/admin/eresources/delete/{id}', 'EResourceController', 'deleteResource');
+
+// Legacy redirects (backward compatibility)
+$router->addRoute('GET', '/e-resources', 'EResourceController', 'legacyIndex');
 $router->addRoute('GET', '/my-e-resources', 'EResourceController', 'myResources');
-$router->addRoute('GET', '/e-resources/my-library', 'EResourceController', 'myResources');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)
