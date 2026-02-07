@@ -5,6 +5,13 @@ namespace App\Helpers;
 class AuthHelper
 {
     /**
+     * Static method to get current userId
+     */
+    public static function getUserId()
+    {
+        return $_SESSION['userId'] ?? null;
+    }
+    /**
      * Check if user is logged in
      */
     public function isLoggedIn()

@@ -535,6 +535,27 @@
                         <?php endif; ?>
                     </a>
                 </div>
+
+                <div class="nav-item">
+                    <a href="<?= BASE_URL ?>admin/book-recommendations"
+                        class="nav-link <?= $currentPage === 'book-recommendations' ? 'active' : '' ?>" data-title="Book Recommendations">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Book Recommendations</span>
+                        <?php
+                        // Get pending book recommendations count
+                        $pendingRecommendations = 0;
+                        if (isset($mysqli)) {
+                            $result = $mysqli->query("SELECT COUNT(*) as count FROM book_recommendations WHERE status = 'pending'");
+                            if ($result) {
+                                $pendingRecommendations = $result->fetch_assoc()['count'];
+                            }
+                        }
+                        if ($pendingRecommendations > 0):
+                            ?>
+                            <span class="nav-badge" style="background:#fa709a;"><?= $pendingRecommendations ?></span>
+                        <?php endif; ?>
+                    </a>
+                </div>
             </div>
 
             <!-- User Management Section -->
