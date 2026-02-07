@@ -331,6 +331,10 @@ include APP_ROOT . '/views/layouts/header.php';
                         </div>
                         <h2 class="auth-title">Create Your Account</h2>
                         <p class="auth-subtitle">Join the University Library community - Choose your username and Student ID will be auto-generated</p>
+                        <p style="margin-top: 0.75rem; font-size: 0.875rem; color: #9ca3af;">
+                            <i class="fas fa-info-circle" style="color: #6366f1;"></i>
+                            <strong>Faculty?</strong> Faculty accounts are created by the library administrator. Please contact admin for access.
+                        </p>
                     </div>
 
                     <div class="auth-body">

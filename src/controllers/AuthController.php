@@ -73,6 +73,14 @@ class AuthController
           unset($_SESSION['guest_wishlist']);
         }
 
+        // Check if this is a first login (admin-created account needing password change)
+        if (!empty($user['first_login']) && empty($user['password_changed'])) {
+          $_SESSION['force_password_change'] = true;
+          $_SESSION['success'] = 'Welcome! Please change your temporary password to continue.';
+          $this->redirect('/force-change-password');
+          return;
+        }
+
         $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
         $this->authHelper->redirectByUserType();
       } else {
@@ -388,6 +396,69 @@ class AuthController
       $_SESSION['message'] = '<div class="alert alert-success">Password reset successfully! <a href="' . BASE_URL . '">Go to Login</a></div>';
     } else {
       $_SESSION['message'] = '<div class="alert alert-danger">Error resetting password. Please try again.</div>';
+    }
+  }
+
+  /**
+   * Force change password for first-login users (GET and POST)
+   */
+  public function forceChangePassword()
+  {
+    // Must be logged in
+    if (!isset($_SESSION['userId'])) {
+      $this->redirect('/');
+      return;
+    }
+
+    // Check if user actually needs to change password
+    $user = $this->userModel->getUserById($_SESSION['userId']);
+    if (!$user || (empty($user['first_login']) || !empty($user['password_changed']))) {
+      // User doesn't need to force change, redirect normally
+      unset($_SESSION['force_password_change']);
+      $this->authHelper->redirectByUserType();
+      return;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      $newPassword = $_POST['new_password'] ?? '';
+      $confirmPassword = $_POST['confirm_password'] ?? '';
+
+      if (empty($newPassword) || empty($confirmPassword)) {
+        $_SESSION['error'] = 'Please fill in both password fields.';
+        $this->redirect('/force-change-password');
+        return;
+      }
+
+      if ($newPassword !== $confirmPassword) {
+        $_SESSION['error'] = 'Passwords do not match.';
+        $this->redirect('/force-change-password');
+        return;
+      }
+
+      if (strlen($newPassword) < 6) {
+        $_SESSION['error'] = 'Password must be at least 6 characters long.';
+        $this->redirect('/force-change-password');
+        return;
+      }
+
+      // Update password, mark as changed
+      $hashedPassword = $this->authHelper->hashPassword($newPassword);
+      global $conn;
+      $stmt = $conn->prepare("UPDATE users SET password = ?, password_changed = 1, first_login = 0, updatedAt = NOW() WHERE userId = ?");
+      $stmt->bind_param("ss", $hashedPassword, $_SESSION['userId']);
+
+      if ($stmt->execute()) {
+        unset($_SESSION['force_password_change']);
+        $_SESSION['success'] = 'Password changed successfully! Welcome to the Library System.';
+        $this->authHelper->redirectByUserType();
+      } else {
+        $_SESSION['error'] = 'Failed to update password. Please try again.';
+        $this->redirect('/force-change-password');
+      }
+      $stmt->close();
+    } else {
+      // Show force change password form
+      $this->render('auth/force-change-password');
     }
   }
 

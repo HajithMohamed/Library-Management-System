@@ -584,6 +584,8 @@ $router->addRoute('GET', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('POST', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword');
 $router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
+$router->addRoute('GET', '/force-change-password', 'AuthController', 'forceChangePassword');
+$router->addRoute('POST', '/force-change-password', 'AuthController', 'forceChangePassword');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
 // ============================================================================
@@ -765,6 +767,11 @@ $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'creat
 // Admin Profile
 $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
 $router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
+
+// Admin Faculty Management
+$router->addRoute('GET', '/admin/faculty/add', 'AdminController', 'addFacultyForm');
+$router->addRoute('POST', '/admin/faculty/add', 'AdminController', 'createFaculty');
+$router->addRoute('GET', '/admin/faculty/list', 'AdminController', 'listFaculty');
 
 // ============================================================================
 // E-RESOURCES ROUTES
