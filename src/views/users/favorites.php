@@ -1,4 +1,6 @@
-<?php if (!isset($_SESSION['userId'])) { header("Location: /"); exit; } ?>
+<?php
+use App\Helpers\ImageHelper;
+if (!isset($_SESSION['userId'])) { header("Location: /"); exit; } ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,8 +36,7 @@
                     <?php foreach ($favorites as $fav): ?>
                         <tr>
                             <td>
-                                <img src="/uploads/books/<?php echo htmlspecialchars($fav['bookImage'] ?? 'default.jpg'); ?>" 
-                                     class="book-thumb" alt="Cover">
+                                <?= ImageHelper::renderBookCover($fav['bookImage'] ?? null, 'Cover', 'book-thumb') ?>
                             </td>
                             <td>
                                 <strong><?php echo htmlspecialchars($fav['bookName']); ?></strong><br>

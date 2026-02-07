@@ -1971,4 +1971,235 @@ class AdminController
 
     $this->redirect('/admin/notifications');
   }
+
+  // ============================================================================
+  // FACULTY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Show the Add Faculty form (redirects to Users page where modal is used)
+   */
+  public function addFacultyForm()
+  {
+    $this->redirect('/admin/users');
+  }
+
+  /**
+   * Handle creating a new faculty account (POST)
+   */
+  public function createFaculty()
+  {
+    $this->authHelper->requireAuth();
+    $userType = $_SESSION['userType'] ?? '';
+    if (strtolower($userType) !== 'admin') {
+      http_response_code(403);
+      $_SESSION['error'] = 'Access denied. Admin privileges required.';
+      header('Location: ' . BASE_URL . 'login');
+      exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+      $this->redirect('/admin/users');
+      return;
+    }
+
+    global $conn;
+
+    // Collect form data
+    $fullName    = trim($_POST['fullName'] ?? '');
+    $emailId     = trim($_POST['emailId'] ?? '');
+    $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+    $gender      = $_POST['gender'] ?? '';
+    $dob         = $_POST['dob'] ?? '';
+    $address     = $_POST['address'] ?? '';
+    $department  = trim($_POST['department'] ?? '');
+    $designation = trim($_POST['designation'] ?? '');
+    $employeeId  = trim($_POST['employee_id'] ?? '');
+
+    // Validate required fields
+    $errors = [];
+    if (empty($fullName))    $errors[] = 'Full name is required.';
+    if (empty($emailId))     $errors[] = 'Email is required.';
+    if (empty($phoneNumber)) $errors[] = 'Phone number is required.';
+    if (empty($department))  $errors[] = 'Department is required.';
+    if (empty($designation)) $errors[] = 'Designation is required.';
+
+    if (!filter_var($emailId, FILTER_VALIDATE_EMAIL)) {
+      $errors[] = 'Please enter a valid email address.';
+    }
+
+    // Check if email already exists
+    $checkStmt = $conn->prepare("SELECT userId FROM users WHERE emailId = ?");
+    $checkStmt->bind_param("s", $emailId);
+    $checkStmt->execute();
+    if ($checkStmt->get_result()->num_rows > 0) {
+      $errors[] = 'This email is already registered.';
+    }
+    $checkStmt->close();
+
+    // Check if employee_id already exists (if provided)
+    if (!empty($employeeId)) {
+      $checkEmp = $conn->prepare("SELECT userId FROM users WHERE employee_id = ?");
+      $checkEmp->bind_param("s", $employeeId);
+      $checkEmp->execute();
+      if ($checkEmp->get_result()->num_rows > 0) {
+        $errors[] = 'This Employee ID is already assigned.';
+      }
+      $checkEmp->close();
+    }
+
+    if (!empty($errors)) {
+      $_SESSION['error'] = implode(' | ', $errors);
+      $_SESSION['form_data'] = $_POST;
+      $this->redirect('/admin/users');
+      return;
+    }
+
+    // Generate faculty username (FAC2026XXX)
+    $username = $this->generateFacultyUsername();
+
+    // Generate temporary password (8 chars, mixed)
+    $tempPassword = $this->generateTempPassword();
+
+    // Hash the password
+    $hashedPassword = $this->authHelper->hashPassword($tempPassword);
+
+    // Generate userId
+    $userId = $username; // FAC2026XXX format serves as both username and userId
+
+    // Get privilege defaults for faculty
+    $privileges = \App\Models\User::getPrivilegeDefaults('Faculty');
+    $maxBorrowLimit  = $privileges['max_borrow_limit'];
+    $borrowPeriodDays = $privileges['borrow_period_days'];
+    $maxRenewals     = $privileges['max_renewals'];
+
+    // Insert the faculty user
+    $insertStmt = $conn->prepare("
+      INSERT INTO users (
+        userId, username, emailId, phoneNumber, password, userType, gender, dob, address,
+        isVerified, department, designation, employee_id,
+        password_changed, first_login,
+        max_borrow_limit, borrow_period_days, max_renewals, createdAt
+      ) VALUES (?, ?, ?, ?, ?, 'Faculty', ?, ?, ?, 1, ?, ?, ?, 0, 1, ?, ?, ?, NOW())
+    ");
+    $insertStmt->bind_param(
+      "sssssssssssiii",
+      $userId, $fullName, $emailId, $phoneNumber, $hashedPassword,
+      $gender, $dob, $address,
+      $department, $designation, $employeeId,
+      $maxBorrowLimit, $borrowPeriodDays, $maxRenewals
+    );
+
+    if ($insertStmt->execute()) {
+      // Send credentials email
+      $emailSent = $this->sendFacultyCredentialsEmail($emailId, $fullName, $userId, $tempPassword);
+
+      if ($emailSent) {
+        $_SESSION['success'] = "Faculty account created successfully! Username: {$userId} | Name: {$fullName} | Login credentials have been sent to {$emailId}.";
+      } else {
+        $_SESSION['success'] = "Faculty account created! Username: {$userId} | Name: {$fullName} | Temporary Password: {$tempPassword} | Email failed - please share credentials manually.";
+      }
+
+      unset($_SESSION['form_data']);
+      $this->redirect('/admin/users');
+    } else {
+      $_SESSION['error'] = 'Failed to create faculty account. Please try again. Error: ' . $conn->error;
+      $_SESSION['form_data'] = $_POST;
+      $this->redirect('/admin/users');
+    }
+
+    $insertStmt->close();
+  }
+
+  /**
+   * List all faculty members (redirects to Users page with Faculty filter)
+   */
+  public function listFaculty()
+  {
+    $this->redirect('/admin/users');
+  }
+
+  /**
+   * Generate a unique faculty username in the format FAC2026XXX
+   */
+  private function generateFacultyUsername()
+  {
+    global $conn;
+
+    $year = date('Y');
+    $prefix = 'FAC' . $year;
+
+    $stmt = $conn->prepare("SELECT userId FROM users WHERE userId LIKE ? ORDER BY userId DESC LIMIT 1");
+    $pattern = $prefix . '%';
+    $stmt->bind_param("s", $pattern);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+      $lastNumber = (int)substr($row['userId'], -3);
+      $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+    } else {
+      $newNumber = '001';
+    }
+
+    $stmt->close();
+    return $prefix . $newNumber;
+  }
+
+  /**
+   * Generate a random temporary password
+   */
+  private function generateTempPassword($length = 10)
+  {
+    $uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $lowercase = 'abcdefghjkmnpqrstuvwxyz';
+    $numbers   = '23456789';
+    $specials  = '!@#$%';
+
+    // Ensure at least one of each type
+    $password  = $uppercase[random_int(0, strlen($uppercase) - 1)];
+    $password .= $lowercase[random_int(0, strlen($lowercase) - 1)];
+    $password .= $numbers[random_int(0, strlen($numbers) - 1)];
+    $password .= $specials[random_int(0, strlen($specials) - 1)];
+
+    // Fill remaining characters
+    $allChars = $uppercase . $lowercase . $numbers . $specials;
+    for ($i = 4; $i < $length; $i++) {
+      $password .= $allChars[random_int(0, strlen($allChars) - 1)];
+    }
+
+    // Shuffle the password
+    return str_shuffle($password);
+  }
+
+  /**
+   * Send credentials email to newly created faculty
+   */
+  private function sendFacultyCredentialsEmail($email, $name, $username, $tempPassword)
+  {
+    $loginUrl = BASE_URL . 'login';
+
+    $subject = "Your Library Account - Faculty of Technology, University of Ruhuna";
+    $body  = "Dear {$name},\n\n";
+    $body .= "Your account has been created in the Library Management System of the Faculty of Technology, University of Ruhuna.\n\n";
+    $body .= "================================================\n";
+    $body .= "LOGIN CREDENTIALS\n";
+    $body .= "================================================\n";
+    $body .= "Username: {$username}\n";
+    $body .= "Temporary Password: {$tempPassword}\n";
+    $body .= "Login URL: {$loginUrl}\n";
+    $body .= "================================================\n\n";
+    $body .= "IMPORTANT SECURITY NOTICE:\n";
+    $body .= "- You MUST change your password upon first login.\n";
+    $body .= "- Do NOT share your credentials with anyone.\n";
+    $body .= "- If you did not expect this account, please contact the library administrator.\n\n";
+    $body .= "Best regards,\n";
+    $body .= "Library, Faculty of Technology\n";
+    $body .= "University of Ruhuna\n";
+    $body .= "Karagoda Uyangoda, Kamburupitiya\n";
+    $body .= "---\n";
+    $body .= "This is an automated message. Please do not reply.";
+
+    return $this->authService->sendEmail($email, $subject, $body);
+  }
 }

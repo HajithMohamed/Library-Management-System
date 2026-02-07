@@ -750,13 +750,304 @@ class User extends BaseModel
             return false;
         }
         
-        // Update password (remove updatedAt reference)
+        // Check new password is not same as current
+        if (password_verify($newPassword, $result['password'])) {
+            $this->lastError = 'New password cannot be the same as your current password.';
+            return false;
+        }
+        
+        // Check password history (last 3 passwords)
+        if ($this->isPasswordInHistory($userId, $newPassword)) {
+            $this->lastError = 'You cannot reuse any of your last 3 passwords. Please choose a different password.';
+            return false;
+        }
+        
+        // Hash and update password
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        $sql = "UPDATE {$this->table} SET password = ? WHERE userId = ?";
+        $sql = "UPDATE {$this->table} SET password = ?, password_changed_at = NOW(), force_password_change = 0 WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param('ss', $hashedPassword, $userId);
         
-        return $stmt->execute();
+        if ($stmt->execute()) {
+            // Store in password history
+            $this->addPasswordToHistory($userId, $hashedPassword);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if a password was used in the last N passwords
+     */
+    public function isPasswordInHistory($userId, $plainPassword, $limit = 3)
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_history'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $sql = "SELECT password_hash FROM password_history WHERE userId = ? ORDER BY created_at DESC LIMIT ?";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('si', $userId, $limit);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            while ($row = $result->fetch_assoc()) {
+                if (password_verify($plainPassword, $row['password_hash'])) {
+                    $stmt->close();
+                    return true;
+                }
+            }
+            $stmt->close();
+            return false;
+        } catch (\Exception $e) {
+            error_log("Error checking password history: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Add a hashed password to the history table
+     */
+    public function addPasswordToHistory($userId, $hashedPassword)
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_history'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $sql = "INSERT INTO password_history (userId, password_hash, created_at) VALUES (?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('ss', $userId, $hashedPassword);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            // Keep only last 5 entries per user (prune old ones)
+            $pruneSQL = "DELETE FROM password_history WHERE userId = ? AND id NOT IN (
+                SELECT id FROM (SELECT id FROM password_history WHERE userId = ? ORDER BY created_at DESC LIMIT 5) AS recent
+            )";
+            $pruneStmt = $this->db->prepare($pruneSQL);
+            if ($pruneStmt) {
+                $pruneStmt->bind_param('ss', $userId, $userId);
+                $pruneStmt->execute();
+                $pruneStmt->close();
+            }
+            
+            return $result;
+        } catch (\Exception $e) {
+            error_log("Error adding to password history: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Log a password change event
+     */
+    public function logPasswordChange($userId, $changeType = 'voluntary')
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_change_log'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            
+            $sql = "INSERT INTO password_change_log (userId, change_type, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('ssss', $userId, $changeType, $ipAddress, $userAgent);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return $result;
+        } catch (\Exception $e) {
+            error_log("Error logging password change: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Record a failed password change attempt (for rate limiting)
+     */
+    public function recordFailedPasswordAttempt($userId, $attemptType = 'wrong_current_password')
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_change_attempts'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            
+            $sql = "INSERT INTO password_change_attempts (userId, attempt_type, ip_address, created_at) VALUES (?, ?, ?, NOW())";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('sss', $userId, $attemptType, $ipAddress);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return $result;
+        } catch (\Exception $e) {
+            error_log("Error recording failed attempt: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if user is locked out due to too many failed attempts
+     * Returns true if locked out (5 failures in last 30 minutes)
+     */
+    public function isPasswordChangeLocked($userId, $maxAttempts = 5, $lockoutMinutes = 30)
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_change_attempts'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $sql = "SELECT COUNT(*) as attempt_count FROM password_change_attempts 
+                    WHERE userId = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('si', $userId, $lockoutMinutes);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            return ($result['attempt_count'] ?? 0) >= $maxAttempts;
+        } catch (\Exception $e) {
+            error_log("Error checking lockout status: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get remaining lockout time in minutes
+     */
+    public function getLockoutRemainingMinutes($userId, $lockoutMinutes = 30)
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_change_attempts'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return 0;
+            }
+            
+            $sql = "SELECT MAX(created_at) as last_attempt FROM password_change_attempts 
+                    WHERE userId = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return 0;
+            
+            $stmt->bind_param('si', $userId, $lockoutMinutes);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            
+            if (!$result || !$result['last_attempt']) return 0;
+            
+            $lastAttempt = strtotime($result['last_attempt']);
+            $unlockTime = $lastAttempt + ($lockoutMinutes * 60);
+            $remaining = ceil(($unlockTime - time()) / 60);
+            
+            return max(0, $remaining);
+        } catch (\Exception $e) {
+            error_log("Error getting lockout time: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Clear failed attempts after successful password change
+     */
+    public function clearFailedPasswordAttempts($userId)
+    {
+        try {
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'password_change_attempts'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                return false;
+            }
+            
+            $sql = "DELETE FROM password_change_attempts WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('s', $userId);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return $result;
+        } catch (\Exception $e) {
+            error_log("Error clearing failed attempts: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Set force_password_change flag for a user
+     */
+    public function setForcePasswordChange($userId, $force = true)
+    {
+        try {
+            $val = $force ? 1 : 0;
+            $sql = "UPDATE {$this->table} SET force_password_change = ? WHERE userId = ?";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return false;
+            
+            $stmt->bind_param('is', $val, $userId);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return $result;
+        } catch (\Exception $e) {
+            error_log("Error setting force password change: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if user needs to change password (force flag or expired)
+     */
+    public function needsPasswordChange($userId, $expiryDays = 90)
+    {
+        try {
+            $user = $this->findById($userId);
+            if (!$user) return false;
+            
+            // Check force_password_change flag
+            if (!empty($user['force_password_change'])) {
+                return 'forced';
+            }
+            
+            // Check first_login flag (existing functionality)
+            if (!empty($user['first_login']) && empty($user['password_changed'])) {
+                return 'first_login';
+            }
+            
+            // Check password expiry (optional - only if password_changed_at exists)
+            if (!empty($user['password_changed_at'])) {
+                $lastChange = strtotime($user['password_changed_at']);
+                $expiryTime = $lastChange + ($expiryDays * 86400);
+                if (time() > $expiryTime) {
+                    return 'expired';
+                }
+            }
+            
+            return false;
+        } catch (\Exception $e) {
+            error_log("Error checking password change requirement: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**

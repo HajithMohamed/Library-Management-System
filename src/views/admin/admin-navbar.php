@@ -472,7 +472,7 @@
                 </div>
 
                 <div class="nav-item">
-                    <a href="<?= BASE_URL ?>e-resources"
+                    <a href="<?= BASE_URL ?>admin/eresources/manage"
                         class="nav-link <?= $currentPage === 'e-resources' ? 'active' : '' ?>" data-title="E-Resources">
                         <i class="fas fa-file-pdf"></i>
                         <span>E-Resources</span>

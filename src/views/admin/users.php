@@ -1219,6 +1219,7 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                         <option value="">All User Types</option>
                         <option value="Admin">Admin</option>
                         <option value="Student">Student</option>
+                        <option value="Faculty">Faculty</option>
                         <option value="Teacher">Teacher</option>
                     </select>
                     
@@ -1232,6 +1233,11 @@ $currentAdminId = $_SESSION['userId'] ?? '';
                 <button class="btn-add" data-bs-toggle="modal" data-bs-target="#addUserModal">
                     <i class="fas fa-plus"></i>
                     Add New User
+                </button>
+
+                <button class="btn-add" style="background: linear-gradient(135deg, #059669, #10b981);" data-bs-toggle="modal" data-bs-target="#addFacultyModal">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    Create Faculty
                 </button>
             </div>
 
@@ -1545,6 +1551,102 @@ $currentAdminId = $_SESSION['userId'] ?? '';
     </div>
 </div>
 
+<!-- Create Faculty Modal -->
+<div class="modal" id="addFacultyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #059669, #10b981);">
+                <h5 class="modal-title">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    Create Faculty Account
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
+            </div>
+            <form method="POST" action="<?= BASE_URL ?>admin/faculty/add">
+                <div class="modal-body">
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <i class="fas fa-info-circle" style="color: #059669; margin-top: 3px;"></i>
+                        <div style="font-size: 0.9rem; color: #065f46;">
+                            <strong>Auto-generated credentials:</strong> A username (FAC<?= date('Y') ?>XXX) and temporary password will be generated automatically and emailed to the faculty member. They must change their password on first login.
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="fullName" required placeholder="e.g. Dr. John Smith">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="emailId" required placeholder="faculty@university.edu">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="phoneNumber" required placeholder="+94 XXX XXX XXX">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Employee ID</label>
+                            <input type="text" class="form-control" name="employee_id" placeholder="e.g. EMP001">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department <span class="text-danger">*</span></label>
+                            <select class="form-control" name="department" required>
+                                <option value="">Select Department</option>
+                                <option value="Information & Communication Technology">Information & Communication Technology (ICT)</option>
+                                <option value="Engineering Technology">Engineering Technology (ET)</option>
+                                <option value="Biosystems Technology">Biosystems Technology (BST)</option>
+                                <option value="Multidisciplinary Studies">Multidisciplinary Studies (MDS)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Designation <span class="text-danger">*</span></label>
+                            <select class="form-control" name="designation" required>
+                                <option value="">Select Designation</option>
+                                <option value="Senior Professor">Senior Professor</option>
+                                <option value="Professor">Professor</option>
+                                <option value="Associate Professor">Associate Professor</option>
+                                <option value="Senior Lecturer Grade I">Senior Lecturer Grade I</option>
+                                <option value="Senior Lecturer Grade II">Senior Lecturer Grade II</option>
+                                <option value="Lecturer">Lecturer</option>
+                                <option value="Lecturer (Probationary)">Lecturer (Probationary)</option>
+                                <option value="Temporary Lecturer">Temporary Lecturer</option>
+                                <option value="Visiting Lecturer">Visiting Lecturer</option>
+                                <option value="Head of Department">Head of Department</option>
+                                <option value="Dean">Dean</option>
+                                <option value="Instructor">Instructor</option>
+                                <option value="Technical Officer">Technical Officer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gender</label>
+                            <select class="form-control" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date of Birth</label>
+                            <input type="date" class="form-control" name="dob">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="2" placeholder="Faculty office or home address"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #059669, #10b981); border: none;">
+                        <i class="fas fa-user-plus"></i>
+                        Create Faculty & Send Credentials
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Sidebar functions
 function toggleSidebar() {
@@ -1661,6 +1763,24 @@ function viewUser(user) {
                 <strong>Status:</strong><br>
                 ${user.isVerified ? '<span class="badge bg-success">Verified</span>' : '<span class="badge bg-warning">Unverified</span>'}
             </div>
+            ${user.userType === 'Faculty' ? `
+            <div class="col-md-6">
+                <strong>Department:</strong><br>
+                ${user.department || 'N/A'}
+            </div>
+            <div class="col-md-6">
+                <strong>Designation:</strong><br>
+                ${user.designation || 'N/A'}
+            </div>
+            <div class="col-md-6">
+                <strong>Employee ID:</strong><br>
+                ${user.employee_id || 'N/A'}
+            </div>
+            <div class="col-md-6">
+                <strong>Password Changed:</strong><br>
+                ${user.password_changed == 1 ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-warning">Pending</span>'}
+            </div>
+            ` : ''}
             <div class="col-md-12">
                 <strong>Address:</strong><br>
                 ${user.address || 'Not set'}

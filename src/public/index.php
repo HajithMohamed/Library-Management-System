@@ -151,6 +151,9 @@ class Router
         // Remove /index.php if present
         $path = str_replace('/index.php', '', $path);
 
+        // Collapse multiple slashes into one (e.g. //admin -> /admin)
+        $path = preg_replace('#/+#', '/', $path);
+
         // Normalize path - remove trailing slash except for root
         if ($path !== '/' && substr($path, -1) === '/') {
             $path = rtrim($path, '/');
@@ -584,6 +587,11 @@ $router->addRoute('GET', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('POST', '/verify-otp', 'AuthController', 'verifyOtp');
 $router->addRoute('GET', '/forgot-password', 'AuthController', 'forgotPassword');
 $router->addRoute('POST', '/forgot-password', 'AuthController', 'forgotPassword');
+$router->addRoute('GET', '/force-change-password', 'AuthController', 'forceChangePassword');
+$router->addRoute('POST', '/force-change-password', 'AuthController', 'forceChangePassword');
+$router->addRoute('GET', '/verify-force-password-otp', 'AuthController', 'verifyForcePasswordOtp');
+$router->addRoute('POST', '/verify-force-password-otp', 'AuthController', 'verifyForcePasswordOtp');
+$router->addRoute('GET', '/resend-force-password-otp', 'AuthController', 'resendForcePasswordOtp');
 $router->addRoute('GET', '/logout', 'AuthController', 'logout');
 
 // ============================================================================
@@ -597,7 +605,12 @@ $router->addRoute('GET', '/user/index', 'UserController', 'dashboard');
 // User Profile
 $router->addRoute('GET', '/user/profile', 'UserController', 'profile');
 $router->addRoute('POST', '/user/profile', 'UserController', 'updateProfile');
+$router->addRoute('GET', '/user/change-password', 'UserController', 'changePasswordForm');
 $router->addRoute('POST', '/user/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/user/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/user/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/user/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/user/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // User Books
 $router->addRoute('GET', '/user/books', 'BookController', 'userBooks');
@@ -639,7 +652,12 @@ $router->addRoute('POST', '/user/notifications/mark-read', 'UserController', 'ma
 $router->addRoute('GET', '/student/dashboard', 'UserController', 'dashboard');
 $router->addRoute('GET', '/student/profile', 'UserController', 'profile');
 $router->addRoute('POST', '/student/profile', 'UserController', 'updateProfile');
+$router->addRoute('GET', '/student/change-password', 'UserController', 'changePasswordForm');
 $router->addRoute('POST', '/student/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/student/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/student/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/student/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/student/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // ============================================================================
 // FACULTY ROUTES
@@ -677,6 +695,12 @@ $router->addRoute('POST', '/faculty/payment-form', 'FacultyController', 'payFine
 // Faculty Profile
 $router->addRoute('GET', '/faculty/profile', 'FacultyController', 'profile');
 $router->addRoute('POST', '/faculty/profile', 'FacultyController', 'profile');
+$router->addRoute('GET', '/faculty/change-password', 'UserController', 'changePasswordForm');
+$router->addRoute('POST', '/faculty/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/faculty/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/faculty/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/faculty/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/faculty/cancel-password-change', 'UserController', 'cancelPasswordChange');
 
 // Faculty Notifications
 $router->addRoute('GET', '/faculty/notifications', 'FacultyController', 'notifications');
@@ -765,25 +789,51 @@ $router->addRoute('POST', '/admin/maintenance/backup', 'AdminController', 'creat
 // Admin Profile
 $router->addRoute('GET', '/admin/profile', 'AdminController', 'profile');
 $router->addRoute('POST', '/admin/profile', 'AdminController', 'profile');
+$router->addRoute('GET', '/admin/change-password', 'UserController', 'changePasswordForm');
+$router->addRoute('POST', '/admin/change-password', 'UserController', 'changePassword');
+$router->addRoute('GET', '/admin/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('POST', '/admin/verify-password-otp', 'UserController', 'verifyPasswordOtp');
+$router->addRoute('GET', '/admin/resend-password-otp', 'UserController', 'resendPasswordOtp');
+$router->addRoute('GET', '/admin/cancel-password-change', 'UserController', 'cancelPasswordChange');
+
+// Admin Faculty Management
+$router->addRoute('GET', '/admin/faculty/add', 'AdminController', 'addFacultyForm');
+$router->addRoute('POST', '/admin/faculty/add', 'AdminController', 'createFaculty');
+$router->addRoute('GET', '/admin/faculty/list', 'AdminController', 'listFaculty');
 
 // ============================================================================
 // E-RESOURCES ROUTES
 // ============================================================================
 
-$router->addRoute('GET', '/e-resources', 'EResourceController', 'index');
-$router->addRoute('GET', '/e-resources/index', 'EResourceController', 'index');
-$router->addRoute('GET', '/e-resources/upload', 'EResourceController', 'showUpload');
-$router->addRoute('POST', '/e-resources/upload', 'EResourceController', 'upload');
+// Public (all authenticated users)
+$router->addRoute('GET', '/eresources', 'EResourceController', 'browse');
+$router->addRoute('GET', '/eresources/view/{id}', 'EResourceController', 'viewResource');
+$router->addRoute('GET', '/eresources/download/{id}', 'EResourceController', 'download');
+$router->addRoute('GET', '/eresources/save/{id}', 'EResourceController', 'save');
+$router->addRoute('GET', '/my-eresources', 'EResourceController', 'myResources');
 
-// Admin/Faculty Actions
-$router->addRoute('GET', '/e-resources/approve/{id}', 'EResourceController', 'approve');
-$router->addRoute('GET', '/e-resources/reject/{id}', 'EResourceController', 'reject');
-$router->addRoute('GET', '/e-resources/delete/{id}', 'EResourceController', 'delete');
+// Faculty E-Resource Routes
+$router->addRoute('GET', '/faculty/eresources/submit', 'EResourceController', 'submitForm');
+$router->addRoute('POST', '/faculty/eresources/submit', 'EResourceController', 'submitResource');
+$router->addRoute('GET', '/faculty/eresources/my-submissions', 'EResourceController', 'mySubmissions');
+$router->addRoute('GET', '/faculty/eresources/edit/{id}', 'EResourceController', 'editSubmission');
+$router->addRoute('POST', '/faculty/eresources/edit/{id}', 'EResourceController', 'updateSubmission');
+$router->addRoute('GET', '/faculty/eresources/library', 'EResourceController', 'myResources');
 
-// User Actions
-$router->addRoute('GET', '/e-resources/obtain/{id}', 'EResourceController', 'obtain');
+// Admin E-Resource Routes
+$router->addRoute('GET', '/admin/eresources/manage', 'EResourceController', 'adminManage');
+$router->addRoute('GET', '/admin/eresources/add', 'EResourceController', 'adminAddForm');
+$router->addRoute('POST', '/admin/eresources/add', 'EResourceController', 'adminAdd');
+$router->addRoute('GET', '/admin/eresources/edit/{id}', 'EResourceController', 'adminEditForm');
+$router->addRoute('POST', '/admin/eresources/edit/{id}', 'EResourceController', 'adminEdit');
+$router->addRoute('GET', '/admin/eresources/approvals', 'EResourceController', 'approvals');
+$router->addRoute('POST', '/admin/eresources/approve/{id}', 'EResourceController', 'approve');
+$router->addRoute('POST', '/admin/eresources/reject/{id}', 'EResourceController', 'rejectResource');
+$router->addRoute('POST', '/admin/eresources/delete/{id}', 'EResourceController', 'deleteResource');
+
+// Legacy redirects (backward compatibility)
+$router->addRoute('GET', '/e-resources', 'EResourceController', 'legacyIndex');
 $router->addRoute('GET', '/my-e-resources', 'EResourceController', 'myResources');
-$router->addRoute('GET', '/e-resources/my-library', 'EResourceController', 'myResources');
 
 // ============================================================================
 // PUBLIC BOOK BROWSING ROUTES (accessible without login)

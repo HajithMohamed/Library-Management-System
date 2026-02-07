@@ -1,4 +1,6 @@
 <?php
+use App\Helpers\ImageHelper;
+
 if (!defined('APP_ROOT')) {
     die('Direct access not permitted');
 }
@@ -425,11 +427,7 @@ include APP_ROOT . '/views/layouts/header.php';
             <!-- Book Image Section -->
             <div class="book-image-section">
                 <div class="book-image-wrapper-detail">
-                    <?php if (!empty($book['bookImage'])): ?>
-                        <img src="<?= BASE_URL ?><?= htmlspecialchars($book['bookImage']) ?>" alt="<?= htmlspecialchars($book['bookName'] ?? 'Book cover') ?>">
-                    <?php else: ?>
-                        <div class="book-placeholder-detail">📚</div>
-                    <?php endif; ?>
+                    <?= ImageHelper::renderBookCover($book['bookImage'] ?? null, $book['bookName'] ?? 'Book cover', 'book-cover-detail') ?>
                 </div>
                 
                 <div class="availability-badge-large <?= ($book['available'] ?? 0) > 0 ? 'badge-available' : 'badge-unavailable' ?>">

@@ -1,4 +1,6 @@
 <?php
+use App\Helpers\ImageHelper;
+
 // Get active reservations
 require_once __DIR__ . '/../../config/dbConnection.php';
 $userId = $_SESSION['userId'];
@@ -437,8 +439,7 @@ try {
             <?php foreach ($reservations as $res): ?>
                 <div class="reservation-card <?php echo $res['reservationStatus'] === 'Notified' ? 'notified' : ''; ?>">
                     <div class="book-info">
-                        <img src="/uploads/books/<?php echo htmlspecialchars($res['bookImage'] ?? 'default.jpg'); ?>" 
-                             class="book-thumbnail" alt="Cover">
+                        <?= ImageHelper::renderBookCover($res['bookImage'] ?? null, 'Cover', 'book-thumbnail') ?>
                         <div class="details">
                             <h4><?php echo htmlspecialchars($res['bookName']); ?></h4>
                             <p class="author"><?php echo htmlspecialchars($res['authorName']); ?></p>

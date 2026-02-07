@@ -50,7 +50,7 @@ class BaseController
      */
     protected function redirect($path)
     {
-        $url = BASE_URL . $path;
+        $url = BASE_URL . ltrim($path, '/');
         header("Location: {$url}");
         exit;
     }

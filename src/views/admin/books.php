@@ -4,6 +4,8 @@ if (!defined('APP_ROOT')) {
     exit('Direct access not allowed');
 }
 
+use App\Helpers\ImageHelper;
+
 // Set default values to prevent undefined variable errors
 $books = $books ?? [];
 $publishers = $publishers ?? [];
@@ -1236,24 +1238,7 @@ include APP_ROOT . '/views/layouts/admin-header.php';
                                 <?php foreach ($books as $book): ?>
                                     <tr>
                                         <td>
-                                            <?php if (!empty($book['bookImage'])): ?>
-                                                <?php
-                                                $imgSrc = $book['bookImage'];
-                                                if (strpos($imgSrc, 'uploads/') === false) {
-                                                    $imgSrc = 'uploads/books/' . $imgSrc;
-                                                }
-                                                ?>
-                                                <img src="<?= BASE_URL . htmlspecialchars($imgSrc) ?>"
-                                                    alt="<?= htmlspecialchars($book['bookName']) ?>" class="book-cover"
-                                                    onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                <div class="no-image" style="display:none;">
-                                                    <i class="fas fa-book"></i>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="no-image">
-                                                    <i class="fas fa-book"></i>
-                                                </div>
-                                            <?php endif; ?>
+                                            <?= ImageHelper::renderBookCover($book['bookImage'] ?? null, $book['bookName'] ?? 'Book cover', 'book-cover') ?>
                                         </td>
                                         <td><code><?= htmlspecialchars($book['isbn']) ?></code></td>
                                         <td>
@@ -1728,6 +1713,17 @@ include APP_ROOT . '/views/layouts/admin-header.php';
 
 <script src="<?= BASE_URL ?>assets/js/form-validation.js"></script>
 <script>
+    /**
+     * Centralized book image URL resolution (mirrors PHP ImageHelper logic)
+     */
+    function getBookImageUrl(bookImage) {
+        if (!bookImage) return '<?= ImageHelper::getPlaceholderUrl() ?>';
+        const baseUrl = '<?= rtrim(BASE_URL, "/") ?>';
+        // Normalize: strip existing path prefixes to avoid double-path
+        let filename = bookImage.replace(/^\/?(uploads\/books\/|assets\/uploads\/books\/)/, '');
+        return baseUrl + '/uploads/books/' + filename;
+    }
+
     // Sidebar toggle functions (same as dashboard)
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
@@ -1998,15 +1994,11 @@ include APP_ROOT . '/views/layouts/admin-header.php';
         // Show/hide special badge container
         document.getElementById('edit_specialBadgeContainer').style.display = book.isSpecial == 1 ? 'block' : 'none';
 
-        // Set image preview
+        // Set image preview using centralized URL resolution
         if (book.bookImage) {
-            let imgSrc = book.bookImage;
-            if (imgSrc.indexOf('uploads/') === -1) {
-                imgSrc = 'uploads/books/' + imgSrc;
-            }
-            document.getElementById('edit_previewImage').src = '<?= BASE_URL ?>' + imgSrc;
+            document.getElementById('edit_previewImage').src = getBookImageUrl(book.bookImage);
         } else {
-            document.getElementById('edit_previewImage').src = '';
+            document.getElementById('edit_previewImage').src = '<?= ImageHelper::getPlaceholderUrl() ?>';
         }
 
         new bootstrap.Modal(document.getElementById('editBookModal')).show();
