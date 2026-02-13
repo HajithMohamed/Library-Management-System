@@ -1,4 +1,3 @@
-
 <?php
 // Migration script to create book_recommendations table
 

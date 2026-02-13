@@ -16,8 +16,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
 
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/dashboard.css">
+
+    <!-- SweetAlert2 CDN -->
+    <script src="<?= BASE_URL ?>assets/js/sweetalert2-cdn.js"></script>
 
     <style>
         :root {
@@ -766,40 +770,38 @@
         </div>
     </nav>
 
-    <!-- Flash Messages -->
-    <div class="container mt-3">
-        <?php if (isset($_SESSION['success'])): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i>
-                <strong>Success!</strong> <?= htmlspecialchars($_SESSION['success']) ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php unset($_SESSION['success']); ?>
-        <?php endif; ?>
 
-        <?php if (isset($_SESSION['error'])): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle"></i>
-                <strong>Error!</strong> <?= htmlspecialchars($_SESSION['error']) ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php unset($_SESSION['error']); ?>
-        <?php endif; ?>
-
-        <?php if (isset($_SESSION['validation_errors'])): ?>
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle"></i>
-                <strong>Validation Errors:</strong>
-                <ul class="mb-0 mt-2">
-                    <?php foreach ($_SESSION['validation_errors'] as $error): ?>
-                        <li><?= htmlspecialchars($error) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php unset($_SESSION['validation_errors']); ?>
-        <?php endif; ?>
-    </div>
+    <!-- Modern Toast/Modal Notifications -->
+    <?php
+    require_once __DIR__ . '/../../helpers/NotificationHelper.php';
+    use App\Helpers\NotificationHelper;
+    $notifications = NotificationHelper::getNotifications();
+    ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const notifications = <?php echo json_encode($notifications); ?>;
+            notifications.forEach(function (n) {
+                let icon = n.type;
+                let toast = (n.type === 'success' || n.type === 'info' || n.type === 'warning');
+                let title = n.type.charAt(0).toUpperCase() + n.type.slice(1);
+                let options = {
+                    icon: icon,
+                    title: title,
+                    text: n.message,
+                    toast: toast,
+                    position: 'top-end',
+                    showConfirmButton: !toast,
+                    timer: toast ? 4000 : undefined,
+                    timerProgressBar: toast,
+                    showCloseButton: true,
+                    customClass: {
+                        popup: toast ? 'swal2-toast' : ''
+                    }
+                };
+                Swal.fire(options);
+            });
+        });
+    </script>
 
     <!-- Main Content -->
     <main class="py-4">

@@ -5,9 +5,11 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Helpers\AuthHelper;
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
+use App\Helpers\NotificationHelper;
 
 class AuthController
 {
@@ -37,7 +39,7 @@ class AuthController
       $password = $_POST['password'] ?? '';
 
       if (empty($username) || empty($password)) {
-        $_SESSION['error'] = 'Please enter both username and password.';
+        NotificationHelper::error('Please enter both username and password.');
         $this->redirect('/');
         return;
       }
@@ -49,7 +51,7 @@ class AuthController
         if (empty($user['isVerified'])) {
           // Redirect unverified users to OTP verification
           $_SESSION['signup_userId'] = $user['userId'];
-          $_SESSION['error'] = 'Please verify your email to continue.';
+          NotificationHelper::error('Please verify your email to continue.');
           $this->redirect('/verify-otp');
           return;
         }
@@ -59,7 +61,7 @@ class AuthController
         $_SESSION['username'] = $user['username'];
         $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
         $_SESSION['emailId'] = $user['emailId'];
-        
+
         // ADDED: Also set these for compatibility
         $_SESSION['user_id'] = $user['userId'];
         $_SESSION['name'] = $user['username'];
@@ -77,7 +79,7 @@ class AuthController
         // Also check force_password_change flag and password expiry
         $needsChange = false;
         $changeReason = '';
-        
+
         if (!empty($user['first_login']) && empty($user['password_changed'])) {
           $needsChange = true;
           $changeReason = 'Welcome! Please change your temporary password to continue.';
@@ -93,18 +95,18 @@ class AuthController
             $changeReason = 'Your password has expired. Please set a new password to continue.';
           }
         }
-        
+
         if ($needsChange) {
           $_SESSION['force_password_change'] = true;
-          $_SESSION['success'] = $changeReason;
+          NotificationHelper::success($changeReason);
           $this->redirect('/force-change-password');
           return;
         }
 
-        $_SESSION['success'] = 'Welcome back, ' . $user['username'] . '!';
+        NotificationHelper::success('Welcome back, ' . $user['username'] . '!');
         $this->authHelper->redirectByUserType();
       } else {
-        $_SESSION['error'] = 'Invalid username or password.';
+        NotificationHelper::error('Invalid username or password.');
         $this->redirect('/');
       }
     } else {
@@ -120,82 +122,77 @@ class AuthController
   {
     // Redirect if already logged in
     if ($this->authHelper->isLoggedIn()) {
-        $this->authHelper->redirectByUserType();
+      $this->authHelper->redirectByUserType();
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $data = [
-            'username' => $_POST['username'] ?? $_POST['name'] ?? '', // ADDED: Support both 'name' and 'username'
-            'password' => $_POST['password'] ?? '',
-            'userType' => 'Student', // Automatically set to Student
-            'gender' => $_POST['gender'] ?? '',
-            'dob' => $_POST['dob'] ?? '',
-            'emailId' => $_POST['emailId'] ?? $_POST['email'] ?? '', // ADDED: Support both 'email' and 'emailId'
-            'phoneNumber' => $_POST['phoneNumber'] ?? '',
-            'address' => $_POST['address'] ?? '',
-            'isVerified' => 0,
-            'otp' => null,
-            'otpExpiry' => null
-        ];
+      $data = [
+        'username' => $_POST['username'] ?? $_POST['name'] ?? '', // ADDED: Support both 'name' and 'username'
+        'password' => $_POST['password'] ?? '',
+        'userType' => 'Student', // Automatically set to Student
+        'gender' => $_POST['gender'] ?? '',
+        'dob' => $_POST['dob'] ?? '',
+        'emailId' => $_POST['emailId'] ?? $_POST['email'] ?? '', // ADDED: Support both 'email' and 'emailId'
+        'phoneNumber' => $_POST['phoneNumber'] ?? '',
+        'address' => $_POST['address'] ?? '',
+        'isVerified' => 0,
+        'otp' => null,
+        'otpExpiry' => null
+      ];
 
-        // Validate user data
-        $errors = $this->userModel->validateUserData($data);
-        if (!empty($errors)) {
-            $_SESSION['validation_errors'] = $errors;
-            $this->redirect('/signup');
-            return;
-        }
+      // Validate user data
+      $errors = $this->userModel->validateUserData($data);
+      if (!empty($errors)) {
+        $_SESSION['validation_errors'] = $errors;
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Check if username already exists
-        if ($this->userModel->usernameExists($data['username'])) {
-            $_SESSION['error'] = 'Username already exists. Please choose a different username.';
-            $this->redirect('/signup');
-            return;
-        }
+      // Check if username already exists
+      if ($this->userModel->usernameExists($data['username'])) {
+        NotificationHelper::error('Username already exists. Please choose a different username.');
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Check if email already exists
-        if ($this->userModel->emailExists($data['emailId'])) {
-            $_SESSION['error'] = 'Email address already exists. Please use a different email.';
-            $this->redirect('/signup');
-            return;
-        }
+      // Check if email already exists
+      if ($this->userModel->emailExists($data['emailId'])) {
+        NotificationHelper::error('Email address already exists. Please use a different email.');
+        $this->redirect('/signup');
+        return;
+      }
 
-        // Hash password
-        $data['password'] = $this->authHelper->hashPassword($data['password']);
+      // Hash password
+      $data['password'] = $this->authHelper->hashPassword($data['password']);
 
-        // Generate OTP
-        $otp = rand(100000, 999999);
-        $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-        $data['otp'] = $otp;
-        $data['otpExpiry'] = $otpExpiry;
+      // Generate OTP
+      $otp = rand(100000, 999999);
+      $otpExpiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+      $data['otp'] = $otp;
+      $data['otpExpiry'] = $otpExpiry;
 
-        // Create user (user ID will be auto-generated)
-        if ($this->userModel->createUser($data)) {
-            // Get the generated user ID
-            $generatedUserId = $this->userModel->getLastGeneratedUserId();
-            
-            // Send OTP email
-            if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
-                $_SESSION['success'] = 'Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId;
-                $_SESSION['signup_userId'] = $generatedUserId;
-                $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
-                
-                // Redirect to verify-otp page
-                $this->redirect('/verify-otp');
-            } else {
-                $_SESSION['error'] = 'Account created but failed to send verification email. Please contact support.';
-                $_SESSION['signup_userId'] = $generatedUserId;
-                
-                // Still redirect to verify-otp so they can try again
-                $this->redirect('/verify-otp');
-            }
+      // Create user (user ID will be auto-generated)
+      if ($this->userModel->createUser($data)) {
+        // Get the generated user ID
+        $generatedUserId = $this->userModel->getLastGeneratedUserId();
+        // Send OTP email
+        if ($this->authService->sendOTPEmail($data['emailId'], $otp)) {
+          NotificationHelper::success('Account created! Check your email for the verification code. Your Student ID: ' . $generatedUserId);
+          $_SESSION['signup_userId'] = $generatedUserId;
+          $_SESSION['signup_email'] = $data['emailId']; // Store email for reference
+          $this->redirect('/verify-otp');
         } else {
-            $_SESSION['error'] = 'Failed to create account. Please try again.';
-            $this->redirect('/signup');
+          NotificationHelper::error('Account created but failed to send verification email. Please contact support.');
+          $_SESSION['signup_userId'] = $generatedUserId;
+          $this->redirect('/verify-otp');
         }
+      } else {
+        NotificationHelper::error('Failed to create account. Please try again.');
+        $this->redirect('/signup');
+      }
     } else {
-        // Show signup form
-        $this->render('auth/signup');
+      // Show signup form
+      $this->render('auth/signup');
     }
   }
 
@@ -236,33 +233,33 @@ class AuthController
       if ($this->userModel->verifyUser($userId, $otp)) {
         // Get user details to set session
         $user = $this->userModel->getUserById($userId);
-        
+
         if ($user) {
           // Clear signup session variables
           unset($_SESSION['signup_userId']);
           unset($_SESSION['signup_email']);
-          
+
           // Set user session (auto-login)
           $_SESSION['userId'] = $user['userId'];
           $_SESSION['username'] = $user['username'];
           $_SESSION['userType'] = ucfirst(strtolower($user['userType'])); // Normalize to "Admin", "Student", "Teacher"
           $_SESSION['emailId'] = $user['emailId'];
-          
+
           // ADDED: Also set these for compatibility
           $_SESSION['user_id'] = $user['userId'];
           $_SESSION['name'] = $user['username'];
           $_SESSION['email'] = $user['emailId'];
           $_SESSION['role'] = strtolower($user['userType']);
           $_SESSION['logged_in'] = true;
-          
+
           // Migrate wishlist to favorites if exists
           if (isset($_SESSION['guest_wishlist']) && !empty($_SESSION['guest_wishlist'])) {
             $this->migrateWishlistToFavorites($_SESSION['userId'], $_SESSION['guest_wishlist']);
             unset($_SESSION['guest_wishlist']);
           }
-          
+
           $_SESSION['success'] = 'Account verified successfully! Welcome, ' . $user['username'] . '!';
-          
+
           // Redirect to appropriate dashboard based on user type
           $this->authHelper->redirectByUserType();
         } else {
@@ -327,7 +324,7 @@ class AuthController
 
     $otp = rand(100000, 999999);
     $otpExpiry = date('Y-m-d H:i:s', strtotime('+' . OTP_EXPIRY_MINUTES . ' minutes'));
-    
+
     if ($this->userModel->updateUserOtp($user['userId'], $otp, $otpExpiry)) {
       // Send OTP via email
       $subject = "Password Reset OTP - Library System";
@@ -431,7 +428,7 @@ class AuthController
     }
 
     $user = $this->userModel->getUserById($_SESSION['userId']);
-    
+
     // Check if user actually needs to change password
     $needsChange = false;
     if ($user) {
@@ -447,7 +444,7 @@ class AuthController
         }
       }
     }
-    
+
     if (!$user || !$needsChange) {
       unset($_SESSION['force_password_change']);
       $this->authHelper->redirectByUserType();
@@ -497,7 +494,7 @@ class AuthController
           $strengthErrors[] = 'Password cannot be the same as your email address.';
         }
       }
-      
+
       if (!empty($strengthErrors)) {
         $_SESSION['error'] = implode('<br>', $strengthErrors);
         $this->redirect('/force-change-password');
@@ -526,25 +523,25 @@ class AuthController
       $username = $user['username'] ?? 'User';
 
       if (!empty($email)) {
-          $subject = "Password Change Verification - Library System";
-          $body = "Hello {$username},\n\n";
-          $body .= "You are changing your password for the Library Management System.\n\n";
-          $body .= "Your verification code is: {$otp}\n\n";
-          $body .= "This code is valid for 15 minutes.\n\n";
-          $body .= "If you did NOT request this, please contact support immediately.\n\n";
-          $body .= "Best regards,\nLibrary Management System\n";
+        $subject = "Password Change Verification - Library System";
+        $body = "Hello {$username},\n\n";
+        $body .= "You are changing your password for the Library Management System.\n\n";
+        $body .= "Your verification code is: {$otp}\n\n";
+        $body .= "This code is valid for 15 minutes.\n\n";
+        $body .= "If you did NOT request this, please contact support immediately.\n\n";
+        $body .= "Best regards,\nLibrary Management System\n";
 
-          $this->authService->sendEmail($email, $subject, $body);
+        $this->authService->sendEmail($email, $subject, $body);
 
-          // Mask email for display
-          $parts = explode('@', $email);
-          $maskedName = substr($parts[0], 0, 2) . str_repeat('*', max(3, strlen($parts[0]) - 2));
-          $_SESSION['force_pw_masked_email'] = $maskedName . '@' . $parts[1];
-          $_SESSION['success'] = "A 6-digit verification code has been sent to {$_SESSION['force_pw_masked_email']}. Please enter it below.";
+        // Mask email for display
+        $parts = explode('@', $email);
+        $maskedName = substr($parts[0], 0, 2) . str_repeat('*', max(3, strlen($parts[0]) - 2));
+        $_SESSION['force_pw_masked_email'] = $maskedName . '@' . $parts[1];
+        $_SESSION['success'] = "A 6-digit verification code has been sent to {$_SESSION['force_pw_masked_email']}. Please enter it below.";
       } else {
-          $_SESSION['error'] = 'No email address found on your account. Please contact support.';
-          $this->redirect('/force-change-password');
-          return;
+        $_SESSION['error'] = 'No email address found on your account. Please contact support.';
+        $this->redirect('/force-change-password');
+        return;
       }
 
       $this->redirect('/verify-force-password-otp');
@@ -629,7 +626,7 @@ class AuthController
     }
 
     // Verify OTP
-    if ((string)$enteredOtp !== (string)$_SESSION['force_pw_otp']) {
+    if ((string) $enteredOtp !== (string) $_SESSION['force_pw_otp']) {
       $remaining = 5 - $_SESSION['force_pw_otp_attempts'];
       $_SESSION['error'] = "Invalid verification code. You have {$remaining} attempt(s) remaining.";
       $this->redirect('/verify-force-password-otp');
@@ -639,24 +636,24 @@ class AuthController
     // OTP verified! Now actually change the password
     $newPassword = $_SESSION['force_pw_new_password'];
     $hashedPassword = $this->authHelper->hashPassword($newPassword);
-    global $conn;
-    $stmt = $conn->prepare("UPDATE users SET password = ?, password_changed = 1, first_login = 0, force_password_change = 0, password_changed_at = NOW(), updatedAt = NOW() WHERE userId = ?");
+    global $mysqli;
+    $stmt = $mysqli->prepare("UPDATE users SET password = ?, password_changed = 1, first_login = 0, force_password_change = 0, password_changed_at = NOW(), updatedAt = NOW() WHERE userId = ?");
     $stmt->bind_param("ss", $hashedPassword, $_SESSION['userId']);
 
     if ($stmt->execute()) {
       // Store in password history
       $this->userModel->addPasswordToHistory($_SESSION['userId'], $hashedPassword);
-      
+
       // Log the password change
       $this->userModel->logPasswordChange($_SESSION['userId'], 'forced');
-      
+
       // Send confirmation email notification
       $this->sendPasswordChangeNotification($_SESSION['userId']);
-      
+
       // Clear pending data
       $this->clearForcePendingData();
       unset($_SESSION['force_password_change']);
-      
+
       // Destroy session and require re-login for security
       $successMsg = 'Password changed successfully! A confirmation email has been sent. Please log in with your new password.';
       $_SESSION = [];
@@ -668,7 +665,7 @@ class AuthController
       session_start();
       session_regenerate_id(true);
       $_SESSION['success'] = $successMsg;
-      
+
       $this->redirect('/');
     } else {
       $_SESSION['error'] = 'Failed to update password. Please try again.';
@@ -733,13 +730,14 @@ class AuthController
   {
     try {
       $user = $this->userModel->getUserById($userId);
-      if (!$user || empty($user['emailId'])) return false;
-      
+      if (!$user || empty($user['emailId']))
+        return false;
+
       $email = $user['emailId'];
       $username = $user['username'] ?? 'User';
       $changeTime = date('F j, Y \a\t g:i A');
       $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
-      
+
       $subject = "Password Changed Successfully - Library System";
       $body = "Hello {$username},\n\n";
       $body .= "Your password for the Library Management System was changed successfully.\n\n";
@@ -751,7 +749,7 @@ class AuthController
       $body .= "  1. Contact library support immediately\n";
       $body .= "  2. Use the 'Forgot Password' feature to secure your account\n\n";
       $body .= "Best regards,\nLibrary Management System\n";
-      
+
       return $this->sendEmailWithPHPMailer($email, $subject, $body);
     } catch (\Exception $e) {
       error_log("Error sending password change notification: " . $e->getMessage());
@@ -801,7 +799,7 @@ class AuthController
   {
     extract($data);
     $viewFile = APP_ROOT . '/views/' . $view . '.php';
-    
+
 
     if (file_exists($viewFile)) {
       include $viewFile;
@@ -825,9 +823,9 @@ class AuthController
    */
   public function show403()
   {
-      http_response_code(403);
-      $pageTitle = 'Access Denied - 403';
-      include APP_ROOT . '/views/errors/403.php';
+    http_response_code(403);
+    $pageTitle = 'Access Denied - 403';
+    include APP_ROOT . '/views/errors/403.php';
   }
 
   /**
@@ -835,9 +833,9 @@ class AuthController
    */
   public function show404()
   {
-      http_response_code(404);
-      $pageTitle = 'Page Not Found - 404';
-      include APP_ROOT . '/views/errors/404.php';
+    http_response_code(404);
+    $pageTitle = 'Page Not Found - 404';
+    include APP_ROOT . '/views/errors/404.php';
   }
 
   /**
@@ -845,13 +843,13 @@ class AuthController
    */
   public function healthCheck()
   {
-      header('Content-Type: application/json');
-      echo json_encode([
-          'status' => 'ok',
-          'timestamp' => date('Y-m-d H:i:s'),
-          'database' => 'connected'
-      ]);
-      exit();
+    header('Content-Type: application/json');
+    echo json_encode([
+      'status' => 'ok',
+      'timestamp' => date('Y-m-d H:i:s'),
+      'database' => 'connected'
+    ]);
+    exit();
   }
 
   /**
@@ -859,18 +857,18 @@ class AuthController
    */
   public function systemStatus()
   {
-      global $conn;
-      
-      $status = [
-          'system' => 'online',
-          'database' => $conn ? 'connected' : 'disconnected',
-          'php_version' => phpversion(),
-          'timestamp' => date('Y-m-d H:i:s')
-      ];
-      
-      header('Content-Type: application/json');
-      echo json_encode($status);
-      exit();
+    global $mysqli;
+
+    $status = [
+      'system' => 'online',
+      'database' => $mysqli ? 'connected' : 'disconnected',
+      'php_version' => phpversion(),
+      'timestamp' => date('Y-m-d H:i:s')
+    ];
+
+    header('Content-Type: application/json');
+    echo json_encode($status);
+    exit();
   }
 
   /**
@@ -879,33 +877,33 @@ class AuthController
   private function migrateWishlistToFavorites($userId, $wishlist)
   {
     try {
-        global $mysqli;
-        
-        if (!$mysqli) {
-            error_log("Wishlist migration error: Database connection not available");
-            return false;
-        }
-        
-        // Use INSERT IGNORE to skip duplicates without errors
-        $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
-        
-        if (!$stmt) {
-            error_log("Wishlist migration error: " . $mysqli->error);
-            return false;
-        }
-        
-        $note = 'Migrated from guest wishlist';
-        
-        foreach ($wishlist as $isbn) {
-            $stmt->bind_param('sss', $userId, $isbn, $note);
-            $stmt->execute();
-        }
-        
-        $stmt->close();
-        return true;
-    } catch (\Exception $e) {
-        error_log("Wishlist migration error: " . $e->getMessage());
+      global $mysqli;
+
+      if (!$mysqli) {
+        error_log("Wishlist migration error: Database connection not available");
         return false;
+      }
+
+      // Use INSERT IGNORE to skip duplicates without errors
+      $stmt = $mysqli->prepare("INSERT IGNORE INTO favorites (userId, isbn, notes, createdAt) VALUES (?, ?, ?, NOW())");
+
+      if (!$stmt) {
+        error_log("Wishlist migration error: " . $mysqli->error);
+        return false;
+      }
+
+      $note = 'Migrated from guest wishlist';
+
+      foreach ($wishlist as $isbn) {
+        $stmt->bind_param('sss', $userId, $isbn, $note);
+        $stmt->execute();
+      }
+
+      $stmt->close();
+      return true;
+    } catch (\Exception $e) {
+      error_log("Wishlist migration error: " . $e->getMessage());
+      return false;
     }
   }
 }

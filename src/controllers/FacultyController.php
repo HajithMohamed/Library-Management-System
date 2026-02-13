@@ -27,9 +27,9 @@ class FacultyController extends BaseController
     public function dashboard()
     {
         $this->requireLogin(['Faculty']);
-        
+
         $userId = $_SESSION['userId'];
-        
+
         // Get faculty statistics
         $privileges = $this->userModel->getUserPrivileges($userId);
         $userStats = [
@@ -41,22 +41,22 @@ class FacultyController extends BaseController
             'max_renewals' => $privileges['max_renewals'] ?? 2,
             'remaining_slots' => max(0, ($privileges['max_borrow_limit'] ?? 10) - $this->borrowModel->getActiveBorrowCount($userId))
         ];
-        
+
         // Get recent activity
         $recentActivity = $this->borrowModel->getRecentActivity($userId, 10);
-        
+
         // Get user info
         $user = $this->userModel->findById($userId);
-        
+
         // Get borrowed books
         $borrowedBooks = $this->borrowModel->getActiveBorrows($userId);
-        
+
         // Get overdue books
-        $overdueBooks = array_filter($borrowedBooks, function($book) {
+        $overdueBooks = array_filter($borrowedBooks, function ($book) {
             $dueDate = $book['dueDate'] ?? date('Y-m-d', strtotime($book['borrowDate'] . ' + 14 days'));
             return strtotime($dueDate) < time();
         });
-        
+
         // Get reserved books
         global $mysqli;
         $reservedBooks = [];
@@ -68,16 +68,16 @@ class FacultyController extends BaseController
             $reservedBooks[] = $row;
         }
         $stmt->close();
-        
+
         // Get notifications
         $notifications = $this->userModel->getNotifications($userId);
-        
+
         // Get transaction history
         $transactionHistory = $this->borrowModel->getBorrowHistory($userId);
-        
+
         // Get analytics stats
         $stats = $this->getPersonalStats($userId);
-        
+
         // Pass all data to view
         $this->data['userStats'] = $userStats;
         $this->data['recentActivity'] = $recentActivity;
@@ -88,10 +88,10 @@ class FacultyController extends BaseController
         $this->data['notifications'] = $notifications;
         $this->data['transactionHistory'] = $transactionHistory;
         $this->data['stats'] = $stats;
-        
+
         $this->view('faculty/dashboard', $this->data);
     }
-    
+
     /**
      * Get personal statistics for analytics
      */
@@ -106,7 +106,7 @@ class FacultyController extends BaseController
             'categories' => [],
             'monthly' => []
         ];
-        
+
         // Get total books borrowed
         $sql = "SELECT COUNT(DISTINCT isbn) as total FROM books_borrowed WHERE userId = ?";
         $stmt = $this->db->prepare($sql);
@@ -114,7 +114,7 @@ class FacultyController extends BaseController
         $stmt->execute();
         $result = $stmt->get_result()->fetch_assoc();
         $stats['total_books'] = $result['total'] ?? 0;
-        
+
         // Get reviews stats (if book_reviews table exists)
         $tableCheck = $this->db->query("SHOW TABLES LIKE 'book_reviews'");
         if ($tableCheck->num_rows > 0) {
@@ -127,7 +127,7 @@ class FacultyController extends BaseController
             $stats['reviews']['total_reviews'] = $result['total'] ?? 0;
             $stats['reviews']['avg_rating'] = $result['avg_rating'] ?? 0;
         }
-        
+
         // Get category distribution
         $sql = "SELECT b.category, COUNT(*) as borrow_count 
                 FROM books_borrowed bb 
@@ -140,7 +140,7 @@ class FacultyController extends BaseController
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $stats['categories'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
+
         // Get monthly trend (last 6 months)
         $sql = "SELECT DATE_FORMAT(borrowDate, '%Y-%m') as month, COUNT(*) as count 
                 FROM books_borrowed 
@@ -151,26 +151,26 @@ class FacultyController extends BaseController
         $stmt->bind_param('s', $userId);
         $stmt->execute();
         $stats['monthly'] = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
+
         return $stats;
     }
 
     public function books()
     {
         $this->requireLogin(['Faculty']);
-        
+
         global $mysqli;
-        
+
         if (!$mysqli) {
             die("Database connection failed");
         }
-        
+
         // Get filter parameters
         $searchQuery = trim($_GET['q'] ?? '');
         $categoryFilter = trim($_GET['category'] ?? '');
         $statusFilter = trim($_GET['status'] ?? '');
         $sortBy = trim($_GET['sort'] ?? '');
-        
+
         // Build SQL query with filters
         $sql = "SELECT 
                     isbn,
@@ -189,10 +189,10 @@ class FacultyController extends BaseController
                     specialBadge
                 FROM books
                 WHERE 1=1";
-        
+
         $params = [];
         $types = '';
-        
+
         // Apply search filter
         if (!empty($searchQuery)) {
             $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?)";
@@ -203,21 +203,21 @@ class FacultyController extends BaseController
             $params[] = $searchTerm;
             $types .= 'ssss';
         }
-        
+
         // Apply publisher/category filter
         if (!empty($categoryFilter)) {
             $sql .= " AND publisherName = ?";
             $params[] = $categoryFilter;
             $types .= 's';
         }
-        
+
         // Apply availability status filter
         if ($statusFilter === 'available') {
             $sql .= " AND available > 0";
         } elseif ($statusFilter === 'borrowed') {
             $sql .= " AND borrowed > 0";
         }
-        
+
         // Apply sorting
         switch ($sortBy) {
             case 'title':
@@ -232,7 +232,7 @@ class FacultyController extends BaseController
             default:
                 $sql .= " ORDER BY bookName ASC";
         }
-        
+
         // Prepare and execute query
         if (!empty($params)) {
             $stmt = $mysqli->prepare($sql);
@@ -250,7 +250,7 @@ class FacultyController extends BaseController
                 die("Error fetching books: " . $mysqli->error);
             }
         }
-        
+
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -262,7 +262,7 @@ class FacultyController extends BaseController
                 $result->free();
             }
         }
-        
+
         // Get all publishers for filter dropdown
         $categories = [];
         $publisherSql = "SELECT DISTINCT publisherName 
@@ -270,7 +270,7 @@ class FacultyController extends BaseController
                         WHERE publisherName IS NOT NULL AND publisherName != '' 
                         ORDER BY publisherName ASC";
         $publisherResult = $mysqli->query($publisherSql);
-        
+
         if ($publisherResult) {
             while ($row = $publisherResult->fetch_assoc()) {
                 if (!empty($row['publisherName'])) {
@@ -279,7 +279,7 @@ class FacultyController extends BaseController
             }
             $publisherResult->free();
         }
-        
+
         // Calculate stats
         $totalBooks = count($books);
         $availableBooks = 0;
@@ -289,7 +289,7 @@ class FacultyController extends BaseController
             }
         }
         $totalCategories = count($categories);
-        
+
         // Pass data to view
         $this->data['books'] = $books;
         $this->data['categories'] = $categories;
@@ -297,23 +297,23 @@ class FacultyController extends BaseController
         $this->data['availableBooks'] = $availableBooks;
         $this->data['totalCategories'] = $totalCategories;
         $this->data['searchTerm'] = $searchQuery;
-        
+
         $this->view('faculty/books', $this->data);
     }
 
     public function viewBook($params)
     {
         $this->requireLogin(['Faculty']);
-        
+
         $isbn = $params['isbn'] ?? '';
         $book = $this->bookModel->findByISBN($isbn);
-        
+
         if (!$book) {
             $_SESSION['error'] = 'Book not found';
             $this->redirect('faculty/books');
             return;
         }
-        
+
         $this->data['book'] = $book;
         $this->view('faculty/book-details', $this->data);
     }
@@ -342,7 +342,7 @@ class FacultyController extends BaseController
             $privileges = $this->userModel->getUserPrivileges($userId);
             $maxLimit = $privileges['max_borrow_limit'] ?? 10;
             $currentBorrows = $this->borrowModel->getActiveBorrowCount($userId);
-            
+
             // Also count pending/approved requests
             $pendingStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM borrow_requests WHERE userId = ? AND status IN ('Pending','Approved')");
             $pendingCount = 0;
@@ -350,10 +350,10 @@ class FacultyController extends BaseController
                 $pendingStmt->bind_param("s", $userId);
                 $pendingStmt->execute();
                 $pendingResult = $pendingStmt->get_result()->fetch_assoc();
-                $pendingCount = (int)($pendingResult['count'] ?? 0);
+                $pendingCount = (int) ($pendingResult['count'] ?? 0);
                 $pendingStmt->close();
             }
-            
+
             if (($currentBorrows + $pendingCount) >= $maxLimit) {
                 $_SESSION['error'] = "You have reached your borrowing limit ({$currentBorrows}/{$maxLimit} books borrowed" . ($pendingCount > 0 ? ", {$pendingCount} pending requests" : "") . "). Please return some books before requesting new ones.";
                 header('Location: ' . BASE_URL . 'faculty/books');
@@ -409,7 +409,8 @@ class FacultyController extends BaseController
     /**
      * Show faculty's reserved books (borrow requests)
      */
-    public function reservedBooks() {
+    public function reservedBooks()
+    {
         $this->requireLogin(['Faculty']);
         global $mysqli;
         $userId = $_SESSION['userId'];
@@ -438,9 +439,9 @@ class FacultyController extends BaseController
     {
         // Use consistent session check with the rest of the controller
         $this->requireLogin(['Faculty']);
-        
-        global $conn;
-        
+
+        global $mysqli;
+
         // Use the correct session variable name (userId with capital I)
         $userId = $_SESSION['userId'];
 
@@ -449,42 +450,42 @@ class FacultyController extends BaseController
             $borrowId = $_POST['borrow_id'] ?? '';
             $amount = $_POST['amount'] ?? 0;
             $payOnline = isset($_POST['pay_online']) && $_POST['pay_online'] == '1';
-            
+
             if (!empty($borrowId) && $amount > 0) {
                 try {
-                    $conn->begin_transaction();
-                    
+                    $mysqli->begin_transaction();
+
                     $paymentMethod = 'cash';
                     $paymentDetails = null;
-                    
+
                     if ($payOnline) {
                         $paymentMethod = $_POST['payment_method'] ?? 'credit_card';
-                        
+
                         // Process card payment
                         $cardNumber = $_POST['card_number'] ?? '';
                         $cardHolder = $_POST['card_name'] ?? '';
                         $expiryDate = $_POST['expiry_date'] ?? '';
                         $cvv = $_POST['cvv'] ?? '';
-                        
+
                         if (!empty($cardNumber) && !empty($cardHolder) && !empty($expiryDate) && !empty($cvv)) {
                             $cardLast4 = substr(str_replace(' ', '', $cardNumber), -4);
                             $cardType = $this->detectCardType($cardNumber);
-                            
+
                             $paymentDetails = json_encode([
                                 'card_last4' => $cardLast4,
                                 'card_holder' => $cardHolder,
                                 'card_type' => $cardType
                             ]);
-                            
+
                             // Save card if requested
                             if (isset($_POST['save_card']) && $_POST['save_card'] == '1') {
                                 $this->saveCard($userId, $cardNumber, $cardHolder, $expiryDate);
                             }
                         }
                     }
-                    
+
                     // Update transaction with payment - use userId instead of uid
-                    $stmt = $conn->prepare("
+                    $stmt = $mysqli->prepare("
                         UPDATE transactions 
                         SET fineStatus = 'paid',
                             finePaymentDate = NOW(),
@@ -495,15 +496,15 @@ class FacultyController extends BaseController
                     $stmt->bind_param("ssss", $paymentMethod, $paymentDetails, $borrowId, $userId);
                     $stmt->execute();
                     $stmt->close();
-                    
-                    $conn->commit();
+
+                    $mysqli->commit();
                     $_SESSION['success'] = 'Payment successful! Fine has been cleared.';
                 } catch (\Exception $e) {
-                    $conn->rollback();
+                    $mysqli->rollback();
                     error_log("Payment error: " . $e->getMessage());
                     $_SESSION['error'] = 'Payment failed: ' . $e->getMessage();
                 }
-                
+
                 $this->redirect('faculty/fines');
                 return;
             }
@@ -511,7 +512,7 @@ class FacultyController extends BaseController
 
         // Get all fines (both paid and unpaid) using transactionModel
         $fines = $this->transactionModel->getFinesByUserId($userId);
-        
+
         $this->data['fines'] = $fines;
         $this->view('faculty/fines', $this->data);
     }
@@ -522,7 +523,7 @@ class FacultyController extends BaseController
     private function detectCardType($cardNumber)
     {
         $cardNumber = str_replace(' ', '', $cardNumber);
-        
+
         if (preg_match('/^4/', $cardNumber)) {
             return 'Visa';
         } elseif (preg_match('/^5[1-5]/', $cardNumber)) {
@@ -532,42 +533,42 @@ class FacultyController extends BaseController
         } elseif (preg_match('/^6(?:011|5)/', $cardNumber)) {
             return 'Discover';
         }
-        
+
         return 'Unknown';
     }
-    
+
     /**
      * Save card details for future use
      */
     private function saveCard($userId, $cardNumber, $cardHolder, $expiry)
     {
-        global $conn;
-        
+        global $mysqli;
+
         $cardNumber = str_replace(' ', '', $cardNumber);
         $cardLast4 = substr($cardNumber, -4);
         $cardType = $this->detectCardType($cardNumber);
-        
+
         // Parse expiry (MM/YY format)
         list($month, $year) = explode('/', $expiry);
         $year = '20' . $year;
-        
+
         // Check if card already exists
-        $stmt = $conn->prepare("
+        $stmt = $mysqli->prepare("
             SELECT id FROM saved_cards 
             WHERE userid = ? AND cardLastFour = ? AND expiryMonth = ? AND expiryYear = ?
         ");
         $stmt->bind_param("ssss", $userId, $cardLast4, $month, $year);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         if ($result->num_rows > 0) {
             $stmt->close();
             return;
         }
         $stmt->close();
-        
+
         // Insert new card
-        $stmt = $conn->prepare("
+        $stmt = $mysqli->prepare("
             INSERT INTO saved_cards 
             (userid, cardType, cardLastFour, cardHolderName, expiryMonth, expiryYear, createdAt)
             VALUES (?, ?, ?, ?, ?, ?, NOW())
@@ -580,12 +581,12 @@ class FacultyController extends BaseController
     public function returnBook()
     {
         $this->requireLogin(['Faculty']);
-        
+
         // Only show books that have been returned by this user
         $userId = $_SESSION['userId'];
         // Fetch only returned books (returnDate is not null)
         $returnedBooks = $this->borrowModel->getBorrowHistory($userId);
-        $returnedBooks = array_filter($returnedBooks, function($book) {
+        $returnedBooks = array_filter($returnedBooks, function ($book) {
             return !empty($book['returnDate']);
         });
         $this->data['returnedBooks'] = $returnedBooks;
@@ -596,13 +597,13 @@ class FacultyController extends BaseController
     {
         $this->requireLogin(['Faculty']);
         $userId = $_SESSION['userId'];
-        
+
         global $mysqli;
-        
+
         // Get user's borrow period
         $privileges = $this->userModel->getUserPrivileges($userId);
         $borrowPeriodDays = $privileges['borrow_period_days'] ?? 30; // Faculty default 30 days
-        
+
         // Query from books_borrowed table (the primary borrow management table)
         $sql = "SELECT 
                     bb.id,
@@ -618,32 +619,32 @@ class FacultyController extends BaseController
                 LEFT JOIN books b ON bb.isbn = b.isbn
                 WHERE bb.userId = ?
                 ORDER BY bb.borrowDate DESC";
-        
+
         $stmt = $mysqli->prepare($sql);
         $stmt->bind_param("s", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         $history = [];
         while ($row = $result->fetch_assoc()) {
             $dueDate = $row['dueDate'];
             $status = $row['status'];
-            
+
             // Auto-detect overdue
             if ($status === 'Active' && strtotime($dueDate) < time()) {
                 $status = 'Overdue';
             }
-            
+
             // Calculate fine for overdue unreturned books
             $fineAmount = 0;
             $fineStatus = 'Paid';
-            
+
             if (!$row['returnDate'] && strtotime($dueDate) < time()) {
-                $daysOverdue = (int)((time() - strtotime($dueDate)) / 86400);
+                $daysOverdue = (int) ((time() - strtotime($dueDate)) / 86400);
                 $fineAmount = $daysOverdue * 5;
                 $fineStatus = 'Unpaid';
             }
-            
+
             $history[] = [
                 'id' => $row['id'],
                 'isbn' => $row['isbn'],
@@ -706,24 +707,24 @@ class FacultyController extends BaseController
     public function profile()
     {
         $this->requireLogin(['Faculty']);
-        
+
         $userId = $_SESSION['userId'];
-        
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['update_profile'])) {
                 // Handle profile image upload
                 $profileImagePath = null;
                 if (isset($_FILES['profileImage']) && $_FILES['profileImage']['error'] === UPLOAD_ERR_OK) {
                     $uploadDir = APP_ROOT . '/public/assets/images/users/';
-                    
+
                     // Create directory if it doesn't exist
                     if (!is_dir($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
-                    
+
                     $fileInfo = pathinfo($_FILES['profileImage']['name']);
                     $extension = strtolower($fileInfo['extension']);
-                    
+
                     // Validate file type
                     $allowedTypes = ['jpg', 'jpeg', 'png'];
                     if (!in_array($extension, $allowedTypes)) {
@@ -731,14 +732,14 @@ class FacultyController extends BaseController
                         $this->redirect('faculty/profile');
                         return;
                     }
-                    
+
                     // Validate file size (2MB max)
                     if ($_FILES['profileImage']['size'] > 2 * 1024 * 1024) {
                         $_SESSION['error'] = 'File size must be less than 2 MB';
                         $this->redirect('faculty/profile');
                         return;
                     }
-                    
+
                     // Delete old profile images for this user
                     $patterns = [$userId . '.jpg', $userId . '.jpeg', $userId . '.png'];
                     foreach ($patterns as $pattern) {
@@ -747,11 +748,11 @@ class FacultyController extends BaseController
                             unlink($oldFile);
                         }
                     }
-                    
+
                     // Save new image
                     $newFileName = $userId . '.' . $extension;
                     $targetPath = $uploadDir . $newFileName;
-                    
+
                     if (move_uploaded_file($_FILES['profileImage']['tmp_name'], $targetPath)) {
                         $profileImagePath = 'assets/images/users/' . $newFileName;
                     } else {
@@ -760,10 +761,10 @@ class FacultyController extends BaseController
                         return;
                     }
                 }
-                
+
                 // Validate using ValidationHelper
                 $errors = ValidationHelper::validateProfileUpdate($_POST);
-                
+
                 if (!empty($errors)) {
                     $_SESSION['validation_errors'] = $errors;
                     ValidationHelper::setFormData($_POST);
@@ -771,9 +772,9 @@ class FacultyController extends BaseController
                     header('Location: ' . BASE_URL . 'faculty/profile');
                     exit;
                 }
-                
+
                 ValidationHelper::clearValidation();
-                
+
                 $data = [
                     'username' => $_POST['name'] ?? '',
                     'emailId' => $_POST['email'] ?? '',
@@ -782,12 +783,12 @@ class FacultyController extends BaseController
                     'phoneNumber' => $_POST['phoneNumber'] ?? '',
                     'address' => $_POST['address'] ?? '',
                 ];
-                
+
                 // Add profile image path if uploaded
                 if ($profileImagePath) {
                     $data['profileImage'] = $profileImagePath;
                 }
-                
+
                 if ($this->userModel->updateProfile($userId, $data)) {
                     $_SESSION['success'] = 'Profile updated successfully';
                 } else {
@@ -808,13 +809,13 @@ class FacultyController extends BaseController
                     }
                 }
             }
-            
+
             $this->redirect('faculty/profile');
             return;
         }
-        
+
         $user = $this->userModel->findById($userId);
-        
+
         $this->data['user'] = $user;
         $this->view('faculty/profile', $this->data);
     }
@@ -861,9 +862,9 @@ class FacultyController extends BaseController
     public function notifications()
     {
         $this->requireLogin(['Faculty']);
-        
+
         $userId = $_SESSION['userId'];
-        
+
         // Handle mark as read
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
             $notificationId = $_POST['notification_id'] ?? 0;
@@ -878,7 +879,7 @@ class FacultyController extends BaseController
             $this->redirect('faculty/notifications');
             return;
         }
-        
+
         // Get notifications
         global $mysqli;
         $sql = "SELECT 
@@ -907,7 +908,7 @@ class FacultyController extends BaseController
             $notifications[] = $row;
         }
         $stmt->close();
-        
+
         $this->data['notifications'] = $notifications;
         $this->data['userType'] = 'Faculty';
         $this->view('faculty/notifications', $this->data);
@@ -916,24 +917,24 @@ class FacultyController extends BaseController
     public function borrowedBooks()
     {
         $this->requireLogin(['Faculty']);
-        
+
         $userId = $_SESSION['userId'];
-        
+
         // Get all currently borrowed books (not returned)
         $borrowedBooks = $this->borrowModel->getAllBorrowedBooks($userId);
-        
+
         // Get filter if provided
         $status = $_GET['status'] ?? 'all';
-        
+
         if ($status === 'overdue') {
-            $borrowedBooks = array_filter($borrowedBooks, function($book) {
+            $borrowedBooks = array_filter($borrowedBooks, function ($book) {
                 return !empty($book['isOverdue']);
             });
         }
-        
+
         $this->data['borrowedBooks'] = $borrowedBooks;
         $this->data['status'] = $status;
-        
+
         $this->view('faculty/borrowed-books', $this->data);
     }
 
@@ -945,21 +946,21 @@ class FacultyController extends BaseController
         // Use consistent session check
         $this->requireLogin(['Faculty']);
 
-        global $conn;
-        
+        global $mysqli;
+
         // Use the correct session variable name
         $userId = $_SESSION['userId'];
-        
+
         // Get transaction details from URL parameters
         $borrowId = $_GET['borrow_id'] ?? '';
         $amount = $_GET['amount'] ?? 0;
         $bookName = $_GET['book_name'] ?? '';
-        
+
         // Fetch transaction details from database
         $transaction = ['tid' => $borrowId, 'fineAmount' => $amount, 'bookName' => $bookName];
-        
+
         if (!empty($borrowId)) {
-            $stmt = $conn->prepare("
+            $stmt = $mysqli->prepare("
                 SELECT 
                     t.*,
                     b.bookName,
@@ -972,7 +973,7 @@ class FacultyController extends BaseController
             $stmt->bind_param("ss", $borrowId, $userId);
             $stmt->execute();
             $result = $stmt->get_result();
-            
+
             if ($result->num_rows > 0) {
                 $transaction = $result->fetch_assoc();
                 $amount = $transaction['fineAmount'] ?? $amount;
@@ -980,10 +981,10 @@ class FacultyController extends BaseController
             }
             $stmt->close();
         }
-        
+
         // Fetch saved cards for this user
         $savedCards = [];
-        $stmt = $conn->prepare("
+        $stmt = $mysqli->prepare("
             SELECT * FROM saved_cards 
             WHERE userid = ? 
             ORDER BY createdAt DESC
@@ -995,7 +996,7 @@ class FacultyController extends BaseController
             $savedCards[] = $row;
         }
         $stmt->close();
-        
+
         // Include the view
         extract([
             'transaction' => $transaction,
@@ -1003,7 +1004,7 @@ class FacultyController extends BaseController
             'savedCards' => $savedCards,
             'pay_all' => false
         ]);
-        
+
         include APP_ROOT . '/views/faculty/payment-form.php';
     }
 

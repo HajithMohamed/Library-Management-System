@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Helpers\NotificationHelper;
+
 class ReservationController
 {
     /**
@@ -19,61 +21,71 @@ class ReservationController
         $userId = $_SESSION['userId'];
 
         if (empty($isbn)) {
-            $_SESSION['error'] = 'Invalid book ISBN';
+            NotificationHelper::error('Invalid book ISBN');
             header('Location: /faculty/books');
             exit();
         }
 
-        global $pdo;
+        global $mysqli;
 
-        if (!$pdo) {
-            $_SESSION['error'] = 'Database connection failed';
+        if (!$mysqli) {
+            NotificationHelper::error('Database connection failed');
             header('Location: /faculty/books');
             exit();
         }
 
         try {
             // Check if book exists
-            $bookStmt = $pdo->prepare("SELECT * FROM books WHERE isbn = ?");
-            $bookStmt->execute([$isbn]);
-            $book = $bookStmt->fetch(\PDO::FETCH_ASSOC);
+            $bookStmt = $mysqli->prepare("SELECT * FROM books WHERE isbn = ?");
+            $bookStmt->bind_param("s", $isbn);
+            $bookStmt->execute();
+            $result = $bookStmt->get_result();
+            $book = $result->fetch_assoc();
+            $bookStmt->close();
 
             if (!$book) {
-                $_SESSION['error'] = 'Book not found';
+                NotificationHelper::error('Book not found');
                 header('Location: /faculty/books');
                 exit();
             }
 
             // Check if user already has an active reservation
-            $checkStmt = $pdo->prepare("
+            $checkStmt = $mysqli->prepare("
                 SELECT * FROM book_reservations 
                 WHERE userId = ? AND isbn = ? AND reservationStatus IN ('Active', 'Notified')
             ");
-            $checkStmt->execute([$userId, $isbn]);
+            $checkStmt->bind_param("ss", $userId, $isbn);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
 
-            if ($checkStmt->fetch()) {
-                $_SESSION['error'] = 'You already have an active reservation for this book';
+            if ($checkResult->fetch_assoc()) {
+                NotificationHelper::error('You already have an active reservation for this book');
+                $checkStmt->close();
                 header('Location: /faculty/book-request');
                 exit();
             }
+            $checkStmt->close();
 
             // Create reservation
-            $insertStmt = $pdo->prepare("
+            $insertStmt = $mysqli->prepare("
                 INSERT INTO book_reservations (userId, isbn, reservationStatus, createdAt)
                 VALUES (?, ?, 'Active', NOW())
             ");
+            $insertStmt->bind_param("ss", $userId, $isbn);
 
-            if ($insertStmt->execute([$userId, $isbn])) {
-                $_SESSION['success'] = 'Book reserved successfully! You will be notified when it becomes available.';
+            if ($insertStmt->execute()) {
+                NotificationHelper::success('Book reserved successfully! You will be notified when it becomes available.');
+                $insertStmt->close();
                 header('Location: /faculty/book-request');
             } else {
-                $_SESSION['error'] = 'Failed to reserve book. Please try again.';
+                $insertStmt->close();
+                NotificationHelper::error('Failed to reserve book. Please try again.');
                 header('Location: /faculty/books');
             }
 
-        } catch (\PDOException $e) {
+        } catch (\Exception $e) {
             error_log("Reservation error: " . $e->getMessage());
-            $_SESSION['error'] = 'An error occurred while reserving the book';
+            NotificationHelper::error('An error occurred while reserving the book');
             header('Location: /faculty/books');
         }
 
