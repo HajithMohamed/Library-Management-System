@@ -627,7 +627,7 @@ $router->addRoute('POST', '/user/renew', 'UserController', 'renew');
 $router->addRoute('POST', '/user/submit-review', 'UserController', 'submitReview');
 $router->addRoute('GET', '/user/borrow', 'BookController', 'borrow');
 $router->addRoute('POST', '/user/borrow', 'BookController', 'borrowBook');
-$router->addRoute('GET', '/user/return', 'BookController', 'return');
+$router->addRoute('GET', '/user/return', 'BookController', 'returnBook');
 $router->addRoute('POST', '/user/return', 'BookController', 'returnBook');
 $router->addRoute('GET', '/user/returns', 'UserController', 'returns');
 
@@ -711,6 +711,10 @@ $router->addRoute('GET', '/faculty/feedback', 'FacultyController', 'feedback');
 $router->addRoute('POST', '/faculty/feedback', 'FacultyController', 'feedback');
 $router->addRoute('GET', '/faculty/book-request', 'FacultyController', 'bookRequest');
 $router->addRoute('POST', '/faculty/book-request', 'FacultyController', 'bookRequest');
+// Faculty Book Recommendations
+$router->addRoute('GET', '/faculty/recommend-book', 'RecommendationController', 'recommendBookForm');
+$router->addRoute('POST', '/faculty/recommend-book', 'RecommendationController', 'submitRecommendation');
+$router->addRoute('GET', '/faculty/my-recommendations', 'RecommendationController', 'viewMyRecommendations');
 
 // ============================================================================
 // ADMIN ROUTES
@@ -798,6 +802,11 @@ $router->addRoute('GET', '/admin/cancel-password-change', 'UserController', 'can
 
 // Admin Faculty Management
 $router->addRoute('GET', '/admin/faculty/add', 'AdminController', 'addFacultyForm');
+$router->addRoute('GET', '/admin/book-recommendations', 'RecommendationController', 'viewAllRecommendations');
+$router->addRoute('POST', '/admin/recommendations/approve/{id}', 'RecommendationController', 'approveRecommendation');
+$router->addRoute('POST', '/admin/recommendations/reject/{id}', 'RecommendationController', 'rejectRecommendation');
+$router->addRoute('POST', '/admin/recommendations/mark-ordered/{id}', 'RecommendationController', 'markOrdered');
+$router->addRoute('POST', '/admin/recommendations/mark-received/{id}', 'RecommendationController', 'markReceived');
 $router->addRoute('POST', '/admin/faculty/add', 'AdminController', 'createFaculty');
 $router->addRoute('GET', '/admin/faculty/list', 'AdminController', 'listFaculty');
 

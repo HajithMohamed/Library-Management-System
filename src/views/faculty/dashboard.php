@@ -726,6 +726,10 @@ include APP_ROOT . '/views/layouts/header.php';
                     <i class="fas fa-bookmark"></i>
                     <span>View Reserved Books</span>
                 </a>
+                    <a href="<?= BASE_URL ?>faculty/recommend-book" class="action-btn primary">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Recommend a Book</span>
+                    </a>
             </div>
         </div>
 

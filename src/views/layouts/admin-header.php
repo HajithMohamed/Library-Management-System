@@ -160,108 +160,37 @@
 </head>
 <body>
 
-<!-- Flash Messages Container -->
-<div class="flash-messages" id="flashMessages">
-    <?php if (isset($_SESSION['success'])): ?>
-        <div class="flash-message success">
-            <i class="fas fa-check-circle"></i>
-            <div class="flash-message-content">
-                <strong>Success!</strong>
-                <?= htmlspecialchars($_SESSION['success']) ?>
-            </div>
-            <button class="flash-message-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['success']); ?>
-    <?php endif; ?>
 
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="flash-message error">
-            <i class="fas fa-exclamation-circle"></i>
-            <div class="flash-message-content">
-                <strong>Error!</strong>
-                <?= htmlspecialchars($_SESSION['error']) ?>
-            </div>
-            <button class="flash-message-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['error']); ?>
-    <?php endif; ?>
-
-    <?php if (isset($_SESSION['warning'])): ?>
-        <div class="flash-message warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <div class="flash-message-content">
-                <strong>Warning!</strong>
-                <?= htmlspecialchars($_SESSION['warning']) ?>
-            </div>
-            <button class="flash-message-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['warning']); ?>
-    <?php endif; ?>
-
-    <?php if (isset($_SESSION['info'])): ?>
-        <div class="flash-message info">
-            <i class="fas fa-info-circle"></i>
-            <div class="flash-message-content">
-                <strong>Info!</strong>
-                <?= htmlspecialchars($_SESSION['info']) ?>
-            </div>
-            <button class="flash-message-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['info']); ?>
-    <?php endif; ?>
-
-    <?php if (isset($_SESSION['validation_errors'])): ?>
-        <div class="flash-message warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <div class="flash-message-content">
-                <strong>Validation Errors:</strong>
-                <ul>
-                    <?php foreach ($_SESSION['validation_errors'] as $error): ?>
-                        <li><?= htmlspecialchars($error) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-            <button class="flash-message-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['validation_errors']); ?>
-    <?php endif; ?>
-</div>
-
+<!-- Modern Toast/Modal Notifications -->
+<!-- SweetAlert2 CDN -->
+<script src="<?= BASE_URL ?>assets/js/sweetalert2-cdn.js"></script>
+<?php
+require_once __DIR__ . '/../../helpers/NotificationHelper.php';
+use App\Helpers\NotificationHelper;
+$notifications = NotificationHelper::getNotifications();
+?>
 <script>
-    // Auto-dismiss flash messages after 5 seconds
-    document.addEventListener('DOMContentLoaded', function() {
-        const flashMessages = document.querySelectorAll('.flash-message');
-        flashMessages.forEach(message => {
-            setTimeout(() => {
-                message.style.animation = 'slideOutRight 0.3s ease-out';
-                setTimeout(() => message.remove(), 300);
-            }, 5000);
+    document.addEventListener('DOMContentLoaded', function () {
+        const notifications = <?php echo json_encode($notifications); ?>;
+        notifications.forEach(function (n) {
+            let icon = n.type;
+            let toast = (n.type === 'success' || n.type === 'info' || n.type === 'warning');
+            let title = n.type.charAt(0).toUpperCase() + n.type.slice(1);
+            let options = {
+                icon: icon,
+                title: title,
+                text: n.message,
+                toast: toast,
+                position: 'top-end',
+                showConfirmButton: !toast,
+                timer: toast ? 4000 : undefined,
+                timerProgressBar: toast,
+                showCloseButton: true,
+                customClass: {
+                    popup: toast ? 'swal2-toast' : ''
+                }
+            };
+            Swal.fire(options);
         });
     });
-    
-    // Animation for slide out
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
-    `;
-    document.head.appendChild(style);
 </script>

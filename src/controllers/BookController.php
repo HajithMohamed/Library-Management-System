@@ -3,6 +3,7 @@
 
 namespace App\Controllers;
 
+use App\Helpers\NotificationHelper;
 use App\Helpers\BarcodeHelper;
 use App\Helpers\ImageHelper;
 
@@ -20,12 +21,12 @@ class BookController
         }
 
         global $mysqli;
-        
+
         // Check if connection exists
         if (!$mysqli) {
             die("Database connection failed");
         }
-        
+
         // Fetch all books - UPDATED: Fetch all fields
         $sql = "SELECT 
                     isbn,
@@ -45,15 +46,15 @@ class BookController
                     specialBadge
                 FROM books 
                 ORDER BY bookName ASC";
-        
+
         $result = $mysqli->query($sql);
-        
+
         // Check for query errors
         if (!$result) {
             error_log("SQL Error in adminBooks: " . $mysqli->error);
             die("Error fetching books: " . $mysqli->error);
         }
-        
+
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -63,10 +64,10 @@ class BookController
             }
             $result->free();
         }
-        
+
         // Debug: Log the number of books fetched
         error_log("Books fetched: " . count($books));
-        
+
         // Get unique publishers for filter - with error handling
         $publishers = [];
         try {
@@ -75,7 +76,7 @@ class BookController
                             WHERE publisherName IS NOT NULL AND publisherName != '' 
                             ORDER BY publisherName ASC";
             $publisherResult = $mysqli->query($publisherSql);
-            
+
             if ($publisherResult) {
                 while ($row = $publisherResult->fetch_assoc()) {
                     if (!empty($row['publisherName'])) {
@@ -88,7 +89,7 @@ class BookController
             error_log("Error fetching publishers: " . $e->getMessage());
             // Continue with empty publishers array
         }
-        
+
         // Pass data to view
         $pageTitle = 'Books Management';
         include APP_ROOT . '/views/admin/books.php';
@@ -101,7 +102,7 @@ class BookController
     {
         // Check if user is admin
         if (!isset($_SESSION['userId']) || $_SESSION['userType'] !== 'Admin') {
-            $_SESSION['error'] = 'Unauthorized access';
+            NotificationHelper::error('Unauthorized access');
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
@@ -110,80 +111,80 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-        
+
         try {
             global $mysqli;
-            
+
             if (!$mysqli) {
                 throw new \Exception("Database connection failed");
             }
-            
+
             $isbn = trim($_POST['isbn'] ?? '');
             $bookName = trim($_POST['bookName'] ?? '');
             $authorName = trim($_POST['authorName'] ?? '');
             $publisherName = trim($_POST['publisherName'] ?? '');
             $description = trim($_POST['description'] ?? '');
             $category = trim($_POST['category'] ?? '');
-            $publicationYear = !empty($_POST['publicationYear']) ? (int)$_POST['publicationYear'] : null;
-            $totalCopies = (int)($_POST['totalCopies'] ?? 1);
-            $available = (int)($_POST['available'] ?? $totalCopies);
-            $borrowed = (int)($_POST['borrowed'] ?? 0);
+            $publicationYear = !empty($_POST['publicationYear']) ? (int) $_POST['publicationYear'] : null;
+            $totalCopies = (int) ($_POST['totalCopies'] ?? 1);
+            $available = (int) ($_POST['available'] ?? $totalCopies);
+            $borrowed = (int) ($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
             $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
             $specialBadge = $isSpecial ? trim($_POST['specialBadge'] ?? '') : null;
-            
+
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
-                $_SESSION['error'] = 'All required fields must be filled';
+                NotificationHelper::error('All required fields must be filled');
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             // Validate totalCopies and available
             if ($totalCopies < 1) {
-                $_SESSION['error'] = 'Total copies must be at least 1';
+                NotificationHelper::error('Total copies must be at least 1');
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             if ($available > $totalCopies) {
-                $_SESSION['error'] = 'Available copies cannot exceed total copies';
+                NotificationHelper::error('Available copies cannot exceed total copies');
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             // Check if ISBN already exists
             $checkStmt = $mysqli->prepare("SELECT isbn FROM books WHERE isbn = ?");
             if (!$checkStmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
+
             $checkStmt->bind_param("s", $isbn);
             $checkStmt->execute();
             if ($checkStmt->get_result()->num_rows > 0) {
-                $_SESSION['error'] = 'Book with this ISBN already exists';
+                NotificationHelper::error('Book with this ISBN already exists');
                 $checkStmt->close();
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
             $checkStmt->close();
-            
+
             // Handle image upload using ImageHelper
             $imagePath = null;
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $uploadResult = ImageHelper::processUpload($_FILES['image']);
                 if (!$uploadResult['success']) {
-                    $_SESSION['error'] = $uploadResult['error'];
+                    NotificationHelper::error($uploadResult['error']);
                     header('Location: ' . BASE_URL . 'admin/books');
                     exit();
                 }
                 $imagePath = $uploadResult['path'];
             }
-            
+
             // GENERATE BARCODE - TEXT ONLY VERSION (No dependencies required)
             $cleanIsbn = str_replace(['-', ' '], '', $isbn);
             $barcodeValue = 'BK' . strtoupper(substr(md5($cleanIsbn . time()), 0, 10));
-            
+
             // Just store the barcode value - no image generation
             try {
                 error_log("✓ Barcode generated successfully: {$barcodeValue}");
@@ -191,24 +192,25 @@ class BookController
                 error_log('Barcode generation failed: ' . $e->getMessage());
             }
             // END BARCODE GENERATION
-            
+
             // Insert book - UPDATED: Include all fields
             $stmt = $mysqli->prepare("INSERT INTO books 
                 (isbn, barcode, bookName, authorName, publisherName, description, category, publicationYear, 
                  totalCopies, bookImage, available, borrowed, isTrending, isSpecial, specialBadge) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            
+
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
+
             error_log("Inserting book with image path: " . ($imagePath ?? 'NULL'));
-            
-            $stmt->bind_param("sssssssississis", 
-                $isbn, 
+
+            $stmt->bind_param(
+                "sssssssississis",
+                $isbn,
                 $barcodeValue,
-                $bookName, 
-                $authorName, 
+                $bookName,
+                $authorName,
                 $publisherName,
                 $description,
                 $category,
@@ -221,10 +223,10 @@ class BookController
                 $isSpecial,
                 $specialBadge
             );
-            
+
             if ($stmt->execute()) {
                 $stmt->close();
-                $_SESSION['success'] = 'Book added successfully!';
+                NotificationHelper::success('Book added successfully!');
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             } else {
@@ -232,10 +234,10 @@ class BookController
                 $stmt->close();
                 throw new \Exception("Failed to add book: " . $error);
             }
-            
+
         } catch (\Exception $e) {
             error_log("Error adding book: " . $e->getMessage());
-            $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
+            NotificationHelper::error('An error occurred: ' . $e->getMessage());
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
@@ -257,54 +259,54 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-        
+
         try {
             global $mysqli;
-            
+
             if (!$mysqli) {
                 throw new \Exception("Database connection failed");
             }
-            
+
             $isbn = trim($_POST['isbn'] ?? '');
             $bookName = trim($_POST['bookName'] ?? '');
             $authorName = trim($_POST['authorName'] ?? '');
             $publisherName = trim($_POST['publisherName'] ?? '');
             $description = trim($_POST['description'] ?? '');
             $category = trim($_POST['category'] ?? '');
-            $publicationYear = !empty($_POST['publicationYear']) ? (int)$_POST['publicationYear'] : null;
-            $totalCopies = (int)($_POST['totalCopies'] ?? 1);
-            $available = (int)($_POST['available'] ?? 0);
-            $borrowed = (int)($_POST['borrowed'] ?? 0);
+            $publicationYear = !empty($_POST['publicationYear']) ? (int) $_POST['publicationYear'] : null;
+            $totalCopies = (int) ($_POST['totalCopies'] ?? 1);
+            $available = (int) ($_POST['available'] ?? 0);
+            $borrowed = (int) ($_POST['borrowed'] ?? 0);
             $isTrending = isset($_POST['isTrending']) ? 1 : 0;
             $isSpecial = isset($_POST['isSpecial']) ? 1 : 0;
             $specialBadge = $isSpecial ? trim($_POST['specialBadge'] ?? '') : null;
-            
+
             // Validate required fields
             if (empty($isbn) || empty($bookName) || empty($authorName) || empty($publisherName)) {
                 $_SESSION['error'] = 'All required fields must be filled';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             // Get current book data
             $currentStmt = $mysqli->prepare("SELECT bookImage, totalCopies, available FROM books WHERE isbn = ?");
             if (!$currentStmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
+
             $currentStmt->bind_param("s", $isbn);
             $currentStmt->execute();
             $currentBook = $currentStmt->get_result()->fetch_assoc();
             $currentStmt->close();
-            
+
             if (!$currentBook) {
                 $_SESSION['error'] = 'Book not found';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             $imagePath = $currentBook['bookImage'];
-            
+
             // Handle new image upload using ImageHelper
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $uploadResult = ImageHelper::processUpload($_FILES['image'], $imagePath);
@@ -315,7 +317,7 @@ class BookController
                 }
                 $imagePath = $uploadResult['path'];
             }
-            
+
             // Update book - UPDATED: Include all fields
             $stmt = $mysqli->prepare("UPDATE books SET 
                 bookName = ?, 
@@ -332,28 +334,29 @@ class BookController
                 isSpecial = ?,
                 specialBadge = ?
                 WHERE isbn = ?");
-            
+
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
-            $stmt->bind_param("sssssiisiiisss", 
-                $bookName, 
-                $authorName, 
+
+            $stmt->bind_param(
+                "sssssiisiiisss",
+                $bookName,
+                $authorName,
                 $publisherName,
                 $description,
                 $category,
                 $publicationYear,
                 $totalCopies,
                 $imagePath,
-                $available, 
+                $available,
                 $borrowed,
                 $isTrending,
                 $isSpecial,
                 $specialBadge,
                 $isbn
             );
-            
+
             if ($stmt->execute()) {
                 $stmt->close();
                 $_SESSION['success'] = 'Book updated successfully!';
@@ -364,7 +367,7 @@ class BookController
                 $stmt->close();
                 throw new \Exception("Failed to update book: " . $error);
             }
-            
+
         } catch (\Exception $e) {
             error_log("Error updating book: " . $e->getMessage());
             $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
@@ -389,47 +392,47 @@ class BookController
             header('Location: ' . BASE_URL . 'admin/books');
             exit();
         }
-        
+
         try {
             global $mysqli;
-            
+
             if (!$mysqli) {
                 throw new \Exception("Database connection failed");
             }
-            
+
             $isbn = trim($_POST['isbn'] ?? '');
-            
+
             if (empty($isbn)) {
                 $_SESSION['error'] = 'ISBN is required';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             // Check if book has active borrowings
             $checkStmt = $mysqli->prepare("SELECT COUNT(*) as count FROM books_borrowed WHERE isbn = ? AND status = 'Active'");
             if (!$checkStmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
+
             $checkStmt->bind_param("s", $isbn);
             $checkStmt->execute();
             $result = $checkStmt->get_result()->fetch_assoc();
             $checkStmt->close();
-            
+
             if ($result['count'] > 0) {
                 $_SESSION['error'] = 'Cannot delete book with active borrowings';
                 header('Location: ' . BASE_URL . 'admin/books');
                 exit();
             }
-            
+
             // Delete book
             $stmt = $mysqli->prepare("DELETE FROM books WHERE isbn = ?");
             if (!$stmt) {
                 throw new \Exception("Prepare statement failed: " . $mysqli->error);
             }
-            
+
             $stmt->bind_param("s", $isbn);
-            
+
             if ($stmt->execute()) {
                 $stmt->close();
                 $_SESSION['success'] = 'Book deleted successfully!';
@@ -440,7 +443,7 @@ class BookController
                 $stmt->close();
                 throw new \Exception("Failed to delete book: " . $error);
             }
-            
+
         } catch (\Exception $e) {
             error_log("Error deleting book: " . $e->getMessage());
             $_SESSION['error'] = 'An error occurred: ' . $e->getMessage();
@@ -467,19 +470,19 @@ class BookController
                 exit();
             }
         }
-        
+
         global $mysqli;
-        
+
         if (!$mysqli) {
             die("Database connection failed");
         }
-        
+
         // Get filter parameters
         $searchQuery = trim($_GET['q'] ?? '');
         $categoryFilter = trim($_GET['category'] ?? '');
         $statusFilter = trim($_GET['status'] ?? '');
         $sortBy = trim($_GET['sort'] ?? '');
-        
+
         // Build SQL query with filters
         $sql = "SELECT 
                     isbn,
@@ -498,10 +501,10 @@ class BookController
                     specialBadge
                 FROM books
                 WHERE 1=1";
-        
+
         $params = [];
         $types = '';
-        
+
         // Apply search filter
         if (!empty($searchQuery)) {
             $sql .= " AND (bookName LIKE ? OR authorName LIKE ? OR isbn LIKE ? OR publisherName LIKE ?)";
@@ -512,21 +515,21 @@ class BookController
             $params[] = $searchTerm;
             $types .= 'ssss';
         }
-        
+
         // Apply publisher/category filter
         if (!empty($categoryFilter)) {
             $sql .= " AND publisherName = ?";
             $params[] = $categoryFilter;
             $types .= 's';
         }
-        
+
         // Apply availability status filter
         if ($statusFilter === 'available') {
             $sql .= " AND available > 0";
         } elseif ($statusFilter === 'borrowed') {
             $sql .= " AND borrowed > 0";
         }
-        
+
         // Apply sorting
         switch ($sortBy) {
             case 'title':
@@ -541,7 +544,7 @@ class BookController
             default:
                 $sql .= " ORDER BY bookName ASC";
         }
-        
+
         // Prepare and execute query
         if (!empty($params)) {
             $stmt = $mysqli->prepare($sql);
@@ -559,7 +562,7 @@ class BookController
                 die("Error fetching books: " . $mysqli->error);
             }
         }
-        
+
         $books = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -572,17 +575,17 @@ class BookController
                 $result->free();
             }
         }
-        
+
         // Calculate statistics
         $totalBooks = count($books);
         $totalAvailable = 0;
         $totalBorrowed = 0;
-        
+
         foreach ($books as $book) {
             $totalAvailable += ($book['available'] ?? 0);
             $totalBorrowed += ($book['borrowed'] ?? 0);
         }
-        
+
         // Get categories for filter dropdown (publishers in this case)
         $categories = [];
         $publisherSql = "SELECT DISTINCT publisherName 
@@ -590,7 +593,7 @@ class BookController
                         WHERE publisherName IS NOT NULL AND publisherName != '' 
                         ORDER BY publisherName ASC";
         $publisherResult = $mysqli->query($publisherSql);
-        
+
         if ($publisherResult) {
             while ($row = $publisherResult->fetch_assoc()) {
                 if (!empty($row['publisherName'])) {
@@ -599,13 +602,13 @@ class BookController
             }
             $publisherResult->free();
         }
-        
+
         $pageTitle = 'Available Books';
-        
+
         // Check if user view file exists (plural "users"), otherwise use faculty view as fallback
         $userViewPath = APP_ROOT . '/views/users/books.php';
         $facultyViewPath = APP_ROOT . '/views/faculty/books.php';
-        
+
         if (file_exists($userViewPath)) {
             include $userViewPath;
         } elseif (file_exists($facultyViewPath)) {
@@ -622,21 +625,21 @@ class BookController
     public function searchBooks()
     {
         header('Content-Type: application/json');
-        
+
         global $mysqli;
-        
+
         if (!$mysqli) {
             echo json_encode(['success' => false, 'message' => 'Database connection failed', 'books' => []]);
             exit();
         }
-        
+
         $query = trim($_GET['q'] ?? '');
-        
+
         if (empty($query)) {
             echo json_encode(['success' => false, 'books' => []]);
             exit();
         }
-        
+
         $searchTerm = '%' . $query . '%';
         $stmt = $mysqli->prepare("SELECT 
                 isbn, 
@@ -663,25 +666,25 @@ class BookController
                 END,
                 bookName ASC
             LIMIT 20");
-        
+
         if (!$stmt) {
             error_log("Prepare statement failed in searchBooks: " . $mysqli->error);
             echo json_encode(['success' => false, 'message' => 'Search failed', 'books' => []]);
             exit();
         }
-        
+
         $exactMatch = $query . '%';
         $stmt->bind_param("ssssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm, $exactMatch, $exactMatch);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         $books = [];
         while ($row = $result->fetch_assoc()) {
             $books[] = $row;
         }
-        
+
         $stmt->close();
-        
+
         echo json_encode(['success' => true, 'books' => $books, 'count' => count($books)]);
         exit();
     }
@@ -689,38 +692,38 @@ class BookController
     /**
      * Return book page - redirects Faculty to faculty/return
      */
-    public function return()
+    public function returnBook()
     {
         // Check if user is logged in
         if (!isset($_SESSION['user_id']) && !isset($_SESSION['userId'])) {
             header('Location: /login');
             exit();
         }
-        
+
         // Get user type and redirect to appropriate page
         $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
-        
+
         // Redirect faculty to faculty return page
         if ($userType === 'Faculty') {
             header('Location: /faculty/return');
             exit();
         }
-        
+
         // Redirect admin to admin dashboard
         if ($userType === 'Admin') {
             header('Location: /admin/dashboard');
             exit();
         }
-        
+
         // Continue with student/user return page
         $userId = $_SESSION['user_id'] ?? $_SESSION['userId'];
-        
+
         global $mysqli;
-        
+
         if (!$mysqli) {
             die("Database connection failed");
         }
-        
+
         // Get borrowed books for student/user
         $stmt = $mysqli->prepare("
             SELECT t.*, b.bookName, b.authorName, b.bookImage 
@@ -729,7 +732,7 @@ class BookController
             WHERE t.userId = ? AND t.returnDate IS NULL
             ORDER BY t.borrowDate DESC
         ");
-        
+
         $borrowedBooks = [];
         if ($stmt) {
             $stmt->bind_param("s", $userId);
@@ -738,28 +741,28 @@ class BookController
             $borrowedBooks = $result->fetch_all(MYSQLI_ASSOC);
             $stmt->close();
         }
-        
+
         // Handle return submission
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $transactionId = $_POST['transaction_id'] ?? '';
-            
+
             if (!empty($transactionId)) {
                 $updateStmt = $mysqli->prepare("
                     UPDATE transactions 
                     SET returnDate = CURDATE() 
                     WHERE tid = ? AND userId = ? AND returnDate IS NULL
                 ");
-                
+
                 if ($updateStmt) {
                     $updateStmt->bind_param("ss", $transactionId, $userId);
-                    
+
                     if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
                         // Update book availability
                         $getIsbn = $mysqli->prepare("SELECT isbn FROM transactions WHERE tid = ?");
                         $getIsbn->bind_param("s", $transactionId);
                         $getIsbn->execute();
                         $isbnResult = $getIsbn->get_result()->fetch_assoc();
-                        
+
                         if ($isbnResult) {
                             $updateBook = $mysqli->prepare("
                                 UPDATE books 
@@ -771,19 +774,19 @@ class BookController
                             $updateBook->close();
                         }
                         $getIsbn->close();
-                        
+
                         $_SESSION['success_message'] = 'Book returned successfully!';
                     } else {
                         $_SESSION['error_message'] = 'Failed to return book. Please try again.';
                     }
                     $updateStmt->close();
                 }
-                
+
                 header('Location: /users/returns');
                 exit();
             }
         }
-        
+
         // Load user return view
         $pageTitle = 'Return Books';
         include APP_ROOT . '/views/users/returns.php';
@@ -794,8 +797,8 @@ class BookController
      */
     public function getReservationQueue($isbn)
     {
-        global $conn;
-        $stmt = $conn->prepare("SELECT * FROM book_reservations WHERE isbn = ? AND reservationStatus IN ('Active', 'Notified') ORDER BY createdAt ASC");
+        global $mysqli;
+        $stmt = $mysqli->prepare("SELECT * FROM book_reservations WHERE isbn = ? AND reservationStatus IN ('Active', 'Notified') ORDER BY createdAt ASC");
         $stmt->bind_param("s", $isbn);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -819,15 +822,15 @@ class BookController
         error_log("Session userId: " . ($_SESSION['userId'] ?? 'NOT SET'));
         error_log("Params: " . print_r($params, true));
         error_log("GET: " . print_r($_GET, true));
-        
+
         // Check authentication FIRST - only require login, no role restriction
         if (!isset($_SESSION['userId'])) {
             error_log("BookController::viewBook() - User not logged in, redirecting to login");
-            $_SESSION['error'] = 'Please login to view book details';
+            NotificationHelper::error('Please login to view book details');
             header('Location: ' . BASE_URL . 'login');
             exit();
         }
-        
+
         // Only redirect if user is Faculty or Admin - Students can access this page
         $userType = $_SESSION['userType'] ?? $_SESSION['user_type'] ?? null;
         if ($userType === 'Faculty') {
@@ -840,15 +843,15 @@ class BookController
             header('Location: /admin/books');
             exit();
         }
-        
+
         // If we get here, user is logged in and is Student (or userType is null/empty)
         error_log("BookController::viewBook() - Allowing access for userType: " . ($userType ?? 'null/Student'));
-        
+
         global $mysqli;
-        
+
         // Get ISBN from either path parameter (route) or query parameter (link)
         $isbn = $params['isbn'] ?? $_GET['isbn'] ?? '';
-        
+
         if (empty($isbn)) {
             // Redirect to books page if no ISBN provided
             header('Location: ' . BASE_URL . 'user/books');
@@ -865,19 +868,19 @@ class BookController
 
         if (!$book) {
             // Book not found
-            $_SESSION['error'] = 'Book not found';
+            NotificationHelper::error('Book not found');
             header('Location: ' . BASE_URL . 'user/books');
             exit();
         }
 
         // Make sure $book is available in the view scope
         $pageTitle = 'Book Details';
-        
+
         // Log for debugging
         error_log("BookController::viewBook() - Book found: " . ($book['bookName'] ?? 'Unknown'));
         error_log("BookController::viewBook() - User Type: " . ($_SESSION['userType'] ?? 'Not set'));
         error_log("BookController::viewBook() - User ID: " . ($_SESSION['userId'] ?? 'Not set'));
-        
+
         // Include view with book variable in scope
         include APP_ROOT . '/views/users/view-book.php';
     }
